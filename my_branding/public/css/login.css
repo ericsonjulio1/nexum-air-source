@@ -1,0 +1,123 @@
+/* =============================================================================
+   Nexum Air — split login page.
+   Scoped to body.nexum-login (the class login.js adds only on /login), so it
+   can never affect any other web page. The brand diagram is a FIXED left panel;
+   Frappe's existing login content (#page-login) is pushed to the right. Pure
+   override — no Frappe template edits, survives app/Frappe updates.
+   ============================================================================= */
+body.nexum-login{
+  --teal-darkest:#16242a; --teal-dark:#1c2b30; --teal:#2e5562;
+  --cyan:#107090; --ink:#1b2b30; --muted:#6b7c84; --line:#e3e9ec;
+  margin:0; background:#fff;
+}
+
+/* ---- hide Frappe's default chrome / duplicate logo+heading on login ---- */
+body.nexum-login .web-footer,
+body.nexum-login footer,
+body.nexum-login .page-breadcrumbs,
+body.nexum-login .page-header-wrapper,
+body.nexum-login .page-card-head,
+body.nexum-login .app-logo,
+body.nexum-login .page_content h4{ display:none !important; }
+
+/* ---- LEFT: fixed brand / diagram panel (built by login.js) ---- */
+body.nexum-login .nexum-art{
+  position:fixed; left:0; top:0; bottom:0; width:56%; z-index:1;
+  overflow:hidden; color:#eaf2f5;
+  background:
+    radial-gradient(120% 90% at 18% 12%, rgba(157,190,200,.16), transparent 55%),
+    radial-gradient(90% 80% at 85% 90%, rgba(16,112,144,.28), transparent 60%),
+    linear-gradient(135deg, var(--teal-darkest) 0%, var(--teal-dark) 40%, var(--teal) 100%);
+  display:flex; align-items:center; justify-content:center; padding:28px;
+}
+body.nexum-login .nexum-art .net{ width:100%; height:100%; max-height:94vh; }
+body.nexum-login .nexum-art .link{
+  stroke:#7fd3e6; stroke-width:1.7; opacity:.45; stroke-dasharray:6 9;
+  animation:nexumflow 4.2s linear infinite;
+}
+@keyframes nexumflow{ to{ stroke-dashoffset:120; } }
+body.nexum-login .nexum-art .ring{ fill:none; stroke:#7fd3e6; stroke-width:1.1; opacity:.12; }
+body.nexum-login .nexum-art .spark{ fill:#cdeef6; }
+body.nexum-login .nexum-art .node-bg{ fill:#13262d; stroke:#5b97ab; stroke-width:1.6; }
+body.nexum-login .nexum-art .ico{ fill:none; stroke:#bfe9f6; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+body.nexum-login .nexum-art .tagline{ fill:#a7c6d2; font-size:11.5px; font-weight:600; letter-spacing:2.6px; }
+
+/* ---- RIGHT: Frappe's login content, pushed past the fixed panel ---- */
+body.nexum-login #page-login{
+  margin-left:56%; min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:40px;
+}
+body.nexum-login .page-content-wrapper{ width:100%; }
+body.nexum-login main.container{ max-width:360px; margin:0 auto; padding:0; width:100%; }
+body.nexum-login .page_content{ width:100%; margin:0; }
+body.nexum-login .login-content.page-card{
+  width:100%; max-width:360px; margin:0 auto; padding:0;
+  border:0 !important; box-shadow:none !important; background:transparent !important;
+}
+body.nexum-login .page-card-body{ padding:0; }
+body.nexum-login .text-center.my-5{ display:none; }
+
+/* heading injected by login.js */
+body.nexum-login .nexum-login-head{ margin:0 0 26px; text-align:left; }
+body.nexum-login .nexum-login-head h1{ font-size:26px; font-weight:700; margin:0 0 6px; color:var(--ink); }
+body.nexum-login .nexum-login-head p{ font-size:14px; color:var(--muted); margin:0; }
+
+/* form fields */
+/* Frappe gives form.form-login a 20px side margin -> inputs sat 20px right of
+   the injected heading; zero it so heading + fields share the same left edge */
+body.nexum-login form.form-login{ margin-left:0; margin-right:0; }
+body.nexum-login .form-group{ margin-bottom:18px; }
+body.nexum-login .form-control{
+  height:46px; border:1px solid var(--line); border-radius:10px; padding:0 14px;
+  font-size:15px; box-shadow:none; transition:border-color .15s, box-shadow .15s;
+}
+body.nexum-login .form-control:focus{
+  border-color:var(--cyan); box-shadow:0 0 0 3px rgba(16,112,144,.14);
+}
+body.nexum-login .password-field{ position:relative; }
+body.nexum-login .toggle-password{ position:absolute; right:12px; top:13px; cursor:pointer; font-size:12px; }
+body.nexum-login .forgot-password-message{ text-align:right; margin:-4px 0 18px; }
+body.nexum-login .forgot-password-message a{ color:var(--cyan); font-size:13px; text-decoration:none; }
+
+/* primary button -> brand gradient */
+body.nexum-login .btn-login,
+body.nexum-login .btn-forgot{
+  height:48px; border:0 !important; border-radius:10px; font-size:15px; font-weight:600;
+  color:#fff !important; background:linear-gradient(135deg, var(--cyan), var(--teal)) !important;
+  transition:filter .15s;
+}
+body.nexum-login .btn-login:hover,
+body.nexum-login .btn-forgot:hover{ filter:brightness(1.07); }
+
+/* "or" divider + email-link option */
+body.nexum-login .login-divider{ display:flex; align-items:center; gap:14px; color:#9aa9af;
+  font-size:12px; margin:22px 0; }
+body.nexum-login .login-divider::before,
+body.nexum-login .login-divider::after{ content:""; height:1px; background:var(--line); flex:1; }
+body.nexum-login .btn-login-option{
+  height:46px; border:1px solid var(--line) !important; border-radius:10px;
+  font-weight:600; color:#33474f !important; background:#fff !important;
+}
+body.nexum-login .btn-login-option:hover{ background:#f5f8f9 !important; }
+body.nexum-login .sign-up-message{ text-align:center; color:#9aa9af; font-size:13px; margin-top:22px; }
+
+/* ---- copyright footnote ----
+   brand.css centres body::after across the FULL viewport, which lands the dark
+   text on the dark art panel (unreadable / "covered"). Keep it centred under
+   the credentials column instead. */
+body.nexum-login[data-path="login"]::after{
+  left:56%; right:0;
+  color:var(--muted);
+  z-index:2;
+}
+
+/* ---- responsive: hide art, full-width form on small screens ---- */
+@media (max-width:880px){
+  body.nexum-login .nexum-art{ display:none; }
+  body.nexum-login #page-login{ margin-left:0; }
+  body.nexum-login[data-path="login"]::after{ left:0; }
+}
+@media (prefers-reduced-motion:reduce){
+  body.nexum-login .nexum-art .link{ animation:none; }
+  body.nexum-login .nexum-art .spark{ display:none; }
+}

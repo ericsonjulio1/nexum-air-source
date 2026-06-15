@@ -1,0 +1,112 @@
+/* Nexum Air brand overlay for the standalone frappe-ui SPAs (Frappe HR, ...).
+ *
+ * Injected into the SPA's <head> by my_branding.spa_brand (after_request hook),
+ * AFTER the app's own frappe-ui stylesheet, so these overrides win the cascade.
+ *
+ * Strategy: the frappe-ui design system drives every accent (links, active nav,
+ * selected rows, info states, primary actions) off its BLUE token scale. We
+ * remap that whole scale to the Nexum Air teal palette, so the entire app picks
+ * up the brand with almost no per-component selectors — which is what makes this
+ * survive app updates. A small block then mops up the few places HR uses raw
+ * Tailwind `blue-*` utility classes directly instead of the tokens.
+ *
+ * Palette mirrors brand.css:
+ *   primary #2E5562  dark #2E5562  light #9DBEC8
+ */
+
+:root {
+	/* --- ink = foreground (text / icons / links) --- */
+	--ink-blue-1: #EAF3F6 !important;    /* was #F2F9FF */
+	--ink-blue-2: #2E5562 !important;    /* was #0289F7 — the primary accent ink */
+	--ink-blue-3: #2E5562 !important;    /* was #007BE0 */
+	--ink-blue-link: #9DBEC8 !important; /* was #73BBF6 */
+
+	/* --- surface = backgrounds / fills (active + selected states) --- */
+	--surface-blue-1: #F0F7F9 !important; /* was #F2F9FF */
+	--surface-blue-2: #E2F1F5 !important; /* was #E6F4FF */
+	--surface-blue-3: #2E5562 !important; /* was #007BE0 — active/selected solid */
+
+	/* --- outline = borders / focus rings --- */
+	--outline-blue-1: #A9D4DF !important; /* was #A7D7FD */
+}
+
+/* Raw Tailwind blue utilities used directly by some HR components (confirmed in
+ * the live app: text-blue-600, bg-blue-100). Strong shades -> teal primary;
+ * light shades -> light teal tint. Rules that match nothing are harmless. */
+.text-blue-400 { color: #557E94 !important; }
+.text-blue-500,
+.text-blue-600,
+.text-blue-700 { color: #2E5562 !important; }
+.hover\:text-blue-700:hover { color: #2E5562 !important; }
+
+.bg-blue-50,
+.bg-blue-100 { background-color: #E2F1F5 !important; }
+.bg-blue-200 { background-color: #CDE6EC !important; }
+.bg-blue-500,
+.bg-blue-600,
+.bg-blue-700 { background-color: #2E5562 !important; }
+.hover\:bg-blue-700:hover { background-color: #2E5562 !important; }
+
+.border-blue-400,
+.border-blue-500,
+.border-blue-600 { border-color: #2E5562 !important; }
+
+.ring-blue-400,
+.ring-blue-500 { --tw-ring-color: #2E5562 !important; }
+
+.fill-blue-500,
+.fill-blue-600 { fill: #2E5562 !important; }
+.stroke-blue-500,
+.stroke-blue-600 { stroke: #2E5562 !important; }
+
+/* Primary (solid) buttons. frappe-ui's solid theme is near-black gray-7 — there
+ * is no blue to remap — so we recolour it to Nexum Air teal. Scoped to <button>
+ * (and <a> button-links) so other elements that legitimately use the dark
+ * gray-7 surface (e.g. tooltips, dark badges) are left alone. */
+button.bg-surface-gray-7,
+a.bg-surface-gray-7 { background-color: #2E5562 !important; }
+button.hover\:bg-surface-gray-6:hover,
+a.hover\:bg-surface-gray-6:hover { background-color: #2E5562 !important; }
+button.active\:bg-surface-gray-5:active,
+a.active\:bg-surface-gray-5:active { background-color: #1C2B30 !important; }
+
+/* Hide each app's native Frappe logo (spa-brand.js drops a Nexum Air <img>
+ * beside it): the cube as an inline svg (117 = HR, 118 = Drive/Helpdesk/
+ * Gameplan), CRM's 300 svg, Builder's png, and Insights' inlined base64 logo.
+ * We leave Vue to keep re-rendering it — it just stays hidden, no flash. */
+svg[viewBox="0 0 117 117"],
+svg[viewBox="0 0 118 118"],
+svg[viewBox="0 0 300 300"],
+img[src$="builder_logo.png"],
+img[src^="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHe"] {
+	display: none !important;
+}
+
+/* Bottom tab bar (Ionic). Frappe HR marks the active tab with Tailwind
+ * text-gray-800 + border-gray-900 (a near-black) — NOT a blue token, so the
+ * remap above doesn't reach it. Recolor the selected tab's label, icon (they
+ * inherit via currentColor) and the active-indicator border to Nexum Air teal.
+ * Scoped to .tab-selected, so inactive tabs stay neutral gray. */
+ion-tab-button.tab-selected {
+	color: #2E5562 !important;        /* label + icon via currentColor */
+	border-color: #2E5562 !important; /* active indicator (was border-gray-900) */
+}
+ion-tab-button.tab-selected svg,
+ion-tab-button.tab-selected ion-label,
+ion-tab-button.tab-selected * {
+	color: #2E5562 !important;
+}
+
+/* In-SPA app-switcher dropdowns (e.g. Builder's own `builder.api.get_apps`,
+ * which bypasses our frappe.apps.get_apps override) render each app's STOCK
+ * logo as <img src=...>. brand.css can't reach inside the SPA, so swap those
+ * stock logos to the teal Nexum Air icons here. Keyed on the full logo src. */
+img[src$="/assets/erpnext/images/erpnext-logo.svg"],
+img[src$="/assets/builder/images/desk.png"]            { content: url("/assets/my_branding/images/icons/erpnext_app.svg") !important; }
+img[src$="/assets/hrms/images/frappe-hr-logo.svg"]      { content: url("/assets/my_branding/images/icons/hrms_app.svg") !important; }
+img[src$="/assets/crm/images/logo.svg"]                 { content: url("/assets/my_branding/images/icons/crm_app2.svg") !important; }
+img[src$="/assets/gameplan/manifest/favicon-196.png"]   { content: url("/assets/my_branding/images/icons/gameplan_app2.svg") !important; }
+img[src$="/assets/helpdesk/desk/favicon.svg"]           { content: url("/assets/my_branding/images/icons/helpdesk_app.svg") !important; }
+img[src$="/assets/lms/frontend/learning.svg"]           { content: url("/assets/my_branding/images/icons/lms_app2.svg") !important; }
+img[src$="/assets/drive/frontend/favicon-310x310.png"]  { content: url("/assets/my_branding/images/icons/drive_app.svg") !important; }
+img[src$="/assets/slides/frontend/slides-logo.svg"]     { content: url("/assets/my_branding/images/icons/slides_app.svg") !important; }

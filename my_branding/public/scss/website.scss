@@ -1,0 +1,30 @@
+$primary: #107090;
+$primary-light: #6FB6CB;
+$primary-dark: #0B5063;
+$brand-gradient: linear-gradient(135deg, #0E5F79 0%, #2E8DA8 55%, #6FB6CB 100%);
+
+.navbar {
+  background: $brand-gradient !important;
+}
+.navbar .nav-link,
+.navbar .navbar-brand {
+  color: #ffffff !important;
+}
+.navbar .navbar-brand img {
+  height: 24px;
+  width: auto;
+}
+
+.btn-primary {
+  background-color: $primary;
+  border-color: $primary;
+  &:hover {
+    background-color: $primary-dark;
+    border-color: $primary-dark;
+  }
+}
+
+a {
+  color: $primary;
+  &:hover { color: $primary-dark; }
+}

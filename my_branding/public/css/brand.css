@@ -1,0 +1,450 @@
+:root {
+  --brand-primary: #2E5562;
+  --brand-primary-dark: #1C2B30;
+  --brand-primary-light: #9DBEC8;
+  --brand-gradient: linear-gradient(135deg, #2E5562 0%, #557E94 55%, #9DBEC8 100%);
+}
+
+.navbar.navbar-expand {
+  background: var(--brand-gradient) !important;
+  border-bottom: none;
+}
+.navbar .navbar-brand,
+.navbar .nav-link,
+.navbar .dropdown-toggle,
+.navbar .input-group-text {
+  color: #ffffff !important;
+}
+.navbar .navbar-brand img {
+  height: 24px;
+  width: auto;
+  vertical-align: middle;
+}
+/* Wordmark next to the N logo in the top bar. The desk app-switcher / "desktop"
+   navbar (the /apps screen) holds the logo in `.navbar-home > #brand-logo`;
+   the classic desk navbar holds it in `.navbar-brand .app-logo`. Target BOTH
+   logo containers so the wordmark appears wherever the N does. Done as a CSS
+   pseudo-element (no JS) so it survives Frappe's client-side navbar re-render. */
+.navbar-home,
+.navbar .navbar-brand:has(.app-logo) {
+  display: inline-flex !important;
+  align-items: center;
+  width: auto !important;
+}
+.navbar-home::after,
+.navbar .navbar-brand:has(.app-logo)::after {
+  content: "Business Application Suite";
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+/* Crowds the centred search on narrow screens — drop the wordmark there. */
+@media (max-width: 991px) {
+  .navbar-home::after,
+  .navbar .navbar-brand:has(.app-logo)::after { display: none; }
+}
+.navbar .form-control {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: transparent;
+  color: #ffffff;
+}
+.navbar .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.btn-primary {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: var(--brand-primary-dark) !important;
+  border-color: var(--brand-primary-dark) !important;
+}
+
+a,
+.text-primary {
+  color: var(--brand-primary);
+}
+a:hover {
+  color: var(--brand-primary-dark);
+}
+
+.indicator-pill.blue,
+.indicator.blue::before {
+  background-color: var(--brand-primary);
+}
+
+/* Login page accents */
+.page-card .btn-primary,
+.for-login .btn-primary {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+/* N logo in the launcher's top gradient bar (replaces the default cube). The
+   server-set src is cached client-side, so we swap it via `content`. */
+#brand-logo {
+  content: url("/assets/my_branding/images/nexum-mark-white.png") !important;
+  width: 28px !important;
+  height: auto !important;
+}
+
+/* ---- Branded loading splash (shown while the desk boots) ----
+   Full-screen teal->cyan gradient with the white N gently pulsing. The img src
+   is server-set, so we swap it to the white mark via `content`. */
+.splash {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  /* override .centered's translate(-50%,-50%) which would shift the box */
+  transform: none !important;
+  top: 0 !important;
+  left: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(135deg, #2E5562 0%, #557E94 55%, #9DBEC8 100%) !important;
+  z-index: 999999 !important;
+}
+.splash img {
+  content: url("/assets/my_branding/images/nexum-mark-white.png") !important;
+  width: 150px !important;
+  max-width: 150px !important;
+  height: auto !important;
+  animation: nexum-splash-pulse 1.5s ease-in-out infinite;
+}
+@keyframes nexum-splash-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.78; }
+  50% { transform: scale(1.09); opacity: 1; }
+}
+
+/* JS-managed overlay that holds the branded splash for ~5s (see brand.js).
+   Same look as .splash but a separate element so Frappe's $('.splash').remove()
+   doesn't touch it. */
+#nexum-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2E5562 0%, #557E94 55%, #9DBEC8 100%);
+  opacity: 1;
+  transition: opacity 0.55s ease;
+}
+#nexum-splash.nexum-splash-hide {
+  opacity: 0;
+}
+#nexum-splash::after {
+  content: "";
+  width: 150px;
+  height: 165px;
+  background: url("/assets/my_branding/images/nexum-mark-white.png") center / contain no-repeat;
+  animation: nexum-splash-pulse 1.5s ease-in-out infinite;
+}
+
+/* Centre the workspace launcher icons in the space below the search bar.
+   .desktop-wrapper fills the viewport; the .desktop-navbar header stays at the
+   top and .desktop-container takes the rest, centring the icon grid in it. */
+.desktop-wrapper {
+  min-height: calc(100vh - 52px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.desktop-wrapper .desktop-container {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+/* The grid hardcodes 3 rows (grid-template-rows: 126px 126px 126px) even when
+   only 2 are used, leaving a tall empty row that pushes the visible icons above
+   centre. Let rows be implicit so the grid shrinks to its real content — but
+   ONLY on a single-page launcher. desktop.js adds the .right-page-arrow pager
+   control to .desktop-container only when total_pages > 1, so its absence means
+   a single page; on a multi-page pager we leave the fixed 6x3 grids untouched
+   so every page stays identical. */
+.desktop-wrapper .desktop-container:not(:has(.right-page-arrow)) .icons {
+  grid-template-rows: none !important;
+  grid-auto-rows: 126px !important;
+}
+
+/* ---- Workspace launcher + sidebar: brand the module icons & labels ---- */
+
+/* Icon squircles are pre-baked SVG <img> with ERPNext blue (#0289F7) painted in.
+   A multi-stop gradient can't be injected inside an <img>, so hue-shift the blue
+   into the Nexum Air teal-cyan; the white glyph (no hue) stays white. */
+.desktop-icon .app-icon,
+.app-switcher .app-icon,
+.standard-sidebar-item .sidebar-item-icon img,
+.dropdown-menu-item .sidebar-item-icon img,
+.sidebar-header .sidebar-item-icon img {
+  filter: hue-rotate(-20deg) saturate(0.82) brightness(0.92);
+}
+
+/* Sidebar glyph icons use currentColor — tint them with the brand primary */
+.standard-sidebar-item .sidebar-item-icon svg,
+.standard-sidebar-item .sidebar-item-icon use {
+  color: var(--brand-primary);
+}
+
+/* Labels ARE text → give them the real brand gradient.
+   Robustness: the gradient relies on background-clip:text, which intermittently
+   fails to clip in Electron/Chromium on Apple Silicon (GPU compositing glitch)
+   and leaves a gradient-FILLED rectangle with transparent text — i.e. a "box"
+   where the label should be. So we set a SOLID brand-teal base colour first
+   (always legible) and only switch the text to transparent + gradient INSIDE an
+   @supports guard. If the clip ever fails, the worst case is solid teal text,
+   never an unreadable box. (Note: removed the old unconditional
+   `color: transparent`, which was what guaranteed the box on failure.) */
+.desktop-icon .icon-title,
+.standard-sidebar-item > .item-anchor > .sidebar-item-label {
+  color: var(--brand-primary);
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .desktop-icon .icon-title,
+  .standard-sidebar-item > .item-anchor > .sidebar-item-label {
+    background-image: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* ---- Custom Nexum Air module tiles (Material Symbols filled, Apache-2.0,
+   recoloured white on the brand teal->cyan squircle) replacing ERPNext's
+   stock module icons. Keyed off the original <img> src so a single rule
+   covers the icon wherever it appears (launcher grid AND module sub-tiles).
+   filter:none cancels the global hue-rotate (our SVGs are already on-brand). */
+img[src*="/desktop_icons/solid/"],
+img[src$="frappe-framework-logo.svg"] { filter: none !important; }
+
+img[src$="frappe-framework-logo.svg"] {
+  content: url("/assets/my_branding/images/icons/framework.svg");
+}
+/* Lending app logo (green Frappe squircle) -> Nexum Air slate squircle. The /desk
+   app-launcher renders each app's own logo image (not the get_apps logo), so this
+   swap covers Lending there. Use *= (contains) not $= (ends-with): Frappe cache-
+   busts the src with ?v=<hash>, which defeats an ends-with match. Belt-and-braces
+   with the Containerfile that also overwrites the source file. filter:none since
+   lending_app.svg is already on-brand. */
+img[src*="frappe-lending-logo"] {
+  content: url("/assets/my_branding/images/icons/lending_app.svg");
+  filter: none !important;
+}
+img[src$="solid/account_setup.svg"] { content: url("/assets/my_branding/images/icons/account_setup.svg"); }
+img[src$="solid/accounts_setup.svg"] { content: url("/assets/my_branding/images/icons/accounts_setup.svg"); }
+img[src$="solid/assets.svg"] { content: url("/assets/my_branding/images/icons/assets.svg"); }
+img[src$="solid/banking.svg"] { content: url("/assets/my_branding/images/icons/banking.svg"); }
+img[src$="solid/budget.svg"] { content: url("/assets/my_branding/images/icons/budget.svg"); }
+img[src$="solid/buying.svg"] { content: url("/assets/my_branding/images/icons/buying.svg"); }
+img[src$="solid/crm.svg"] { content: url("/assets/my_branding/images/icons/crm.svg"); }
+img[src$="solid/erpnext_settings.svg"] { content: url("/assets/my_branding/images/icons/erpnext_settings.svg"); }
+img[src$="solid/financial_reports.svg"] { content: url("/assets/my_branding/images/icons/financial_reports.svg"); }
+/* invoicing2 = Material `receipt` (zigzag both ends); receipt_long read as a tombstone at tile size. New filename: same-URL SVGs are PWA-cached. */
+img[src$="solid/invoicing.svg"] { content: url("/assets/my_branding/images/icons/invoicing2.svg"); }
+img[src$="solid/manufacturing.svg"] { content: url("/assets/my_branding/images/icons/manufacturing.svg"); }
+img[src$="solid/organization.svg"] { content: url("/assets/my_branding/images/icons/organization.svg"); }
+img[src$="solid/payments.svg"] { content: url("/assets/my_branding/images/icons/payments.svg"); }
+img[src$="solid/projects.svg"] { content: url("/assets/my_branding/images/icons/projects.svg"); }
+img[src$="solid/quality.svg"] { content: url("/assets/my_branding/images/icons/quality.svg"); }
+img[src$="solid/selling.svg"] { content: url("/assets/my_branding/images/icons/selling.svg"); }
+img[src$="solid/share_management.svg"] { content: url("/assets/my_branding/images/icons/share_management.svg"); }
+img[src$="solid/stock.svg"] { content: url("/assets/my_branding/images/icons/stock.svg"); }
+img[src$="solid/subcontracting.svg"] { content: url("/assets/my_branding/images/icons/subcontracting.svg"); }
+img[src$="solid/subscription.svg"] { content: url("/assets/my_branding/images/icons/subscription.svg"); }
+img[src$="solid/support.svg"] { content: url("/assets/my_branding/images/icons/support.svg"); }
+img[src$="solid/taxes.svg"] { content: url("/assets/my_branding/images/icons/taxes.svg"); }
+
+/* ---- Frappe HR workspace tiles (2026-06-03). When you open the Frappe HR app
+   launcher its 9 workspaces render as <img class="app-icon"> from HRMS's own
+   GREEN squircle SVGs at /assets/hrms/icons/desktop_icons/solid/*.svg — a
+   different asset set from ERPNext's, so the rules above miss them and (because
+   the path contains /desktop_icons/solid/) the filter:none rule even cancels the
+   hue-rotate, leaving them native green. Swap each to a Nexum Air teal squircle
+   (same gradient + Material Symbols template as the module icons). */
+/* expenses/payroll/hr_setup/tax_&_benefits use *2 glyphs (credit_card/paid/build/
+   redeem) — the originals (receipt_long/payments/manage_accounts/percent) were
+   IDENTICAL to Accounting's Invoices/Payments/Account-Setup/Taxes tiles; *2
+   filenames also dodge the PWA SVG cache. */
+img[src$="solid/expenses.svg"]           { content: url("/assets/my_branding/images/icons/hr_expenses2.svg"); }
+img[src$="solid/hr_setup.svg"]           { content: url("/assets/my_branding/images/icons/hr_setup2.svg"); }
+img[src$="solid/leaves.svg"]             { content: url("/assets/my_branding/images/icons/hr_leaves.svg"); }
+img[src$="solid/payroll.svg"]            { content: url("/assets/my_branding/images/icons/hr_payroll2.svg"); }
+img[src$="solid/performance.svg"]        { content: url("/assets/my_branding/images/icons/hr_performance.svg"); }
+img[src$="solid/recruitment.svg"]        { content: url("/assets/my_branding/images/icons/hr_recruitment.svg"); }
+img[src$="solid/shift_&_attendance.svg"] { content: url("/assets/my_branding/images/icons/hr_shift_attendance.svg"); }
+img[src$="solid/tax_&_benefits.svg"]     { content: url("/assets/my_branding/images/icons/hr_tax_benefits2.svg"); }
+img[src$="solid/tenure.svg"]             { content: url("/assets/my_branding/images/icons/hr_tenure.svg"); }
+
+/* ---- Frappe FRAMEWORK folder sub-tiles (2026-06-05). Opening the Framework
+   launcher tile shows 9 sub-workspaces (Automation/Build/Data/Email/Integrations/
+   Printing/System/Users/Website) rendered as <img class="app-icon"> from FRAPPE's
+   own icon set at /assets/frappe/icons/desktop_icons/solid/*.svg — a different
+   asset path than ERPNext's, so the rules above missed them; they showed native
+   grey (the filter:none at line ~199 also covers this /desktop_icons/solid/ path).
+   Swap each to a Nexum Air teal squircle (same Material Symbols template). Glyphs:
+   bolt/construction/storage/mail/extension/print/dns/group/language — de-duped:
+   Build uses 'construction' (Material 'build' was identical to HR Setup). */
+img[src$="solid/automation.svg"]   { content: url("/assets/my_branding/images/icons/fw_automation.svg"); }
+img[src$="solid/build.svg"]        { content: url("/assets/my_branding/images/icons/fw_build.svg"); }
+img[src$="solid/data.svg"]         { content: url("/assets/my_branding/images/icons/fw_data.svg"); }
+img[src$="solid/email.svg"]        { content: url("/assets/my_branding/images/icons/fw_email.svg"); }
+img[src$="solid/integrations.svg"] { content: url("/assets/my_branding/images/icons/fw_integrations.svg"); }
+img[src$="solid/printing.svg"]     { content: url("/assets/my_branding/images/icons/fw_printing.svg"); }
+img[src$="solid/system.svg"]       { content: url("/assets/my_branding/images/icons/fw_system.svg"); }
+img[src$="solid/users.svg"]        { content: url("/assets/my_branding/images/icons/fw_users.svg"); }
+img[src$="solid/website.svg"]      { content: url("/assets/my_branding/images/icons/fw_website.svg"); }
+
+/* ---- Standalone apps added 2026-06-03 (Frappe HR/CRM/Gameplan/Builder/Helpdesk/
+   LMS/Drive). Their app-switcher logos (/apps page + navbar) are their own brand
+   marks; swap each to a matching Nexum Air teal squircle (Material Symbols glyph).
+   Keyed on the full logo src; filter:none cancels the .app-switcher hue-rotate. */
+img[src$="/assets/hrms/images/frappe-hr-logo.svg"],
+img[src$="/assets/crm/images/logo.svg"],
+img[src$="/assets/gameplan/manifest/favicon-196.png"],
+img[src$="/assets/builder/frontend/builder_logo.png"],
+img[src$="/assets/helpdesk/desk/favicon.svg"],
+img[src$="/assets/lms/frontend/learning.svg"],
+img[src$="/assets/drive/frontend/favicon-310x310.png"],
+img[src$="/assets/slides/frontend/slides-logo.svg"],
+img[src$="/assets/my_branding/images/icons/insights_app.svg"] { filter: none !important; }
+
+img[src$="/assets/hrms/images/frappe-hr-logo.svg"]        { content: url("/assets/my_branding/images/icons/hrms_app.svg") !important; }
+img[src$="/assets/crm/images/logo.svg"]                   { content: url("/assets/my_branding/images/icons/crm_app2.svg") !important; }
+img[src$="/assets/gameplan/manifest/favicon-196.png"]     { content: url("/assets/my_branding/images/icons/gameplan_app2.svg") !important; }
+img[src$="/assets/builder/frontend/builder_logo.png"]     { content: url("/assets/my_branding/images/icons/builder_app.svg") !important; }
+img[src$="/assets/helpdesk/desk/favicon.svg"]             { content: url("/assets/my_branding/images/icons/helpdesk_app.svg") !important; }
+img[src$="/assets/lms/frontend/learning.svg"]             { content: url("/assets/my_branding/images/icons/lms_app2.svg") !important; }
+img[src$="/assets/drive/frontend/favicon-310x310.png"]    { content: url("/assets/my_branding/images/icons/drive_app.svg") !important; }
+/* Slides (added 2026-06-04): swap its stock multicolour logo for the teal squircle. */
+img[src$="/assets/slides/frontend/slides-logo.svg"]       { content: url("/assets/my_branding/images/icons/slides_app.svg") !important; }
+
+/* 'Nexum Air Settings' tile has no <img> (grey letter-N avatar) -> paint our
+   tile as the container background and hide the fallback glyph. */
+.desktop-icon[data-id="Settings"] .icon-container {
+  background-color: transparent !important;
+  background-image: url("/assets/my_branding/images/icons/nexumair_settings.svg") !important;
+  background-size: contain !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+.desktop-icon[data-id="Settings"] .icon-container .desktop-alphabet {
+  display: none !important;
+}
+
+/* LMS ships TWO launcher tiles: the app "Frappe Learning" (-> /lms, the learner
+   SPA; relabelled "Nexum Air Learning" via the Translation override) and this
+   "Learning" desk-workspace tile (-> /desk/lms-course). That's a confusing
+   duplicate, so hide the workspace tile and keep the single branded app tile.
+   (Course admin is still reachable from inside the LMS app / search.) */
+.desktop-icon[data-id="Learning"] {
+  display: none !important;
+}
+
+/* The Accounting tile is an ERPNext "folder" (.folder-icon): instead of one
+   icon it renders a mini-grid preview of its 9 sub-section icons (Invoicing,
+   Payments, Taxes, ...), which looks like a cluttered cluster of tiny icons.
+   Collapse that mini-grid and paint our single unified Accounting icon as the
+   container background (the container is already a fixed 54x53 like every other
+   tile, so it keeps the exact same size/placement). The sub-sections remain
+   reachable by opening the Accounting workspace. */
+.desktop-icon[data-id="Accounting"] .icon-container.folder-icon > .icons-container {
+  display: none !important;
+}
+.desktop-icon[data-id="Accounting"] .icon-container.folder-icon {
+  background-image: url("/assets/my_branding/images/icons/accounting.svg") !important;
+  background-size: contain !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Workspace-switcher FLYOUT (.frappe-menu): Accounting (a folder) and Settings
+   (the renamed workspace) don't resolve to an icon image, so the menu draws a
+   grey letter-avatar (.desktop-alphabet "A"/"S") instead of an <img>. Target the
+   icon-container by the avatar letter (only these two render as letters here) and
+   paint the brand icon + hide the letter. */
+.frappe-menu .frappe-menu-item-icon .icon-container:has(use[href="#A"]),
+.frappe-menu .frappe-menu-item-icon .icon-container:has(use[href="#S"]) {
+  background-color: transparent !important;
+  background-size: contain !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+.frappe-menu .frappe-menu-item-icon .icon-container:has(use[href="#A"]) {
+  background-image: url("/assets/my_branding/images/icons/accounting.svg") !important;
+}
+.frappe-menu .frappe-menu-item-icon .icon-container:has(use[href="#S"]) {
+  background-image: url("/assets/my_branding/images/icons/nexumair_settings.svg") !important;
+}
+.frappe-menu .frappe-menu-item-icon .icon-container:has(use[href="#A"]) .desktop-alphabet,
+.frappe-menu .frappe-menu-item-icon .icon-container:has(use[href="#S"]) .desktop-alphabet {
+  display: none !important;
+}
+
+/* ---- Login page footer ----
+   brand.css is loaded on web pages via `web_include_css`, so these rules apply
+   on /login (scoped with body[data-path="login"] so nothing else is touched).
+   ERPNext ships a "Powered by ERPNext" link in the web footer — hide it (off
+   brand) and show the Nexum Air copyright as a centred line at the bottom. */
+.footer-powered {
+  display: none !important;
+}
+body[data-path="login"]::after {
+  content: "© 2026 Nexum Air. All rights reserved.";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  color: var(--brand-primary);
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ---- Dark-mode contrast ----
+   The solid brand teal (#2E5562) is a medium-dark colour and reads dim/low-
+   contrast as TEXT on Frappe's near-black dark surfaces (most noticeable on the
+   desk sidebar labels, links and sidebar glyph icons). When the dark theme is
+   active (Frappe sets [data-theme="dark"] on <html>) we lift brand text/icons to
+   the lighter brand teal. Light mode is untouched; the module tiles (white glyph
+   on the gradient squircle) already have plenty of contrast and are left alone. */
+[data-theme="dark"] a,
+[data-theme="dark"] .text-primary {
+  color: var(--brand-primary-light);
+}
+[data-theme="dark"] a:hover {
+  color: #9AD2E0;
+}
+[data-theme="dark"] .standard-sidebar-item .sidebar-item-icon svg,
+[data-theme="dark"] .standard-sidebar-item .sidebar-item-icon use {
+  color: var(--brand-primary-light);
+}
+/* Sidebar labels: solid bright-teal base, and a bright-only gradient inside the
+   @supports guard so the clipped text never falls back to the dim dark end. */
+[data-theme="dark"] .standard-sidebar-item > .item-anchor > .sidebar-item-label {
+  color: var(--brand-primary-light);
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  [data-theme="dark"] .standard-sidebar-item > .item-anchor > .sidebar-item-label {
+    background-image: linear-gradient(135deg, #5FB0C8 0%, #9AD2E0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* === Login card logo — sized confidently (default rendered tiny) === */
+.page-card-head .app-logo,
+body[data-path="login"] .app-logo { height: 64px !important; width: auto !important; margin: 0 auto 14px !important; display: block; }
