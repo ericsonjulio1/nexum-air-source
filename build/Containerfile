@@ -1,0 +1,258 @@
+# =============================================================================
+# NexumAir PRODUCTION image (Phase 1).
+#
+# Differences from the dev image (frappe_docker/images/sequential-drive):
+#   1. my_branding is BAKED IN (COPY'd from the build context), not bind-mounted.
+#      In prod there is no host repo to mount, so the dev approach would lose all
+#      branding on container recreate. This is the whole point of Phase 1.
+#   2. Adds Frappe Webshop + Ecommerce Integrations (Enterprise tier).
+#   3. Intended to be built for linux/amd64 (prod servers are x86-64). See build.sh.
+#
+# Low-memory SEQUENTIAL build: one `bench build` per RUN layer so peak RAM stays
+# within Docker's limit (the parallel `bench build` OOMs). Append-only ordering
+# keeps earlier layers cached; my_branding is LAST so a branding change rebuilds
+# only its layer.
+#
+# BUILD CONTEXT = the frappe_docker checkout (for resources/core/*.sh). The
+# my_branding source is staged by build.sh into <context>/.nexum-build/my_branding.
+# =============================================================================
+ARG FRAPPE_BRANCH=version-16
+ARG FRAPPE_IMAGE_PREFIX=frappe
+
+FROM ${FRAPPE_IMAGE_PREFIX}/build:${FRAPPE_BRANCH} AS builder
+
+ARG FRAPPE_BRANCH=version-16
+ARG FRAPPE_PATH=https://github.com/frappe/frappe
+ENV NODE_OPTIONS=--max-old-space-size=2560
+
+USER frappe
+
+RUN bench init \
+      --frappe-branch=${FRAPPE_BRANCH} \
+      --frappe-path=${FRAPPE_PATH} \
+      --skip-assets \
+      --no-procfile \
+      --no-backups \
+      --skip-redis-config-generation \
+      --verbose \
+      /home/frappe/frappe-bench
+
+WORKDIR /home/frappe/frappe-bench
+
+# =============================================================================
+# PINNED FETCHES. Every app below is locked to the commit in apps.pinned.json,
+# passed by build.sh as a SHA_<APP> build arg: get-app clones the branch tip,
+# then we fetch + checkout the pinned SHA and re-install. A build can therefore
+# never silently absorb an upstream push (the gameplan /desk 500 of 2026-06-11
+# was exactly that class of breakage). To upgrade deliberately: run pin-apps.sh
+# (refreshes apps.pinned.json to current tips), then rebuild + smoke + deploy.
+# A missing pin fails the build immediately (the ${VAR:?} guard).
+# =============================================================================
+
+# frappe itself is cloned by bench init above — pin it the same way
+ARG SHA_FRAPPE
+RUN : "${SHA_FRAPPE:?missing pin — build with build.sh (reads apps.pinned.json)}" && \
+    git -C apps/frappe fetch --depth 1 https://github.com/frappe/frappe "$SHA_FRAPPE" && \
+    git -C apps/frappe checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/frappe
+
+# ---- fetch apps (sources only; assets built one-per-layer below) ------------
+ARG SHA_ERPNEXT
+RUN : "${SHA_ERPNEXT:?missing pin}" && bench get-app --branch version-16 --skip-assets https://github.com/frappe/erpnext && \
+    git -C apps/erpnext fetch --depth 1 https://github.com/frappe/erpnext "$SHA_ERPNEXT" && git -C apps/erpnext checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/erpnext
+ARG SHA_HRMS
+RUN : "${SHA_HRMS:?missing pin}" && bench get-app --branch version-16 --skip-assets https://github.com/frappe/hrms && \
+    git -C apps/hrms fetch --depth 1 https://github.com/frappe/hrms "$SHA_HRMS" && git -C apps/hrms checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/hrms
+ARG SHA_PAYMENTS
+RUN : "${SHA_PAYMENTS:?missing pin}" && bench get-app --branch version-16 --skip-assets https://github.com/frappe/payments && \
+    git -C apps/payments fetch --depth 1 https://github.com/frappe/payments "$SHA_PAYMENTS" && git -C apps/payments checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/payments
+ARG SHA_PRINT_DESIGNER
+RUN : "${SHA_PRINT_DESIGNER:?missing pin}" && bench get-app --branch main --skip-assets https://github.com/frappe/print_designer && \
+    git -C apps/print_designer fetch --depth 1 https://github.com/frappe/print_designer "$SHA_PRINT_DESIGNER" && git -C apps/print_designer checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/print_designer
+ARG SHA_INSIGHTS
+RUN : "${SHA_INSIGHTS:?missing pin}" && bench get-app --branch main --skip-assets https://github.com/frappe/insights && \
+    git -C apps/insights fetch --depth 1 https://github.com/frappe/insights "$SHA_INSIGHTS" && git -C apps/insights checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/insights
+ARG SHA_TELEPHONY
+RUN : "${SHA_TELEPHONY:?missing pin}" && bench get-app --branch develop --skip-assets https://github.com/frappe/telephony && \
+    git -C apps/telephony fetch --depth 1 https://github.com/frappe/telephony "$SHA_TELEPHONY" && git -C apps/telephony checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/telephony
+ARG SHA_HELPDESK
+RUN : "${SHA_HELPDESK:?missing pin}" && bench get-app --branch main --skip-assets https://github.com/frappe/helpdesk && \
+    git -C apps/helpdesk fetch --depth 1 https://github.com/frappe/helpdesk "$SHA_HELPDESK" && git -C apps/helpdesk checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/helpdesk
+ARG SHA_CRM
+RUN : "${SHA_CRM:?missing pin}" && bench get-app --branch main --skip-assets https://github.com/frappe/crm && \
+    git -C apps/crm fetch --depth 1 https://github.com/frappe/crm "$SHA_CRM" && git -C apps/crm checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/crm
+ARG SHA_GAMEPLAN
+RUN : "${SHA_GAMEPLAN:?missing pin}" && bench get-app --branch main --skip-assets https://github.com/frappe/gameplan && \
+    git -C apps/gameplan fetch --depth 1 https://github.com/frappe/gameplan "$SHA_GAMEPLAN" && git -C apps/gameplan checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/gameplan
+ARG SHA_BUILDER
+RUN : "${SHA_BUILDER:?missing pin}" && bench get-app --branch develop --skip-assets https://github.com/frappe/builder && \
+    git -C apps/builder fetch --depth 1 https://github.com/frappe/builder "$SHA_BUILDER" && git -C apps/builder checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/builder
+ARG SHA_LMS
+RUN : "${SHA_LMS:?missing pin}" && bench get-app --branch main --skip-assets https://github.com/frappe/lms && \
+    git -C apps/lms fetch --depth 1 https://github.com/frappe/lms "$SHA_LMS" && git -C apps/lms checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/lms
+ARG SHA_SLIDES
+RUN : "${SHA_SLIDES:?missing pin}" && bench get-app --branch develop --skip-assets https://github.com/frappe/slides && \
+    git -C apps/slides fetch --depth 1 https://github.com/frappe/slides "$SHA_SLIDES" && git -C apps/slides checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/slides
+
+# ---- Webshop + Ecommerce Integrations (Enterprise tier) ---------------------
+# Both ship on `develop` (no version-16 branch). ecommerce_integrations expects
+# webshop, so fetch webshop first.
+ARG SHA_WEBSHOP
+RUN : "${SHA_WEBSHOP:?missing pin}" && bench get-app --branch develop --skip-assets https://github.com/frappe/webshop && \
+    git -C apps/webshop fetch --depth 1 https://github.com/frappe/webshop "$SHA_WEBSHOP" && git -C apps/webshop checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/webshop
+ARG SHA_ECOMMERCE_INTEGRATIONS
+RUN : "${SHA_ECOMMERCE_INTEGRATIONS:?missing pin}" && bench get-app --branch develop --skip-assets https://github.com/frappe/ecommerce_integrations && \
+    git -C apps/ecommerce_integrations fetch --depth 1 https://github.com/frappe/ecommerce_integrations "$SHA_ECOMMERCE_INTEGRATIONS" && git -C apps/ecommerce_integrations checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/ecommerce_integrations
+
+# ---- build assets, one app per layer (low-RAM) ------------------------------
+RUN bench build --app frappe
+RUN bench build --app erpnext
+RUN bench build --app hrms
+RUN bench build --app payments
+RUN bench build --app print_designer
+RUN bench build --app insights
+RUN bench build --app telephony
+RUN bench build --app helpdesk
+RUN bench build --app crm
+RUN bench build --app gameplan
+RUN bench build --app builder
+RUN bench build --app lms
+RUN bench build --app slides
+RUN bench build --app webshop
+RUN bench build --app ecommerce_integrations
+
+# ---- Frappe Drive (pnpm-built; postinstall clashes with bench's yarn) -------
+# Clone with plain git + pip install (no yarn), then build the frontend with
+# Drive's own pnpm 10 toolchain. pnpm 10 blocks dep build scripts and exits
+# non-zero (ERR_PNPM_IGNORED_BUILDS): install (tolerate the exit; node_modules
+# is fully linked) -> rebuild (runs esbuild/swc/canvas native builds) -> build.
+ARG SHA_DRIVE
+RUN : "${SHA_DRIVE:?missing pin}" && git clone --depth 1 --branch main https://github.com/frappe/drive apps/drive && \
+    git -C apps/drive fetch --depth 1 https://github.com/frappe/drive "$SHA_DRIVE" && git -C apps/drive checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/drive
+RUN cd apps/drive/frontend && \
+    { npx --yes pnpm@10 install --reporter=append-only || true; } && \
+    npx --yes pnpm@10 rebuild && \
+    npx --yes pnpm@10 run build
+RUN rm -rf sites/assets/drive && cp -r apps/drive/drive/public sites/assets/drive
+
+# ---- my_branding (BAKED, last layer so branding edits rebuild only this) ----
+# Staged by build.sh: a fresh clone of the committed NexumAir-branding repo at
+# <context>/.nexum-build/my_branding. No token needed (staged from the local
+# authenticated clone). pip install -e + bench build registers its /assets.
+COPY --chown=frappe:frappe .nexum-build/my_branding apps/my_branding
+RUN env/bin/pip install --quiet --upgrade -e apps/my_branding
+# drive + my_branding were added via clone/COPY (not `bench get-app`), so they're
+# missing from apps.txt — which also makes bench skip creating their /assets
+# symlinks. Register both, then bake my_branding's static assets as a REAL dir
+# (the Drive approach) so /assets/my_branding/css/brand.css is served from the image.
+# Rebuild apps.txt newline-safe: the file may not end in a newline (so a naive
+# `echo X >>` merges onto the last entry, e.g. erpnext+drive -> "erpnextdrive").
+# cat + force a newline + append the two, then awk drops blanks and de-dupes
+# while preserving order -> a clean 17-line apps.txt.
+RUN { cat sites/apps.txt; echo; echo drive; echo my_branding; } \
+      | awk 'NF && !seen[$0]++' > sites/apps.txt.new \
+    && mv sites/apps.txt.new sites/apps.txt
+RUN bench build --app my_branding || true
+RUN rm -rf sites/assets/my_branding && cp -r apps/my_branding/my_branding/public sites/assets/my_branding
+
+# ---- Lending (loan management; Business + Enterprise) ------------------------
+# Appended at the very END so it does NOT cache-bust the (slow) build + drive +
+# my_branding layers above — a fresh add rebuilds only these two layers. lending
+# has its own develop/v1 line (no version-16 branch); needs erpnext (present) at
+# per-tenant install-app time. get-app registers it in apps.txt; build its assets.
+ARG SHA_LENDING
+RUN : "${SHA_LENDING:?missing pin}" && bench get-app --branch develop --skip-assets https://github.com/frappe/lending && \
+    git -C apps/lending fetch --depth 1 https://github.com/frappe/lending "$SHA_LENDING" && git -C apps/lending checkout --force --detach FETCH_HEAD && \
+    env/bin/pip install --quiet --upgrade -e apps/lending
+# Rebrand: overwrite Lending's own logo file with the Nexum Air icon, so EVERY
+# reference (app_logo_url, workspace launcher, navbar) shows it — the CSS swap in
+# brand.css misses here because Frappe cache-busts the <img src> with ?v=<hash>.
+RUN cp apps/my_branding/my_branding/public/images/icons/lending_app.svg \
+       apps/lending/lending/public/images/frappe-lending-logo.svg
+RUN bench build --app lending || true
+
+# Rebrand: the frappe-ui SPA app-switchers (CRM, Drive) hard-code a "Desk" entry
+# with /assets/frappe/images/framework.png (the grey tile). Overwrite the file so
+# every reference shows the Nexum Air squircle (raster, generated from erpnext_app.svg).
+RUN cp apps/my_branding/my_branding/public/images/framework.png \
+       apps/frappe/frappe/public/images/framework.png
+
+# FIX: gameplan main is broken against frappe v16 — can_access_gameplan does
+# `from frappe.config import get_modules_from_all_apps_for_user` (removed in v16)
+# at the TOP of the function, so the uncaught ImportError 500s the /desk launcher
+# for every logged-in user (hit live 2026-06-11). Guard the import + fall through
+# to the role check. No-op once upstream removes the import (says "no patch needed").
+RUN python3 - <<'PYEOF'
+p = "apps/gameplan/gameplan/api.py"
+src = open(p).read()
+old = """\tfrom frappe.config import get_modules_from_all_apps_for_user
+
+\tif frappe.session.user == "Administrator":
+\t\treturn True
+
+\tallowed_modules = [x["module_name"] for x in get_modules_from_all_apps_for_user()]
+\tif "Gameplan" not in allowed_modules:
+\t\treturn False
+"""
+new = """\tif frappe.session.user == "Administrator":
+\t\treturn True
+
+\ttry:
+\t\tfrom frappe.config import get_modules_from_all_apps_for_user
+
+\t\tallowed_modules = [x["module_name"] for x in get_modules_from_all_apps_for_user()]
+\t\tif "Gameplan" not in allowed_modules:
+\t\t\treturn False
+\texcept ImportError:  # removed in frappe v16 (NexumAir patch) - rely on the role check
+\t\tpass
+"""
+if "from frappe.config import get_modules_from_all_apps_for_user" not in src:
+    print("no patch needed (upstream fixed)")
+elif old in src:
+    open(p, "w").write(src.replace(old, new, 1))
+    print("gameplan v16 import guard applied")
+else:
+    raise SystemExit("gameplan code changed upstream - REVIEW THIS PATCH")
+PYEOF
+
+RUN echo "{}" > sites/common_site_config.json && \
+    find apps -mindepth 1 -path "*/.git" | xargs rm -fr
+
+# =============================================================================
+FROM ${FRAPPE_IMAGE_PREFIX}/base:${FRAPPE_BRANCH} AS backend
+
+USER frappe
+COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
+WORKDIR /home/frappe/frappe-bench
+
+RUN cp -r /home/frappe/frappe-bench/sites/assets /home/frappe/frappe-bench/assets && \
+    rm -rf /home/frappe/frappe-bench/sites/assets
+
+VOLUME [ \
+  "/home/frappe/frappe-bench/sites", \
+  "/home/frappe/frappe-bench/logs" \
+]
+
+USER root
+COPY resources/core/main-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 755 /usr/local/bin/entrypoint.sh
+COPY resources/core/start.sh /usr/local/bin/start.sh
+RUN chmod 755 /usr/local/bin/start.sh
+USER frappe
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["start.sh"]

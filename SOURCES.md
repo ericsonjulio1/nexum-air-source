@@ -20,8 +20,8 @@ upstream commit we run, and our modifications.
 - **Our modifications** — the `my_branding` application (this repository) and the
   patches we apply to bundled apps at build time (see *Modifications* below). The
   complete buildable source corresponding to the running service is published at
-  **<https://nexumair.com/source.html>** (or available at no charge by emailing
-  **hello@nexumair.com**).
+  **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
+  by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
 ## Bundled applications, licenses, and pinned commits
 
@@ -44,7 +44,7 @@ upstream commit we run, and our modifications.
 | **builder** | **AGPLv3** | https://github.com/frappe/builder | `54e2561f7846` |
 | **slides** | **AGPLv3** | https://github.com/frappe/slides | `162973a4acc9` |
 | **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `58d32184e44b` |
-| my_branding (this repo) | MIT* | (published per offer above) | current HEAD |
+| my_branding | MIT* | https://github.com/ericsonjulio1/nexum-air-source | main |
 
 \* `my_branding` files are MIT-licensed, but because the application links to and
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
