@@ -41,6 +41,21 @@ APP_LOGOS = {
 DEFAULT_LOGO = ICON % "_default_app.svg"
 
 
+def can_access_insights():
+	"""True only if the CURRENT user can actually open the Insights SPA.
+
+	Insights ships no `add_to_apps_screen` hook, so it bypasses get_apps'/boot's
+	normal permission filtering and we add its tile by hand — but its own
+	`get_user_info` 403s for anyone WITHOUT an Insights role (System Manager alone
+	is NOT enough), and the SPA renders a blank page on that 403. So a user without
+	the role must not be shown the tile at all. Administrator implicitly holds every
+	role. Hardened: on any error hide the tile (a missing tile beats a dead link)."""
+	try:
+		return any(r.startswith("Insights") for r in frappe.get_roles())
+	except Exception:
+		return False
+
+
 @frappe.whitelist()
 def get_apps():
 	"""override_whitelisted_methods for frappe.apps.get_apps — relabel the apps
@@ -63,8 +78,12 @@ def get_apps():
 		# Insights ships no `add_to_apps_screen` hook, so the stock apps screen
 		# never lists it. Add it here (teal icon + branded title) when installed
 		# and the user can access it, so it appears alongside the other apps.
-		if "insights" in frappe.get_installed_apps() and not any(
-			a.get("name") == "insights" for a in apps
+		# The access gate matters: without an Insights role the SPA 403s to a
+		# blank page, so a user who can't open it must not see the tile.
+		if (
+			"insights" in frappe.get_installed_apps()
+			and can_access_insights()
+			and not any(a.get("name") == "insights" for a in apps)
 		):
 			apps.append(
 				{

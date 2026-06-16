@@ -3,7 +3,7 @@ import frappe
 # Shared white-label name map (one source of truth — see naming.py). Rebrands the
 # app titles shown in the desk (sidebar header + app-launcher group heading); the
 # same map relabels the /apps switcher via the get_apps override.
-from my_branding.naming import APP_TITLES
+from my_branding.naming import APP_TITLES, can_access_insights
 
 
 def boot_session(bootinfo):
@@ -26,8 +26,10 @@ def boot_session(bootinfo):
 				# Insights ships no `add_to_apps_screen` hook and has no desk
 				# workspace, so boot leaves its app_route empty and the launcher
 				# skips the tile. Give it a route + teal logo so it shows like the
-				# other apps.
-				if app.get("app_name") == "insights":
+				# other apps — but ONLY for users who can actually open it. Without
+				# an Insights role the SPA 403s to a blank page, so for everyone else
+				# we leave app_route empty and the launcher skips the tile.
+				if app.get("app_name") == "insights" and can_access_insights():
 					if not app.get("app_route"):
 						app["app_route"] = "/insights"
 					app["app_logo_url"] = "/assets/my_branding/images/icons/insights_app.svg"
