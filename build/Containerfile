@@ -235,18 +235,29 @@ PYEOF
 # self-signed MariaDB cert -> CERTIFICATE_VERIFY_FAILED (hit live 2026-06-17 by a
 # tenant building a dataset). The site DB is on the trusted private Docker network,
 # so drop the ssl params entirely -> plain connection (matches Frappe's own conn).
-# Only SiteDB is patched (it uses `ssl=False,`); FrappeDB external sources keep theirs.
+# Also fix FrappeDB (EXTERNAL Frappe-site sources): it hardcodes ssl_verify_cert=True
+# too, so a tenant connecting an external MariaDB with SSL off would hit the same
+# CERTIFICATE_VERIFY_FAILED. Make verification follow the user's use_ssl choice
+# (matches the sibling mariadb.py source, which already does ssl_verify_cert=use_ssl).
 RUN python3 - <<'PYEOF'
 p = "apps/insights/insights/insights/doctype/insights_data_source/sources/frappe_db.py"
 src = open(p).read()
-old = "            ssl=False,\n            ssl_verify_cert=True,\n"
-if old not in src and "ssl=False" not in src:
-    print("no patch needed (upstream changed SiteDB ssl handling - verify)")
-elif old in src:
-    open(p, "w").write(src.replace(old, "", 1))
-    print("insights SiteDB ssl_verify_cert patch applied")
+changed = False
+# SiteDB (built-in site DB) -> drop ssl params (plain conn to our trusted local db)
+site = "            ssl=False,\n            ssl_verify_cert=True,\n"
+if site in src:
+    src = src.replace(site, "", 1); changed = True
+# FrappeDB (external source) -> cert verification follows use_ssl (was hardcoded True)
+ext_old = "            ssl=use_ssl,\n            ssl_verify_cert=True,"
+ext_new = "            ssl=use_ssl,\n            ssl_verify_cert=use_ssl,"
+if ext_old in src:
+    src = src.replace(ext_old, ext_new, 1); changed = True
+if changed:
+    open(p, "w").write(src); print("insights ssl patch applied (SiteDB + FrappeDB)")
+elif "ssl_verify_cert" not in src:
+    print("no patch needed (upstream changed ssl handling - verify)")
 else:
-    raise SystemExit("insights SiteDB code changed upstream - REVIEW THIS PATCH")
+    raise SystemExit("insights ssl code changed upstream - REVIEW THIS PATCH")
 PYEOF
 
 RUN echo "{}" > sites/common_site_config.json && \
