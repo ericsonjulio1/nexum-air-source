@@ -298,6 +298,40 @@ def ensure_email_settings():
 		)
 
 
+def ensure_app_landing():
+	"""after_migrate: send the bare tenant root (``/``) into the software instead of
+	the public website/marketing layer.
+
+	Customers are handed the bare domain (welcome email, the URL they remember), but
+	on a stock Frappe site ``/`` serves the WEBSITE home page, not the desk — so they
+	land on a marketing-looking page rather than their ERP (EmEA's "keeps coming back
+	to the landing page" feedback, 2026-06-17). Point Website Settings' home page at
+	``login``: guests get the sign-in screen, and an already-authenticated user is
+	bounced straight on to the desk (/app). The welcome email also deep-links to
+	``/app`` directly. Idempotent + hardened so it can never abort a migrate.
+
+	NB: this gives up the public website ROOT for tenants (fine for the services /
+	boutique tenants we host). Revisit if a tenant ever needs a public marketing site
+	on its own domain — they'd use a custom home page instead.
+	"""
+	LANDING = "login"
+	if not frappe.db.table_exists("Website Settings"):
+		return
+	try:
+		if frappe.db.get_single_value("Website Settings", "home_page") != LANDING:
+			frappe.db.set_single_value("Website Settings", "home_page", LANDING)
+		# home page is cached (per-user) under the "home_page" key — drop it so the
+		# change shows without a restart, matching the other reconcile hooks.
+		try:
+			frappe.cache.delete_key("home_page")
+		except Exception:
+			pass
+	except Exception:
+		frappe.log_error(
+			title="my_branding ensure_app_landing failed", message=frappe.get_traceback()
+		)
+
+
 def reconcile_app_workspace_labels():
 	"""after_migrate: public Workspaces shipped by the apps still carry "Frappe X"
 	LABELS ("Frappe CRM", "Frappe Builder") that the desk sidebar renders verbatim

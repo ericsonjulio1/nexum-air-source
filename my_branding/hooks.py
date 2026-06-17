@@ -53,6 +53,7 @@ after_migrate = [
 	"my_branding.branding.reconcile_content_leaks",
 	"my_branding.roles.ensure_role_profiles",
 	"my_branding.branding.ensure_email_settings",
+	"my_branding.branding.ensure_app_landing",
 	"my_branding.branding.reconcile_workspace_order",
 	"my_branding.branding.reconcile_desktop_icon_order",
 ]
