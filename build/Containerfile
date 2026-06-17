@@ -230,6 +230,25 @@ else:
     raise SystemExit("gameplan code changed upstream - REVIEW THIS PATCH")
 PYEOF
 
+# FIX: Insights "Site DB" data source 500s on connect — SiteDB hardcodes
+# ssl_verify_cert=True, so pymysql opens an SSL connection and verifies our
+# self-signed MariaDB cert -> CERTIFICATE_VERIFY_FAILED (hit live 2026-06-17 by a
+# tenant building a dataset). The site DB is on the trusted private Docker network,
+# so drop the ssl params entirely -> plain connection (matches Frappe's own conn).
+# Only SiteDB is patched (it uses `ssl=False,`); FrappeDB external sources keep theirs.
+RUN python3 - <<'PYEOF'
+p = "apps/insights/insights/insights/doctype/insights_data_source/sources/frappe_db.py"
+src = open(p).read()
+old = "            ssl=False,\n            ssl_verify_cert=True,\n"
+if old not in src and "ssl=False" not in src:
+    print("no patch needed (upstream changed SiteDB ssl handling - verify)")
+elif old in src:
+    open(p, "w").write(src.replace(old, "", 1))
+    print("insights SiteDB ssl_verify_cert patch applied")
+else:
+    raise SystemExit("insights SiteDB code changed upstream - REVIEW THIS PATCH")
+PYEOF
+
 RUN echo "{}" > sites/common_site_config.json && \
     find apps -mindepth 1 -path "*/.git" | xargs rm -fr
 

@@ -126,6 +126,19 @@ def capture_partial():
 	if not email or len(email) > 120 or not EMAIL_RE.match(email):
 		return {"ok": False, "error": "valid email required"}
 
+	# global hourly cap: this endpoint is guest-accessible with NO Turnstile (by design —
+	# a blocked visitor must still be capturable), and behind Cloudflare the backend can't
+	# see per-client IPs, so cap total captures/hour to stop a bot flooding Pending leads +
+	# owner emails. Fail-open: a cache hiccup must never drop a genuine lead.
+	try:
+		bucket = "nexum_capture_count:" + frappe.utils.now_datetime().strftime("%Y%m%d%H")
+		count = (frappe.cache.get_value(bucket) or 0) + 1
+		frappe.cache.set_value(bucket, count, expires_in_sec=3700)
+		if count > 40:
+			return {"ok": True, "throttled": 1}
+	except Exception:
+		pass
+
 	# don't duplicate an existing lead (a completed signup, or an earlier capture)
 	if frappe.db.exists("CRM Lead", {"email": email}):
 		return {"ok": True, "dedup": 1}
