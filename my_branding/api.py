@@ -15,6 +15,10 @@ site_config covers them):
   customer types their subdomain. Mirrors provision-tenant.sh's validation
   (same regex + reserved list) so the form can't submit a name provisioning
   would reject anyway.
+- ``my_branding.api.capture_partial`` — fallback that records a prospect whose
+  signup could not complete (e.g. the Turnstile widget was blocked by an
+  in-app browser). Creates a *Pending* CRM Lead (never auto-provisions) and
+  alerts the owner so the lead gets a human follow-up instead of being lost.
 """
 
 import os
@@ -97,6 +101,82 @@ def signup():
 	lead.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": True, "lead": lead.name}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def capture_partial():
+	"""Record a signup that could not complete so a real prospect isn't lost.
+
+	Fired by the landing page when the Turnstile challenge can't run (commonly an
+	in-app browser such as Facebook/Instagram/Gmail blocking the widget). The lead
+	is left at the default ``Pending`` provision status — the worker only ever acts
+	on ``Approved`` leads, so this NEVER auto-provisions; it's a follow-up record
+	plus an owner alert. The strict signup() path is unchanged.
+
+	Anti-spam: honeypot + email-format + e-mail de-dupe. The only cost of abuse is
+	inbox/CRM noise, not bot tenants — manual Approve still gates provisioning.
+	"""
+	d = frappe.form_dict
+
+	# honeypot: hidden field a human never fills
+	if d.get("website") or d.get("hp_url"):
+		return {"ok": True}
+
+	email = (d.get("email") or "").strip()
+	if not email or len(email) > 120 or not EMAIL_RE.match(email):
+		return {"ok": False, "error": "valid email required"}
+
+	# don't duplicate an existing lead (a completed signup, or an earlier capture)
+	if frappe.db.exists("CRM Lead", {"email": email}):
+		return {"ok": True, "dedup": 1}
+
+	company = (d.get("company") or "").strip()[:140]
+	plan = (d.get("plan") or "").strip()[:40]
+	subdomain = (d.get("subdomain") or "").strip().lower()[:60]
+	reason = (d.get("reason") or "unknown").strip()[:60]
+
+	lead = frappe.new_doc("CRM Lead")
+	lead.first_name = company or email
+	lead.organization = company
+	lead.email = email
+	lead.status = "New"
+	lead.custom_plan = plan
+	lead.custom_subdomain = subdomain
+	lead.custom_provision_status = "Pending"
+	lead.custom_provision_log = (
+		"BLOCKED SIGNUP (reason=%s): the visitor filled the form but the security "
+		"check could not complete in their browser (commonly an in-app browser such "
+		"as Facebook/Instagram/Gmail). Verify this is a real prospect, then set the "
+		"provision status to Approved to provision." % reason
+	)
+	lead.insert(ignore_permissions=True)
+	frappe.db.commit()
+
+	# alert the owner so a blocked prospect gets a human follow-up
+	try:
+		owner = frappe.conf.get("owner_notify_email") or "admin@nexumair.com"
+		frappe.sendmail(
+			recipients=[owner],
+			subject="⚠️ Blocked Nexum Air signup — needs follow-up (%s)" % (company or email),
+			message=(
+				"A prospect tried to sign up but the security check was blocked in "
+				"their browser, so the form could not complete on its own.<br><br>"
+				"<b>Company:</b> %s<br><b>Email:</b> %s<br>"
+				"<b>Subdomain:</b> %s<br><b>Plan:</b> %s<br><b>Reason:</b> %s<br><br>"
+				"A Pending CRM Lead (<b>%s</b>) was created. Reach out, and if it's "
+				"genuine set its provision status to Approved.<br>"
+				'<a href="https://hq.nexumair.com/crm/leads/%s">Open in CRM</a>'
+				% (company, email, subdomain, plan, reason, lead.name, lead.name)
+			),
+			now=True,
+		)
+	except Exception:
+		frappe.log_error(
+			title="my_branding capture_partial owner alert failed",
+			message=frappe.get_traceback(),
+		)
+
+	return {"ok": True, "lead": lead.name, "captured": 1}
 
 
 @frappe.whitelist(allow_guest=True)
