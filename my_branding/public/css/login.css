@@ -63,9 +63,12 @@ body.nexum-login .nexum-login-head h1{ font-size:26px; font-weight:700; margin:0
 body.nexum-login .nexum-login-head p{ font-size:14px; color:var(--muted); margin:0; }
 
 /* form fields */
-/* Frappe gives form.form-login a 20px side margin -> inputs sat 20px right of
-   the injected heading; zero it so heading + fields share the same left edge */
-body.nexum-login form.form-login{ margin-left:0; margin-right:0; }
+/* Frappe pins form.form-login to max-width:320px (plus a 20px side margin), which
+   left-aligned the fields inside our 360px card — a 40px dead gap on the right, so
+   every input/button sat ~20px left of the centred heading + footer. Zero the margin
+   AND lift the max-width so the form fills the card: heading + fields + buttons now
+   share both edges and centre on the panel. */
+body.nexum-login form.form-login{ margin-left:0; margin-right:0; max-width:none; width:100%; }
 body.nexum-login .form-group{ margin-bottom:18px; }
 body.nexum-login .form-control{
   height:46px; border:1px solid var(--line); border-radius:10px; padding:0 14px;

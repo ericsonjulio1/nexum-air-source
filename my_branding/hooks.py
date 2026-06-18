@@ -14,7 +14,7 @@ app_include_css = "/assets/my_branding/css/brand.css?v=20260610b"
 app_include_js = "/assets/my_branding/js/brand.js?v=20260615b"
 web_include_css = [
 	"/assets/my_branding/css/brand.css?v=20260610b",
-	"/assets/my_branding/css/login.css?v=20260612a",
+	"/assets/my_branding/css/login.css?v=20260618a",
 ]
 # split login page (left brand diagram + right credentials); login.js guards on
 # #page-login so it only acts on /login, never other web pages.
