@@ -73,6 +73,11 @@ override_whitelisted_methods = {
 	# Builder's own apps endpoint (bypasses frappe.apps.get_apps) — rebrand its
 	# "Desk"/"ERPNext" labels + teal logos.
 	"builder.api.get_apps": "my_branding.naming.builder_get_apps",
+	# Guard the ERPNext setup wizard against a blank Country, which otherwise
+	# 500s in install_fixtures and strands new tenants on the wizard
+	# (curiosity.nexumair.com, 2026-06-17). Backfills the pre-seeded default
+	# Country/currency, else raises a clean validation error.
+	"frappe.desk.page.setup_wizard.setup_wizard.setup_complete": "my_branding.setup_guard.setup_complete",
 }
 
 # Apps
