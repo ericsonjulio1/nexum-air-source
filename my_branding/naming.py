@@ -109,7 +109,14 @@ def builder_get_apps():
 	"""override_whitelisted_methods for builder.api.get_apps — relabel "Desk"->
 	"Home" and "ERPNext"->"Nexum Air" and swap to teal logos. Hardened: on any
 	error fall back to Builder's original list."""
-	from builder.api import get_apps as _builder_get_apps
+	try:
+		from builder.api import get_apps as _builder_get_apps
+	except Exception:
+		# Builder isn't installed on this plan (Starter/Business). The override is
+		# registered globally, so a stray call here must degrade gracefully rather
+		# than 500 on the import — return an empty list (Builder's UI, the only
+		# real caller, only exists where Builder IS installed).
+		return []
 
 	apps = _builder_get_apps()
 	try:
