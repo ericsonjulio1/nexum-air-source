@@ -477,7 +477,13 @@ def reconcile_workspace_order():
 			fields=["name", "sequence_id"],
 			order_by="sequence_id asc, name asc",
 		)
-		for i, w in enumerate(rows, start=1):
+		# Pin the branded "Home" workspace to the LOWEST sequence_id. Frappe lands a
+		# first-login user on the lowest-sequence_id public workspace they can access;
+		# without this they land on whatever sorts first (often the developer "Build" or
+		# the "Lending" vertical). Home first → every new client opens on a branded home.
+		home = [w for w in rows if w.name == "Home"]
+		ordered = home + [w for w in rows if w.name != "Home"]
+		for i, w in enumerate(ordered, start=1):
 			seq = i * 10
 			if w.sequence_id != seq:
 				frappe.db.set_value("Workspace", w.name, "sequence_id", seq, update_modified=False)
@@ -532,4 +538,85 @@ def reconcile_desktop_icon_order():
 	except Exception:
 		frappe.log_error(
 			title="my_branding reconcile_desktop_icon_order failed", message=frappe.get_traceback()
+		)
+
+
+# Workspaces a paying client should never meet in their sidebar: developer tooling
+# (DocType/Server Script editors), integration plumbing, Frappe's boilerplate empty
+# state, and the niche Lending vertical. We ALSO de-duplicate the classic ERPNext
+# Support/CRM workspaces when the standalone Helpdesk/CRM apps are installed (both
+# would otherwise show side by side).
+_HIDE_WORKSPACES_ALWAYS = ["Build", "Integrations", "Welcome Workspace", "Lending"]
+
+
+def reconcile_workspace_visibility():
+	"""after_migrate: hide dev/admin/duplicate/boilerplate workspaces from the client
+	desk sidebar (is_hidden=1). The workspace stays reachable via search; a client owner
+	(not a Workspace Manager) simply no longer sees it in the sidebar. Idempotent +
+	hardened so it can never abort a migrate."""
+	if not frappe.db.table_exists("Workspace"):
+		return
+	try:
+		installed = frappe.get_installed_apps()
+		hide = list(_HIDE_WORKSPACES_ALWAYS)
+		if "helpdesk" in installed:
+			hide.append("Support")  # classic ERPNext Support duplicates the Helpdesk app
+		if "crm" in installed:
+			hide.append("CRM")  # built-in ERPNext CRM duplicates the standalone Frappe CRM
+		for name in hide:
+			try:
+				if frappe.db.exists("Workspace", name) and not frappe.db.get_value(
+					"Workspace", name, "is_hidden"
+				):
+					frappe.db.set_value("Workspace", name, "is_hidden", 1, update_modified=False)
+			except Exception:
+				frappe.log_error(
+					title="my_branding hide workspace failed", message=f"{name}\n{frappe.get_traceback()}"
+				)
+		try:
+			frappe.cache.delete_key("bootinfo")
+		except Exception:
+			pass
+	except Exception:
+		frappe.log_error(
+			title="my_branding reconcile_workspace_visibility failed", message=frappe.get_traceback()
+		)
+
+
+def reconcile_onboarding():
+	"""after_migrate: turn OFF Frappe's onboarding system per tenant. System Settings
+	`enable_onboarding` gates BOTH the per-module "Getting Started / <Module> Setup"
+	stepper cards AND the standard form-tours (guided overlays the first time a client
+	opens Customer/Supplier). A provisioned client was already set up FOR them, so these
+	only read as clutter / "demo data". We also mark any Module Onboarding rows complete
+	(belt-and-suspenders). Idempotent + hardened so it can never abort a migrate."""
+	try:
+		if frappe.db.get_single_value("System Settings", "enable_onboarding") != 0:
+			frappe.db.set_single_value("System Settings", "enable_onboarding", 0)
+	except Exception:
+		frappe.log_error(
+			title="my_branding reconcile_onboarding setting failed", message=frappe.get_traceback()
+		)
+	try:
+		if frappe.db.table_exists("Module Onboarding"):
+			for n in frappe.get_all("Module Onboarding", filters={"is_complete": 0}, pluck="name"):
+				frappe.db.set_value("Module Onboarding", n, "is_complete", 1, update_modified=False)
+	except Exception:
+		frappe.log_error(
+			title="my_branding reconcile_onboarding mo failed", message=frappe.get_traceback()
+		)
+
+
+def ensure_web_title_prefix():
+	"""after_migrate: brand web-page <title> / browser tab / link-preview. Frappe leaves
+	Website Settings `title_prefix` blank, so /login and portal pages show bare titles
+	("Login"). Set it to the brand. Idempotent + hardened so it can never abort a migrate."""
+	if not frappe.db.table_exists("Website Settings"):
+		return
+	try:
+		if frappe.db.get_single_value("Website Settings", "title_prefix") != brand_config.BRAND:
+			frappe.db.set_single_value("Website Settings", "title_prefix", brand_config.BRAND)
+	except Exception:
+		frappe.log_error(
+			title="my_branding ensure_web_title_prefix failed", message=frappe.get_traceback()
 		)

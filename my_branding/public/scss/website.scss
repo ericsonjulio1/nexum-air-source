@@ -1,7 +1,10 @@
-$primary: #107090;
-$primary-light: #6FB6CB;
-$primary-dark: #0B5063;
-$brand-gradient: linear-gradient(135deg, #0E5F79 0%, #2E8DA8 55%, #6FB6CB 100%);
+// Canonical NexumAir slate-teal (matches desk brand.css --brand-gradient).
+// Superseded cyan (#107090 / #0E5F79…#6FB6CB) removed 2026-06-30 — keep in sync
+// with my_branding/public/css/brand.css if the brand palette ever changes.
+$primary: #2E5562;
+$primary-light: #9DBEC8;
+$primary-dark: #1F3D47;
+$brand-gradient: linear-gradient(135deg, #2E5562 0%, #557E94 55%, #9DBEC8 100%);
 
 .navbar {
   background: $brand-gradient !important;

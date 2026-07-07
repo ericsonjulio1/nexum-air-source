@@ -10,6 +10,59 @@ import json
 import frappe
 
 
+def _easter(year):
+    """Gregorian Easter Sunday for `year` (Anonymous Gregorian / computus algorithm).
+    Used to derive Maundy Thursday + Good Friday, the only movable PH holidays here."""
+    import datetime
+
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return datetime.date(year, month, day)
+
+
+def _ph_holidays(year):
+    """Philippine regular + special non-working holidays with FIXED or computable
+    dates for `year`, as sorted (YYYY-MM-DD, description) tuples. Excludes the lunar
+    Islamic holidays (Eid'l Fitr / Eid'l Adha), whose Gregorian dates are proclaimed
+    yearly and can't be derived. Replaces the old hardcoded 2026-only list so a tenant
+    provisioned in any year gets that year's calendar."""
+    import datetime
+
+    easter = _easter(year)
+    # National Heroes Day = last Monday of August
+    nhd = datetime.date(year, 8, 31)
+    while nhd.weekday() != 0:  # 0 = Monday
+        nhd -= datetime.timedelta(days=1)
+    items = [
+        (datetime.date(year, 1, 1), "New Year's Day"),
+        (datetime.date(year, 2, 25), "EDSA People Power Anniversary"),
+        (easter - datetime.timedelta(days=3), "Maundy Thursday"),
+        (easter - datetime.timedelta(days=2), "Good Friday"),
+        (datetime.date(year, 4, 9), "Araw ng Kagitingan (Day of Valor)"),
+        (datetime.date(year, 5, 1), "Labor Day"),
+        (datetime.date(year, 6, 12), "Independence Day"),
+        (datetime.date(year, 8, 21), "Ninoy Aquino Day"),
+        (nhd, "National Heroes Day"),
+        (datetime.date(year, 11, 1), "All Saints' Day"),
+        (datetime.date(year, 11, 30), "Bonifacio Day"),
+        (datetime.date(year, 12, 8), "Immaculate Conception"),
+        (datetime.date(year, 12, 25), "Christmas Day"),
+        (datetime.date(year, 12, 30), "Rizal Day"),
+        (datetime.date(year, 12, 31), "Last Day of the Year"),
+    ]
+    items.sort(key=lambda t: t[0])
+    return [(d.strftime("%Y-%m-%d"), desc) for d, desc in items]
+
+
 def _site_admin(explicit=None):
     """The site's own admin: the explicit email if it exists here, else the first
     enabled System Manager that isn't Administrator/Guest. None if none found."""
@@ -135,20 +188,13 @@ def run(admin_user=None):
         if not frappe.db.exists("DocType", "Holiday List"):
             res["holiday_list"] = "skip (HR not installed)"
         else:
-            hl = "Philippines 2026"
+            year = frappe.utils.now_datetime().year
+            hl = "Philippines %d" % year
             if not frappe.db.exists("Holiday List", hl):
-                hol = [
-                    ("2026-01-01", "New Year's Day"), ("2026-02-25", "EDSA People Power Anniversary"),
-                    ("2026-04-02", "Maundy Thursday"), ("2026-04-03", "Good Friday"),
-                    ("2026-04-09", "Araw ng Kagitingan (Day of Valor)"), ("2026-05-01", "Labor Day"),
-                    ("2026-06-12", "Independence Day"), ("2026-08-21", "Ninoy Aquino Day"),
-                    ("2026-08-31", "National Heroes Day"), ("2026-11-01", "All Saints' Day"),
-                    ("2026-11-30", "Bonifacio Day"), ("2026-12-08", "Immaculate Conception"),
-                    ("2026-12-25", "Christmas Day"), ("2026-12-30", "Rizal Day"),
-                    ("2026-12-31", "Last Day of the Year"),
-                ]
+                hol = _ph_holidays(year)
                 doc = frappe.get_doc({"doctype": "Holiday List", "holiday_list_name": hl,
-                                      "from_date": "2026-01-01", "to_date": "2026-12-31", "weekly_off": "Sunday"})
+                                      "from_date": "%d-01-01" % year, "to_date": "%d-12-31" % year,
+                                      "weekly_off": "Sunday"})
                 for d, desc in hol:
                     doc.append("holidays", {"holiday_date": d, "description": desc})
                 doc.insert(ignore_permissions=True)

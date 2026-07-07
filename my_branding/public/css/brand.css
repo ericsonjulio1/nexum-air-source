@@ -125,6 +125,10 @@ a:hover {
   0%, 100% { transform: scale(1); opacity: 0.78; }
   50% { transform: scale(1.09); opacity: 1; }
 }
+/* Respect reduced-motion (login art already does this — keep the desk splash consistent). */
+@media (prefers-reduced-motion: reduce) {
+  .splash img, #nexum-splash::after { animation: none; }
+}
 
 /* JS-managed overlay that holds the branded splash for ~5s (see brand.js).
    Same look as .splash but a separate element so Frappe's $('.splash').remove()
@@ -225,7 +229,17 @@ a:hover {
    covers the icon wherever it appears (launcher grid AND module sub-tiles).
    filter:none cancels the global hue-rotate (our SVGs are already on-brand). */
 img[src*="/desktop_icons/solid/"],
+img[src*="online-store.svg"],
 img[src$="frappe-framework-logo.svg"] { filter: none !important; }
+
+/* Desk sidebar header letter-avatar: a workspace with no icon (e.g. Settings)
+ * renders as a GRAY .icon-container squircle (inline bg ~rgb(123,128,138)) with a
+ * white letter (.desktop-alphabet). Tint that squircle to the brand gradient so it
+ * isn't an off-theme gray. Scoped with :has() so real icon squircles are untouched;
+ * the inline background-color is overridden by !important. */
+.icon-container:has(> .desktop-alphabet) {
+  background: var(--brand-gradient) !important;
+}
 
 img[src$="frappe-framework-logo.svg"] {
   content: url("/assets/my_branding/images/icons/framework.svg");
@@ -239,6 +253,40 @@ img[src$="frappe-framework-logo.svg"] {
 img[src*="frappe-lending-logo"] {
   content: url("/assets/my_branding/images/icons/lending_app.svg");
   filter: none !important;
+}
+/* Print Designer editor header: the app's maroon logo -> the brand receipt
+   glyph (reads as "invoice", unlike the bare N mark — owner feedback).
+   The editor is a desk Page, so brand.css reaches it. *= not $= (cache-bust ?v). */
+img[src*="print-designer-logo"] {
+  content: url("/assets/my_branding/images/icons/invoicing2.svg");
+  filter: none !important;
+}
+/* Print Designer canvas: soften the unlinked-image placeholder (the header's
+   dynamic company-logo slot shows it until the tenant uploads a logo on
+   Company). PD paints it var(--gray-100), which lands dark/maroon-ish in the
+   editor; make it a quiet slate hint instead. Editor-only UI — an empty
+   dynamic image renders as nothing in the actual print/PDF. */
+.fallback-image {
+  background-color: #eaf1f3 !important;
+  border: 1px dashed #9dbec8;
+  border-radius: 4px;
+  color: #4a6a78 !important;
+}
+/* Print Designer's own accent is maroon (--primary #7b4b57 on .main-layout and
+   .modal-dialog) — it surfaces as the active-tool highlight in the tool rail,
+   rename-focus underlines and modal accents. Re-point both scopes at the brand
+   slate. !important because PD's Vue-injected styles land later in the cascade. */
+#page-print-designer .main-layout,
+#page-print-designer .modal-dialog {
+  --primary: #2e5562 !important;
+  --primary-color: #2e5562 !important;
+}
+/* The desk wordmark above (.navbar-home::after "Business Application Suite")
+   also rides the PD editor header's home anchor — white-on-white there, so
+   invisible, but ~200px wide, which is what shoved the format title away from
+   the logo. Drop it on this page; the title then sits beside the receipt icon. */
+#page-print-designer .header .navbar-home::after {
+  content: none !important;
 }
 img[src$="solid/account_setup.svg"] { content: url("/assets/my_branding/images/icons/account_setup.svg"); }
 img[src$="solid/accounts_setup.svg"] { content: url("/assets/my_branding/images/icons/accounts_setup.svg"); }
@@ -448,3 +496,203 @@ body[data-path="login"]::after {
 /* === Login card logo — sized confidently (default rendered tiny) === */
 .page-card-head .app-logo,
 body[data-path="login"] .app-logo { height: 64px !important; width: auto !important; margin: 0 auto 14px !important; display: block; }
+
+/* ==== Glass & Aurora desk (2026-07-05) =====================================
+   The aurora background is scoped to body.nx-desk (set by brand.js on EVERY
+   desk page) so it paints across the whole interface — lists, forms,
+   workspaces, reports, and the home grid. Static — no animation. The
+   home-only extras (frosted tiles + greeting) stay gated on nx-desk-home
+   further below. */
+body.nx-desk::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  /* z-index:-1 keeps the aurora BEHIND all desk content (paints above body's
+     own background but below every block/positioned descendant) so it never
+     covers list rows, form fields, or table text. Content surfaces with their
+     own background (cards, rows, tables) stay fully readable on top; the glow
+     shows through the transparent gutters/canvas. */
+  z-index: -1;
+  pointer-events: none;
+  /* Denser brand blobs + a soft slate base wash so it reads as a clear, calm
+     glow (validated live) rather than washing out to near-white over the desk. */
+  background:
+    radial-gradient(56vw 44vh at 10% 0%,   rgba(85,126,148,.62), transparent 58%),
+    radial-gradient(54vw 48vh at 97% 14%,  rgba(157,190,200,.74), transparent 58%),
+    radial-gradient(52vw 48vh at 62% 112%, rgba(46,85,98,.50),  transparent 60%),
+    radial-gradient(38vw 34vh at 80% 84%,  rgba(127,217,196,.26), transparent 62%),
+    linear-gradient(180deg, #e7eef1 0%, #eef3f6 55%, #f2f6f8 100%);
+}
+/* The desk body carries an opaque light background that paints over the
+   z-index:-1 aurora, leaving it visible only in stray gaps. Drop it so the
+   same light aurora shade reads cleanly on every page; content surfaces keep
+   their own backgrounds and stay fully readable on top. */
+body.nx-desk { background-color: transparent !important; }
+/* Glass cards — the other half of "glass & aurora". Workspace content cards
+   (number cards, shortcut cards, link groups, dashboards) are solid white by
+   default, which covers the aurora and makes dense pages read as plain white.
+   Frost them like the home tiles so the aurora glows THROUGH. NO backdrop-filter
+   here (2026-07-07 sweep): (a) it forced a stacking context on every widget,
+   trapping the in-card "..." dropdown menus and chart tooltips UNDER the next
+   sibling widget; (b) dozens of live blur layers cost GPU on dense workspaces;
+   and (c) blurring the already-smooth aurora gradient behind these in-flow cards
+   is visually a no-op — translucent white alone reads identically. Edit-mode
+   affordances (sortable-ghost drop placeholder, dashed new-widget box) are
+   excluded so workspace customization keeps its visual feedback. Lists, forms
+   and report tables are intentionally left opaque (dense text needs the solid
+   surface). */
+body.nx-desk .widget:not(.sortable-ghost):not(.new-widget):not(.new-widget-box),
+body.nx-desk .number-widget-box:not(.sortable-ghost),
+body.nx-desk .shortcut-widget-box:not(.sortable-ghost),
+body.nx-desk .links-widget-box:not(.sortable-ghost),
+body.nx-desk .dashboard-widget-box:not(.sortable-ghost),
+body.nx-desk .onboarding-widget-box:not(.sortable-ghost) {
+  background-color: rgba(255,255,255,.60) !important;
+  border: 1px solid rgba(255,255,255,.62) !important;
+  box-shadow: 0 8px 22px rgba(30,50,60,.10) !important;
+}
+/* The !important frost wiped frappe's built-in hover/focus feedback on
+   clickable cards — restore explicit affordances (2026-07-07 sweep). */
+body.nx-desk .shortcut-widget-box:not(.sortable-ghost):hover,
+body.nx-desk .links-widget-box:not(.sortable-ghost):hover {
+  background-color: rgba(255,255,255,.82) !important;
+  box-shadow: 0 10px 26px rgba(30,50,60,.16) !important;
+}
+body.nx-desk .widget:focus-visible {
+  outline: 2px solid #416D7E;
+  outline-offset: 2px;
+}
+
+/* Let the aurora show through the CONTENT REGION on every desk page: the
+   structural page/layout wrappers carry an opaque light background by default,
+   which would hide the z-index:-1 aurora. Make just those wrappers transparent
+   — the content cards/rows/tables inside keep their own backgrounds and stay
+   readable, so only the empty canvas around them reveals the glow. */
+body.nx-desk .page-container,
+body.nx-desk .layout-main-section,
+body.nx-desk .layout-main,
+body.nx-desk .main-section {
+  background-color: transparent !important;
+}
+/* List views are the one "opaque by design" surface that actually has NO
+   background of its own in frappe v16 — rows are backgroundless and only each
+   row's sticky right column paints var(--bg-color), so transparent wrappers
+   left row text on the aurora with hard white slabs at every row's right end
+   (2026-07-07 sweep). Give the list block one solid surface (theme-aware). */
+body.nx-desk .frappe-list {
+  background-color: var(--bg-color);
+}
+
+/* Let the aurora show through: .desktop-wrapper is the real /desk flex column
+   (see the launcher-centering rules earlier in this file). Make it + the grid
+   transparent, and raise it above the z-index:0 aurora layer. */
+body.nx-desk-home .desktop-wrapper,
+body.nx-desk-home .desktop-container {
+  background: transparent !important;
+}
+body.nx-desk-home .desktop-wrapper { position: relative; z-index: 1; }
+
+/* Greeting — pinned top-left, out of flow, so the icon grid centers in the FULL
+   area below the navbar (in-flow, its height pushed the grid down off-centre). */
+#nx-greeting {
+  position: absolute;
+  top: 52px; left: 0; right: 0;
+  padding: 24px 30px 0;
+  z-index: 3;
+}
+.nx-greeting-hi {
+  font-size: 22px; font-weight: 700; color: #182a30; letter-spacing: .01em;
+}
+.nx-greeting-sub { margin-top: 5px; font-size: 13px; color: #5c7c88; }
+/* Small/short viewports: the overlap is really HEIGHT-driven — the absolute
+   greeting collides with the centered grid whenever the top gap above the grid
+   is smaller than the greeting (~95px). That happens on narrow phones (width)
+   AND on landscape phones / short desktop windows (height) — 2026-07-07 sweep.
+   Put the greeting back in flow in both cases; on roomy viewports it stays
+   absolute so the grid centers perfectly. */
+@media (max-width: 767px), (max-height: 780px) {
+  #nx-greeting {
+    position: static;
+    padding: 18px 20px 4px;
+  }
+  .nx-greeting-hi { font-size: 19px; }
+}
+
+/* Frosted-glass tile cards — on the tile WRAPPER only. The branded squircle
+   <img>.app-icon and its existing hue-rotate / filter:none rules are UNTOUCHED
+   (do not add rules for .app-icon here). The flex block centers the icon+label
+   inside each tile. */
+body.nx-desk-home .desktop-container .desktop-icon {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 12px 8px !important;
+  background: rgba(255,255,255,.55);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.7);
+  box-shadow: 0 8px 22px rgba(30,50,60,.12);
+  border-radius: 18px;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+/* The label box is ~35px tall for one line of ~13px text — that empty
+   line-height slack made the visible icon+label sit high. Collapse it so ink ≈
+   box and the flex-centering reads as truly centered. */
+body.nx-desk-home .desktop-container .desktop-icon .icon-caption {
+  height: auto !important;
+  min-height: 0 !important;
+  line-height: 1.15 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body.nx-desk-home .desktop-container .desktop-icon .icon-container {
+  margin: 0 !important;
+}
+body.nx-desk-home .desktop-container .desktop-icon:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px rgba(30,50,60,.20);
+}
+@media (prefers-reduced-motion: reduce) {
+  body.nx-desk-home .desktop-container .desktop-icon { transition: none; }
+  body.nx-desk-home .desktop-container .desktop-icon:hover { transform: none; }
+}
+/* Dark-mode variant (Frappe sets [data-theme="dark"] on <html>): a dark slate
+   base + translucent dark frosted tiles + light greeting text, so the home honors
+   the dark theme instead of flashing the light aurora. Branded squircle icons are
+   unchanged (white glyphs read fine on the dark tiles). */
+[data-theme="dark"] body.nx-desk::before {
+  background:
+    radial-gradient(56vw 44vh at 10% 0%,   rgba(85,126,148,.30), transparent 60%),
+    radial-gradient(54vw 48vh at 97% 14%,  rgba(93,150,170,.34), transparent 60%),
+    radial-gradient(52vw 48vh at 62% 112%, rgba(46,85,98,.44),  transparent 62%),
+    radial-gradient(38vw 34vh at 80% 84%,  rgba(127,217,196,.13), transparent 64%),
+    linear-gradient(180deg, #0f181b 0%, #121e22 60%, #16232838 100%);
+}
+[data-theme="dark"] body.nx-desk-home .desktop-container .desktop-icon {
+  background: rgba(30,46,53,.55);
+  border-color: rgba(255,255,255,.08);
+  box-shadow: 0 8px 22px rgba(0,0,0,.35);
+}
+/* Dark variant of the frosted workspace cards — the light rgba(255,255,255,.60)
+   would read as bright panels on the dark aurora. Mirror the dark home tile:
+   translucent dark slate + faint light border. */
+[data-theme="dark"] body.nx-desk .widget:not(.sortable-ghost):not(.new-widget):not(.new-widget-box),
+[data-theme="dark"] body.nx-desk .number-widget-box:not(.sortable-ghost),
+[data-theme="dark"] body.nx-desk .shortcut-widget-box:not(.sortable-ghost),
+[data-theme="dark"] body.nx-desk .links-widget-box:not(.sortable-ghost),
+[data-theme="dark"] body.nx-desk .dashboard-widget-box:not(.sortable-ghost),
+[data-theme="dark"] body.nx-desk .onboarding-widget-box:not(.sortable-ghost) {
+  background-color: rgba(30,46,53,.55) !important;
+  border-color: rgba(255,255,255,.08) !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35) !important;
+}
+[data-theme="dark"] body.nx-desk .shortcut-widget-box:not(.sortable-ghost):hover,
+[data-theme="dark"] body.nx-desk .links-widget-box:not(.sortable-ghost):hover {
+  background-color: rgba(44,64,72,.75) !important;
+  box-shadow: 0 10px 26px rgba(0,0,0,.45) !important;
+}
+[data-theme="dark"] body.nx-desk .widget:focus-visible { outline-color: #9DBEC8; }
+[data-theme="dark"] .nx-greeting-hi { color: #eaf5f8; }
+[data-theme="dark"] .nx-greeting-sub { color: #8fa7b2; }

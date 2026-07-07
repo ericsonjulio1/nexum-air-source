@@ -40,6 +40,9 @@ done
 
 FULL_TAG="${IMAGE_REPO}:${TAG}"
 STAGE="${FRAPPE_DOCKER}/.nexum-build/my_branding"
+# eam (EAM add-on) is a SEPARATE local repo, baked from a staged clone like my_branding
+EAM_REPO="${EAM_REPO:-$HOME/dev/eam}"
+EAM_STAGE="${FRAPPE_DOCKER}/.nexum-build/eam"
 
 # ---- pins: apps.pinned.json -> one SHA_<APP> build arg per app --------------
 # The Containerfile checks out these exact commits, so a build can never
@@ -87,6 +90,19 @@ mkdir -p "$(dirname "$STAGE")"
 git clone --quiet --depth 1 "file://$BRANDING_REPO" "$STAGE"
 rm -rf "$STAGE/.git"
 
+# ---- stage eam (committed HEAD; baked like my_branding) ---------------------
+[ -f "$EAM_REPO/eam/hooks.py" ] || {
+  echo "ERROR: EAM_REPO=$EAM_REPO doesn't contain the eam app (expected $EAM_REPO/eam/hooks.py)"; exit 1; }
+if [ -n "$(git -C "$EAM_REPO" status --porcelain)" ]; then
+  echo "WARNING: $EAM_REPO has uncommitted changes — the image bakes the COMMITTED"
+  echo "         eam state only. Commit + push eam before a real release."
+fi
+EAM_SHA="$(git -C "$EAM_REPO" rev-parse --short HEAD)"
+echo "==> staging eam @ $EAM_SHA"
+rm -rf "$EAM_STAGE"
+git clone --quiet --depth 1 "file://$EAM_REPO" "$EAM_STAGE"
+rm -rf "$EAM_STAGE/.git"
+
 # ---- build ------------------------------------------------------------------
 OUTPUT="--load"; [ "$PUSH" -eq 1 ] && OUTPUT="--push"
 echo "==> building $FULL_TAG  platform=$PLATFORM  output=${OUTPUT#--}"
@@ -100,11 +116,12 @@ docker buildx build \
   --build-arg FRAPPE_BRANCH=version-16 \
   "${PIN_ARGS[@]}" \
   --label "com.nexumair.my_branding_sha=$MB_SHA" \
+  --label "com.nexumair.eam_sha=$EAM_SHA" \
   $OUTPUT \
   "$FRAPPE_DOCKER"
 set +x
 
 # ---- cleanup ----------------------------------------------------------------
-rm -rf "$STAGE"
+rm -rf "$STAGE" "$EAM_STAGE"
 echo "==> done: $FULL_TAG  (my_branding @ $MB_SHA)"
 [ "$PUSH" -eq 0 ] && echo "    loaded locally; re-run with --push to publish to the registry."

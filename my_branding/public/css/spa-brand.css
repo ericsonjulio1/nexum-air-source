@@ -77,6 +77,7 @@ a.active\:bg-surface-gray-5:active { background-color: #1C2B30 !important; }
 svg[viewBox="0 0 117 117"],
 svg[viewBox="0 0 118 118"],
 svg[viewBox="0 0 300 300"],
+svg[viewBox="0 0 80 79"],
 img[src$="builder_logo.png"],
 img[src^="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHe"] {
 	display: none !important;
@@ -110,3 +111,14 @@ img[src$="/assets/helpdesk/desk/favicon.svg"]           { content: url("/assets/
 img[src$="/assets/lms/frontend/learning.svg"]           { content: url("/assets/my_branding/images/icons/lms_app2.svg") !important; }
 img[src$="/assets/drive/frontend/favicon-310x310.png"]  { content: url("/assets/my_branding/images/icons/drive_app.svg") !important; }
 img[src$="/assets/slides/frontend/slides-logo.svg"]     { content: url("/assets/my_branding/images/icons/slides_app.svg") !important; }
+/* frappe-ui hard-codes a "Desk" entry in the in-SPA apps dropdown whose logo is the
+ * native Frappe cube. The asset path VARIES per SPA — observed: helpdesk
+ * /assets/helpdesk/desk/desk.png, lms /assets/lms/images/desk.png, crm+drive
+ * /assets/frappe/images/framework.png — so match BOTH filename tails to cover every
+ * SPA; swap to the on-brand squircle. */
+img[src$="desk.png"],
+img[src$="framework.png"]                               { content: url("/assets/my_branding/images/icons/_default_app.svg") !important; }
+/* Insights switched its logo (v2.2) from the old inlined base64 PNG (hidden above)
+ * to a hashed SVG `insights-logo-new-<hash>.svg`; the hash changes per build, so
+ * match the stable stem with *= and swap to the teal Nexum Air icon. */
+img[src*="insights-logo-new"]                           { content: url("/assets/my_branding/images/icons/insights_app.svg") !important; }

@@ -10,6 +10,8 @@
 	if (!root) return; // not the login page
 	if (document.querySelector(".nexum-art")) return; // already built
 	document.body.classList.add("nexum-login");
+	// Brand the browser tab/title (Frappe leaves it the bare "Login").
+	document.title = "Sign in · Nexum Air";
 
 	// ---- heading into the login card (replaces Frappe's "Login to X") ----
 	var form = document.querySelector("form.form-login");

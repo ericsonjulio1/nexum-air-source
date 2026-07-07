@@ -7,7 +7,7 @@
    ============================================================================= */
 body.nexum-login{
   --teal-darkest:#16242a; --teal-dark:#1c2b30; --teal:#2e5562;
-  --cyan:#107090; --ink:#1b2b30; --muted:#6b7c84; --line:#e3e9ec;
+  --cyan:#2e5562; --slate:#557E94; --ink:#1b2b30; --muted:#6b7c84; --line:#e3e9ec;
   margin:0; background:#fff;
 }
 
@@ -26,7 +26,7 @@ body.nexum-login .nexum-art{
   overflow:hidden; color:#eaf2f5;
   background:
     radial-gradient(120% 90% at 18% 12%, rgba(157,190,200,.16), transparent 55%),
-    radial-gradient(90% 80% at 85% 90%, rgba(16,112,144,.28), transparent 60%),
+    radial-gradient(90% 80% at 85% 90%, rgba(46,85,98,.28), transparent 60%),
     linear-gradient(135deg, var(--teal-darkest) 0%, var(--teal-dark) 40%, var(--teal) 100%);
   display:flex; align-items:center; justify-content:center; padding:28px;
 }
@@ -75,7 +75,7 @@ body.nexum-login .form-control{
   font-size:15px; box-shadow:none; transition:border-color .15s, box-shadow .15s;
 }
 body.nexum-login .form-control:focus{
-  border-color:var(--cyan); box-shadow:0 0 0 3px rgba(16,112,144,.14);
+  border-color:var(--cyan); box-shadow:0 0 0 3px rgba(46,85,98,.14);
 }
 body.nexum-login .password-field{ position:relative; }
 body.nexum-login .toggle-password{ position:absolute; right:12px; top:13px; cursor:pointer; font-size:12px; }
@@ -86,7 +86,7 @@ body.nexum-login .forgot-password-message a{ color:var(--cyan); font-size:13px; 
 body.nexum-login .btn-login,
 body.nexum-login .btn-forgot{
   height:48px; border:0 !important; border-radius:10px; font-size:15px; font-weight:600;
-  color:#fff !important; background:linear-gradient(135deg, var(--cyan), var(--teal)) !important;
+  color:#fff !important; background:linear-gradient(135deg, var(--slate), var(--teal)) !important;
   transition:filter .15s;
 }
 body.nexum-login .btn-login:hover,
@@ -100,6 +100,8 @@ body.nexum-login .login-divider::after{ content:""; height:1px; background:var(-
 body.nexum-login .btn-login-option{
   height:46px; border:1px solid var(--line) !important; border-radius:10px;
   font-weight:600; color:#33474f !important; background:#fff !important;
+  /* centre the label vertically (fixed height was top-aligning the text) */
+  display:flex !important; align-items:center !important; justify-content:center !important;
 }
 body.nexum-login .btn-login-option:hover{ background:#f5f8f9 !important; }
 body.nexum-login .sign-up-message{ text-align:center; color:#9aa9af; font-size:13px; margin-top:22px; }

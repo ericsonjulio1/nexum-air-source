@@ -57,9 +57,11 @@
 			a.target = "_blank"; a.rel = "noopener";
 			a.textContent = "Source code";
 			a.title = "Open-source licenses & source code (AGPL)";
-			a.style.cssText = "position:fixed;left:10px;bottom:6px;z-index:2000000;font-size:11px;line-height:1;color:#8a99a3;opacity:.5;text-decoration:none;background:rgba(255,255,255,.65);padding:2px 6px;border-radius:4px;font-family:inherit;";
+			// Kept reachable on every page (AGPL §13) but visually unobtrusive: tucked in
+			// the bottom-right corner, tiny + muted + no background, brightens on hover.
+			a.style.cssText = "position:fixed;right:7px;bottom:4px;z-index:2000000;font-size:9px;line-height:1;color:#aab4bc;opacity:.22;text-decoration:none;font-family:inherit;letter-spacing:.2px;";
 			a.addEventListener("mouseover", function () { a.style.opacity = "1"; });
-			a.addEventListener("mouseout", function () { a.style.opacity = ".5"; });
+			a.addEventListener("mouseout", function () { a.style.opacity = ".22"; });
 			document.body.appendChild(a);
 		}
 		if (document.readyState !== "loading") add();
@@ -88,16 +90,30 @@
 	var OLD = BRAND.old || null;
 	var MARK = "/assets/my_branding/images/nexum-mark.png";
 	var FAVICON = "/assets/my_branding/images/favicon.png";
-	// All text swaps to apply: the "Frappe X"->"Nexum Air X" wordmark plus any
-	// per-app `extra` pairs (e.g. Insights' "ERPNext"->"Nexum Air").
+	// Two tiers of text swap:
+	//  * SWAPS — the specific "Frappe X" -> "Nexum Air X" wordmark. "Frappe X" is
+	//    distinctive enough to substring-replace anywhere in the DOM safely.
+	//  * EXACT_SWAPS — the per-app `extra` pairs (e.g. Insights "ERPNext"->"Nexum Air",
+	//    Gameplan "Gameplan"->"Teams"). These are BARE tokens common enough to appear in
+	//    real user/business data (an Insights query-result cell containing "ERPNext", a
+	//    project literally named "Gameplan"), so substring-replacing them across the whole
+	//    subtree silently rewrote data values. Apply them ONLY to a text node whose TRIMMED
+	//    value IS exactly the token — i.e. a standalone chrome label (wordmark / data-source
+	//    name) — never a substring inside a larger data string.
 	var SWAPS = [];
 	if (OLD) SWAPS.push([OLD, NAME]);
+	var EXACT_SWAPS = [];
 	(BRAND.extra || []).forEach(function (p) {
-		if (p && p.length === 2) SWAPS.push([p[0], p[1]]);
+		if (p && p.length === 2) EXACT_SWAPS.push([p[0], p[1]]);
 	});
+	function _trim(s) { return s.replace(/^\s+|\s+$/g, ""); }
 	function hasSwap(s) {
 		for (var k = 0; k < SWAPS.length; k++) {
 			if (s.indexOf(SWAPS[k][0]) !== -1) return true;
+		}
+		var t = _trim(s);
+		for (var j = 0; j < EXACT_SWAPS.length; j++) {
+			if (t === EXACT_SWAPS[j][0]) return true;
 		}
 		return false;
 	}
@@ -105,15 +121,23 @@
 		for (var k = 0; k < SWAPS.length; k++) {
 			if (s.indexOf(SWAPS[k][0]) !== -1) s = s.split(SWAPS[k][0]).join(SWAPS[k][1]);
 		}
+		// exact-only: replace just when the trimmed text node equals the token, so a
+		// standalone chrome label is branded but a substring of real data is left intact.
+		var t = _trim(s);
+		for (var j = 0; j < EXACT_SWAPS.length; j++) {
+			if (t === EXACT_SWAPS[j][0]) { s = s.split(EXACT_SWAPS[j][0]).join(EXACT_SWAPS[j][1]); break; }
+		}
 		return s;
 	}
 	// Each app's native logo. Add new fingerprints here, not per-app code:
 	//   svg 117/118 = the Frappe cube (HR/Drive/Helpdesk/Gameplan)
 	//   svg 300     = Frappe CRM's logo
+	//   svg 80 79   = Frappe LMS (Learning) book logo
 	//   builder_logo.png = Builder
 	//   the data: prefix = Frappe Insights' inlined (base64) logo
 	var LOGO_SELECTOR =
 		'svg[viewBox="0 0 117 117"],svg[viewBox="0 0 118 118"],svg[viewBox="0 0 300 300"],' +
+		'svg[viewBox="0 0 80 79"],' +
 		'img[src$="builder_logo.png"],' +
 		'img[src^="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHe"]';
 
@@ -135,7 +159,7 @@
 	}
 
 	function brandTitle() {
-		if (SWAPS.length && hasSwap(document.title)) {
+		if ((SWAPS.length || EXACT_SWAPS.length) && hasSwap(document.title)) {
 			document.title = applySwaps(document.title);
 		}
 	}
@@ -166,7 +190,7 @@
 	// nodes each mutation ADDS) instead of re-walking the whole document.body every
 	// tick — which on a busy page (live lists, virtual scroll) was the one hot spot.
 	function brandSubtree(root) {
-		if (!SWAPS.length || !root) return;
+		if ((!SWAPS.length && !EXACT_SWAPS.length) || !root) return;
 		if (root.nodeType === 3) {
 			// a text node was added directly
 			if (hasSwap(root.nodeValue)) root.nodeValue = applySwaps(root.nodeValue);
@@ -209,7 +233,7 @@
 			"</svg><span>Apps</span>";
 		a.style.cssText =
 			"position:fixed;left:16px;bottom:16px;z-index:2147483000;display:inline-flex;align-items:center;" +
-			"gap:7px;background:#107090;color:#fff;text-decoration:none;font:600 13px/1 -apple-system,system-ui,sans-serif;" +
+			"gap:7px;background:#2E5562;color:#fff;text-decoration:none;font:600 13px/1 -apple-system,system-ui,sans-serif;" +
 			"padding:9px 13px;border-radius:999px;box-shadow:0 2px 12px rgba(0,0,0,.22);cursor:pointer;";
 		document.body.appendChild(a);
 	}

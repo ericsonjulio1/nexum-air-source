@@ -1,5 +1,5 @@
 {
-  "_comment": "NexumAir production image app manifest. 17 Frappe-org apps fetched in the Containerfile; my_branding (18th) is baked from the local private repo, NOT listed here. Branches mirror what builds clean against frappe/erpnext version-16. lending appended last (its own develop/v1 versioning) so adding it doesn't cache-bust the build. Run pin-apps.sh to freeze these to commit SHAs (apps.pinned.json) for a reproducible release.",
+  "_comment": "NexumAir production image app manifest. 17 Frappe-org apps fetched in the Containerfile; my_branding (18th) + eam (19th, EAM add-on, Enterprise-tier) are baked from local repos (build.sh stages both), NOT listed here. Branches mirror what builds clean against frappe/erpnext version-16. lending appended last (its own develop/v1 versioning) so adding it doesn't cache-bust the build. Run pin-apps.sh to freeze these to commit SHAs (apps.pinned.json) for a reproducible release.",
   "apps": [
     { "url": "https://github.com/frappe/frappe",                 "branch": "version-16" },
     { "url": "https://github.com/frappe/erpnext",                "branch": "version-16" },

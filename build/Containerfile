@@ -156,6 +156,14 @@ RUN rm -rf sites/assets/drive && cp -r apps/drive/drive/public sites/assets/driv
 # authenticated clone). pip install -e + bench build registers its /assets.
 COPY --chown=frappe:frappe .nexum-build/my_branding apps/my_branding
 RUN env/bin/pip install --quiet --upgrade -e apps/my_branding
+
+# ---- eam (EAM add-on; baked like my_branding, no JS/CSS assets to build) -----
+# Staged by build.sh from the local eam repo into .nexum-build/eam. Enterprise-tier
+# only at install time (provision-tenant.sh); registered in apps.txt below so
+# `bench install-app eam` works per-tenant.
+COPY --chown=frappe:frappe .nexum-build/eam apps/eam
+RUN env/bin/pip install --quiet --no-deps -e apps/eam
+
 # drive + my_branding were added via clone/COPY (not `bench get-app`), so they're
 # missing from apps.txt — which also makes bench skip creating their /assets
 # symlinks. Register both, then bake my_branding's static assets as a REAL dir
@@ -164,7 +172,7 @@ RUN env/bin/pip install --quiet --upgrade -e apps/my_branding
 # `echo X >>` merges onto the last entry, e.g. erpnext+drive -> "erpnextdrive").
 # cat + force a newline + append the two, then awk drops blanks and de-dupes
 # while preserving order -> a clean 17-line apps.txt.
-RUN { cat sites/apps.txt; echo; echo drive; echo my_branding; } \
+RUN { cat sites/apps.txt; echo; echo drive; echo my_branding; echo eam; } \
       | awk 'NF && !seen[$0]++' > sites/apps.txt.new \
     && mv sites/apps.txt.new sites/apps.txt
 RUN bench build --app my_branding || true
@@ -259,6 +267,23 @@ elif "ssl_verify_cert" not in src:
 else:
     raise SystemExit("insights ssl code changed upstream - REVIEW THIS PATCH")
 PYEOF
+
+# SECURITY: frappe TarSlip RCE — GHSA-58w2-4cjg-hvp6 / CVE-2026-55852 (HIGH).
+# Package Import (System Manager only, which every tenant owner holds on their
+# own site) extracted an uploaded .tar.gz via a `subprocess tar xzf` shell-out
+# with NO path validation, so a crafted tar with ../ traversal or symlink
+# members could write outside the packages dir -> RCE on our shared bench.
+# Patched in frappe >=16.23.0; we pin 16.22.0, so bake the exact upstream fix
+# (tarfile extraction + symlink/hardlink rejection + per-member check_path_safety,
+# which already exists in our frappe, + name sanitize + extractall(filter="data")).
+# Pure-Python backend file, no asset rebuild. The patcher (COPY'd from the
+# frappe_docker build context, same as the local dev-stack Containerfiles and the
+# growth-view patch) embeds the vetted file, which differs from our pinned 16.22.0
+# file ONLY by this security diff (verified byte-for-byte 2026-07-07). Idempotent +
+# drift-guarded: no-op if already fixed, SystemExit if upstream moved.
+COPY --chown=frappe:frappe patches/frappe_package_import_tarslip.py /tmp/patches/frappe_package_import_tarslip.py
+RUN python3 /tmp/patches/frappe_package_import_tarslip.py \
+      apps/frappe/frappe/core/doctype/package_import/package_import.py
 
 RUN echo "{}" > sites/common_site_config.json && \
     find apps -mindepth 1 -path "*/.git" | xargs rm -fr

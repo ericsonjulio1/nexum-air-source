@@ -10,15 +10,15 @@ app_license = "mit"
 app_logo_url = "/assets/my_branding/images/nexum-mark.png"
 brand_html = '<span style="font-weight:700;color:#fff;letter-spacing:0.3px;">Nexum Air</span>'
 
-app_include_css = "/assets/my_branding/css/brand.css?v=20260610b"
-app_include_js = "/assets/my_branding/js/brand.js?v=20260615b"
+app_include_css = "/assets/my_branding/css/brand.css?v=20260707a"
+app_include_js = "/assets/my_branding/js/brand.js?v=20260706a"
 web_include_css = [
-	"/assets/my_branding/css/brand.css?v=20260610b",
-	"/assets/my_branding/css/login.css?v=20260618a",
+	"/assets/my_branding/css/brand.css?v=20260707a",
+	"/assets/my_branding/css/login.css?v=20260705a",
 ]
 # split login page (left brand diagram + right credentials); login.js guards on
 # #page-login so it only acts on /login, never other web pages.
-web_include_js = "/assets/my_branding/js/login.js?v=20260611a"
+web_include_js = "/assets/my_branding/js/login.js?v=20260701a"
 website_theme_scss = "my_branding/public/scss/website"
 
 website_context = {
@@ -48,15 +48,24 @@ after_migrate = [
 	"my_branding.branding.reconcile_navbar",
 	"my_branding.branding.ensure_insights_desktop_icon",
 	"my_branding.branding.ensure_settings_desktop_icon",
+	"my_branding.webshop.ensure_online_store_workspace",
 	"my_branding.branding.ensure_gameplan_tile_label",
 	"my_branding.branding.reconcile_app_workspace_labels",
 	"my_branding.branding.reconcile_content_leaks",
 	"my_branding.roles.ensure_role_profiles",
 	"my_branding.branding.ensure_email_settings",
 	"my_branding.branding.ensure_app_landing",
+	"my_branding.branding.reconcile_onboarding",
+	"my_branding.branding.reconcile_workspace_visibility",
+	"my_branding.branding.ensure_web_title_prefix",
 	"my_branding.branding.reconcile_workspace_order",
 	"my_branding.branding.reconcile_desktop_icon_order",
+	"my_branding.invoicing.ensure_invoice_design",
 ]
+
+# "Invoice Design" button on the Sales Invoice form -> Print Designer editor
+# for the branded "Invoice Design" format (see invoicing.py).
+doctype_js = {"Sales Invoice": "public/js/sales_invoice.js"}
 
 # Rebrand the "ERPNext" app title shown in the workspace sidebar header.
 extend_bootinfo = "my_branding.boot.boot_session"
@@ -217,13 +226,37 @@ override_whitelisted_methods = {
 doc_events = {
 	"File": {
 		"before_insert": "my_branding.storage.enforce_file_quota",
+		# deleting a file lowers usage — bust the cached total so freed space is
+		# reflected immediately rather than after the 30s TTL.
+		"on_trash": "my_branding.storage.invalidate_used_cache",
 	},
 	# Drive keeps its own doctype for uploads — same quota, same enforcement
 	# (the handler skips is_group folders and counts both tables).
 	"Drive File": {
 		"before_insert": "my_branding.storage.enforce_file_quota",
+		"on_trash": "my_branding.storage.invalidate_used_cache",
 	},
 }
+
+# Free-tier document-count caps (nexum_doc_caps in site_config; absent = unlimited/paid).
+# One before_insert per capped doctype; the handler no-ops on sites without the config,
+# so this is inert on every paid tenant. IMPORTANT: any doctype added to a plan's
+# nexum_doc_caps MUST also be listed here, or its cap won't be enforced.
+for _capped_dt in (
+	"Customer",
+	"Supplier",
+	"Item",
+	"Sales Invoice",
+	"Purchase Order",
+	"Purchase Invoice",
+	"Journal Entry",
+	"Stock Entry",
+	"Payment Entry",
+):
+	doc_events.setdefault(_capped_dt, {})["before_insert"] = "my_branding.doc_caps.enforce_doc_cap"
+
+# A returning customer on an idle-parked Free site re-enables its own scheduler.
+on_login = "my_branding.lifecycle.wake_scheduler"
 
 # Scheduled Tasks
 # ---------------
