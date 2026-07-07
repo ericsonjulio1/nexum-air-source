@@ -69,6 +69,19 @@ of the Corresponding Source:
 4. **Service-worker neutralizer** — `my_branding` unregisters the Slides
    root-scope service worker on the desk/SPAs (a stale-asset fix); it does not
    alter Slides' own functionality.
+5. **insights** (AGPLv3) — `insights/.../sources/frappe_db.py`: drop the
+   hardcoded `ssl_verify_cert=True` (SiteDB) / make it follow `use_ssl` (external
+   FrappeDB), so connecting to the trusted local MariaDB over the private Docker
+   network no longer fails cert verification against our self-signed cert.
+6. **erpnext** (GPLv3) — `erpnext/.../financial_report_template/financial_report_engine.py`:
+   segment-aware Growth-view lookup so columnar / multi-segment financial reports
+   (e.g. "Horizontal Balance Sheet (Columnar)") stop raising `KeyError` in the
+   Growth view. See `patches/erpnext-financial-report-growth-columnar.md`.
+7. **frappe** (MIT) — `frappe/core/doctype/package_import/package_import.py`:
+   backport the upstream TarSlip fix (frappe ≥ 16.23.0) so Package Import rejects
+   path-traversal / symlink tar members instead of shelling out to `tar` without
+   validation (GHSA-58w2-4cjg-hvp6 / CVE-2026-55852). See
+   `patches/frappe-package-import-tarslip.md`.
 
 ## Reproducing the build
 

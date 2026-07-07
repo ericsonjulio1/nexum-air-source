@@ -285,6 +285,20 @@ COPY --chown=frappe:frappe patches/frappe_package_import_tarslip.py /tmp/patches
 RUN python3 /tmp/patches/frappe_package_import_tarslip.py \
       apps/frappe/frappe/core/doctype/package_import/package_import.py
 
+# NexumAir patch: erpnext GrowthViewTransformer segment-aware fix. Columnar /
+# multi-segment financial reports (e.g. "Horizontal Balance Sheet (Columnar)")
+# in the Growth view crashed with KeyError on the bare period key (e.g.
+# 'dec_2026'), because columnar templates store values under seg_<n>_<period>
+# keys. Pure-Python edit (no asset rebuild), idempotent + anchor-guarded (build
+# FAILS LOUDLY if the upstream code shape moves). First shipped to prod as
+# v16-prod-80 (2026-06-30) via derived build; added here 2026-07-07 so a FULL
+# rebuild from this Containerfile keeps it (it was previously only in the
+# frappe_docker dev-stack Containerfiles). Same patcher, same frappe_docker
+# build context. Drop when upstream fixes the columnar Growth lookup.
+COPY --chown=frappe:frappe patches/financial_report_growth_columnar.py /tmp/patches/financial_report_growth_columnar.py
+RUN python3 /tmp/patches/financial_report_growth_columnar.py \
+      apps/erpnext/erpnext/accounts/doctype/financial_report_template/financial_report_engine.py
+
 RUN echo "{}" > sites/common_site_config.json && \
     find apps -mindepth 1 -path "*/.git" | xargs rm -fr
 
