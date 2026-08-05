@@ -201,13 +201,24 @@ def run(admin_user=None):
                 res["holiday_list"] = "created: %s (%d holidays)" % (doc.name, len(hol))
             else:
                 res["holiday_list"] = "exists"
+            # run() is advertised as idempotent/safe to re-run, so it must NOT clobber a
+            # tenant's own holiday calendar. Only (re)assign the default when the slot is
+            # empty or still holds a "Philippines <year>" list this script itself created.
+            def _owned(v):
+                return not v or (v.startswith("Philippines ") and v[12:].isdigit())
             if frappe.db.exists("DocType", "HR Settings"):
-                frappe.db.set_single_value("HR Settings", "default_holiday_list", hl)
+                cur = frappe.db.get_single_value("HR Settings", "default_holiday_list")
+                if _owned(cur):
+                    frappe.db.set_single_value("HR Settings", "default_holiday_list", hl)
             company = _site_company()
             if company:
                 try:
-                    frappe.db.set_value("Company", company, "default_holiday_list", hl)
-                    res["holiday_default"] = "set on HR Settings + Company '%s'" % company
+                    cur_c = frappe.db.get_value("Company", company, "default_holiday_list")
+                    if _owned(cur_c):
+                        frappe.db.set_value("Company", company, "default_holiday_list", hl)
+                        res["holiday_default"] = "set on HR Settings + Company '%s'" % company
+                    else:
+                        res["holiday_default"] = "kept tenant's custom Company default '%s'" % cur_c
                 except Exception as e2:
                     res["holiday_default"] = "HR Settings set; company: " + str(e2)
             else:

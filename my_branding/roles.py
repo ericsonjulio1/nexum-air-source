@@ -28,6 +28,7 @@ ROLE_PROFILES = {
 	"Purchasing": ["Purchase User", "Purchase Master Manager"],
 	"Inventory": ["Stock User", "Stock Manager", "Item Manager"],
 	"Manufacturing": ["Manufacturing User"],
+	"Maintenance": ["Maintenance Manager", "Maintenance User", "Asset Manager"],
 	"Projects": ["Projects User"],
 	"HR": ["HR Manager", "HR User"],
 	"Support Agent": ["Agent"],
@@ -67,4 +68,66 @@ def ensure_role_profiles():
 			frappe.log_error(
 				title="my_branding ensure_role_profiles failed",
 				message=f"{profile}\n{frappe.get_traceback()}",
+			)
+
+
+def ensure_owner_asset_manager():
+	"""after_migrate: backfill "Asset Manager" onto existing tenants' Owner users.
+
+	Asset Manager gates the eam ("Maintenance") app's Asset Meter / Asset Meter
+	Reading doctypes. provision-tenant.sh grants the site's customer-admin (the
+	Owner) System Manager plus the full core ROLES bundle — including Maintenance
+	Manager and Maintenance User — in one atomic frappe.client.insert at
+	user-creation time, but Asset Manager was missing from that bundle (fixed
+	going forward). No other provisioning path in this app grants System Manager
+	+ Maintenance Manager together, so on every site this app manages, an
+	enabled, non-Administrator/Guest user holding BOTH roles today is the tenant
+	Owner (or someone the Owner deliberately cloned into an equivalent power
+	role, who should equally get Asset Manager). Idempotent (add_roles skips
+	roles already held) and hardened — a failure can never abort a migrate.
+	"""
+	if not frappe.db.table_exists("Role") or not frappe.db.exists("Role", "Asset Manager"):
+		return  # eam not installed on this site/plan
+
+	try:
+		sys_mgrs = set(
+			frappe.get_all(
+				"Has Role",
+				filters={"role": "System Manager", "parenttype": "User"},
+				pluck="parent",
+			)
+		)
+		maint_mgrs = set(
+			frappe.get_all(
+				"Has Role",
+				filters={"role": "Maintenance Manager", "parenttype": "User"},
+				pluck="parent",
+			)
+		)
+		candidates = sys_mgrs & maint_mgrs - {"Administrator", "Guest"}
+		if not candidates:
+			return
+		enabled = set(
+			frappe.get_all(
+				"User",
+				filters={"name": ["in", list(candidates)], "enabled": 1},
+				pluck="name",
+			)
+		)
+	except Exception:
+		frappe.log_error(
+			title="my_branding ensure_owner_asset_manager failed (candidate lookup)",
+			message=frappe.get_traceback(),
+		)
+		return
+
+	for user in enabled:
+		try:
+			doc = frappe.get_doc("User", user)
+			if "Asset Manager" not in {row.role for row in doc.roles}:
+				doc.add_roles("Asset Manager")
+		except Exception:
+			frappe.log_error(
+				title="my_branding ensure_owner_asset_manager failed",
+				message=f"{user}\n{frappe.get_traceback()}",
 			)

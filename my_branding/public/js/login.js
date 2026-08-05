@@ -49,7 +49,7 @@
 		'<g transform="translate(120,530)"><circle class="node-bg" r="46"/><g class="ico" transform="translate(-17,-16)"><polyline points="0,8 4,12 11,3"/><line x1="17" y1="8" x2="34" y2="8"/><polyline points="0,25 4,29 11,20"/><line x1="17" y1="25" x2="34" y2="25"/></g></g>' +
 		'<g transform="translate(120,230)"><circle class="node-bg" r="46"/><g class="ico" transform="translate(-17,-17)"><circle cx="17" cy="17" r="6.5"/><path d="M17 0 v6.5 M17 27.5 v6.5 M0 17 h6.5 M27.5 17 h6.5 M5 5 l4.5 4.5 M24.5 24.5 l4.5 4.5 M29 5 l-4.5 4.5 M9.5 24.5 l-4.5 4.5"/></g></g>' +
 		// central core: original logo (tagline swapped) + glow + new tagline text
-		'<defs><radialGradient id="nexglow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#7fd3e6" stop-opacity=".22"/><stop offset="55%" stop-color="#7fd3e6" stop-opacity=".07"/><stop offset="100%" stop-color="#7fd3e6" stop-opacity="0"/></radialGradient></defs>' +
+		'<defs><radialGradient id="nexglow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#9DBEC8" stop-opacity=".22"/><stop offset="55%" stop-color="#9DBEC8" stop-opacity=".07"/><stop offset="100%" stop-color="#9DBEC8" stop-opacity="0"/></radialGradient></defs>' +
 		'<circle cx="380" cy="380" r="170" fill="url(#nexglow)"/>' +
 		'<image href="' + logo + '" x="275" y="252" width="210" height="223"/>' +
 		'<text class="tagline" x="380" y="497" text-anchor="middle">BUSINESS APPLICATION SUITE</text>';

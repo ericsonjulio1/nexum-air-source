@@ -89,6 +89,30 @@
 	var NAME = BRAND.name || "Nexum Air";
 	var OLD = BRAND.old || null;
 	var MARK = "/assets/my_branding/images/nexum-mark.png";
+	// The injected header logo should match the app's own launcher tile (owner
+	// request, v16-prod-133) — one generic N for every SPA read as unbranded.
+	// Keyed by the SPA's first path segment; anything unmapped keeps the N mark.
+	// These are the same squircle assets the desk launcher + apps switcher use.
+	var APP_ICONS = {
+		crm: "crm_app2.svg",
+		helpdesk: "helpdesk_app.svg",
+		drive: "drive_app.svg",
+		lms: "lms_app2.svg",
+		builder: "builder_app.svg",
+		g: "gameplan_app2.svg", // Gameplan ("Teams") serves at /g
+		slides: "slides_app.svg",
+		insights: "insights_app.svg",
+		hr: "hrms_app.svg",
+	};
+	var APP_MARK = (function () {
+		try {
+			var seg = (location.pathname.split("/")[1] || "").toLowerCase();
+			if (APP_ICONS[seg]) return "/assets/my_branding/images/icons/" + APP_ICONS[seg];
+		} catch (e) {
+			/* fall back to the generic mark */
+		}
+		return MARK;
+	})();
 	var FAVICON = "/assets/my_branding/images/favicon.png";
 	// Two tiers of text swap:
 	//  * SWAPS — the specific "Frappe X" -> "Nexum Air X" wordmark. "Frappe X" is
@@ -134,12 +158,10 @@
 	//   svg 300     = Frappe CRM's logo
 	//   svg 80 79   = Frappe LMS (Learning) book logo
 	//   builder_logo.png = Builder
-	//   the data: prefix = Frappe Insights' inlined (base64) logo
 	var LOGO_SELECTOR =
 		'svg[viewBox="0 0 117 117"],svg[viewBox="0 0 118 118"],svg[viewBox="0 0 300 300"],' +
 		'svg[viewBox="0 0 80 79"],' +
-		'img[src$="builder_logo.png"],' +
-		'img[src^="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHe"]';
+		'img[src$="builder_logo.png"]';
 
 	function ensureLogos() {
 		var marks = document.querySelectorAll(LOGO_SELECTOR);
@@ -150,9 +172,39 @@
 			if (el.getAttribute("data-nexum-logo-img")) continue; // our own inject
 			parent.setAttribute("data-nexum-logo", "1");
 			var img = document.createElement("img");
-			img.src = MARK;
+			img.src = APP_MARK;
 			img.alt = "Nexum Air";
 			img.className = el.getAttribute("class") || ""; // inherit sizing classes
+			img.setAttribute("data-nexum-logo-img", "1");
+			parent.insertBefore(img, el);
+		}
+	}
+
+	// Frappe Insights (<v2.2) inlined its logo as a base64 PNG whose header bytes
+	// are just the generic "64x64 RGBA PNG" signature — NOT unique to that logo
+	// file — so matching it globally (as LOGO_SELECTOR used to) risked hiding/
+	// mislabeling any ordinary base64-embedded image (an avatar, a report
+	// thumbnail, ...) on ANY of the frappe-ui SPAs this script runs in. Scope it
+	// back to the one route it was written for (same pathname-gate pattern as
+	// ensureBackButton() above), and tag matches with a class so spa-brand.css
+	// only ever hides elements THIS check has approved — instead of matching the
+	// base64 header on its own in CSS (which can't check the route).
+	function ensureLegacyInsightsLogo() {
+		if (location.pathname.indexOf("/insights") !== 0) return;
+		var marks = document.querySelectorAll(
+			'img[src^="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHe"]'
+		);
+		for (var i = 0; i < marks.length; i++) {
+			var el = marks[i];
+			if (el.getAttribute("data-nexum-logo-img")) continue; // our own inject
+			el.classList.add("nx-legacy-logo-hidden");
+			var parent = el.parentNode;
+			if (!parent || parent.getAttribute("data-nexum-logo")) continue;
+			parent.setAttribute("data-nexum-logo", "1");
+			var img = document.createElement("img");
+			img.src = APP_MARK;
+			img.alt = "Nexum Air";
+			img.className = el.getAttribute("class") || "";
 			img.setAttribute("data-nexum-logo-img", "1");
 			parent.insertBefore(img, el);
 		}
@@ -238,14 +290,175 @@
 		document.body.appendChild(a);
 	}
 
+	// The SPA sidebar "Apps" switcher (crm Apps.vue, and the same component in
+	// helpdesk/lms) is a frappe-ui <Popover trigger="hover"> nested in a reka
+	// dropdown. Its flyout is portaled to <body> as [data-slot="content"]. In this
+	// nested context the Popover's CONTENT-side mouseover never fires, so once the
+	// cursor leaves the "Apps" trigger a 100ms leave timer (leaveDelay=0.1) closes
+	// the flyout before you can reach it — and even landing on it closes it, so the
+	// switcher is effectively unusable by hover (frappe-ui has since DEPRECATED
+	// this hover path). Verified on live prod: a content-side hover-bridge does NOT
+	// help (content mouseover is dead); but the Popover keeps open while its
+	// `pointerOverTargetOrPopup` flag is true, and that flag CAN be re-asserted
+	// from the TRIGGER side (a plain element whose mouseover is reliable). So while
+	// an Apps flyout is open we re-dispatch a bubbling `mouseover` on the trigger on
+	// a short timer to hold it open, and stop (dispatching `mouseleave` so it closes
+	// normally) only after the cursor has stayed clearly away from the trigger and
+	// flyout for a grace window. Re-asserting per-tick UNCONDITIONALLY-while-near
+	// (not gated frame-by-frame, which dropped frames mid-move) is what makes it
+	// survive the reach. Purely additive, scoped to the Apps flyout, no app source.
+	var _nxApps = null;
+	function nxAppsFlyoutKeepAlive() {
+		if (_nxApps) { _nxApps.start(); return; } // set up once; (re)start on later opens
+		var STEP = 30, GRACE = 250;
+		var S = { x: -1, y: -1, timer: null, outMs: 0 };
+		document.addEventListener("mousemove", function (e) { S.x = e.clientX; S.y = e.clientY; }, true);
+		function flyout() {
+			var p = document.querySelectorAll('[data-slot="content"]');
+			for (var i = 0; i < p.length; i++)
+				if (p[i].querySelectorAll("a img").length >= 2) return p[i]; // app links = the Apps flyout
+			return null;
+		}
+		function trigger() {
+			var b = document.querySelectorAll("button");
+			for (var i = 0; i < b.length; i++) {
+				var t = (b[i].textContent || "").replace(/\s+/g, " ").trim();
+				if (t === "Apps" || t.indexOf("Apps") === 0) return b[i];
+			}
+			return null;
+		}
+		function isNear(tr, fr) {
+			var x = S.x, y = S.y;
+			var inTrig = x >= tr.left - 24 && x <= tr.right + 28 && y >= tr.top - 24 && y <= tr.bottom + 24;
+			var inFly = fr && x >= fr.left - 14 && x <= fr.right + 40 && y >= fr.top - 40 && y <= fr.bottom + 40;
+			return inTrig || inFly;
+		}
+		function fire(el, type) {
+			if (!el) return;
+			el.dispatchEvent(new MouseEvent(type, { bubbles: true }));
+			if (el.parentElement) el.parentElement.dispatchEvent(new MouseEvent(type, { bubbles: true }));
+		}
+		function stop() { if (S.timer) { clearInterval(S.timer); S.timer = null; } S.outMs = 0; }
+		function tick() {
+			var trig = trigger();
+			if (!trig) {
+				// No "Apps" trigger in the DOM: the dropdown closed, a switcher-less SPA
+				// armed us via an unrelated popover, or a non-English tenant. Tolerate a
+				// TRANSIENT miss (mid reka re-render) but guarantee the timer STOPS
+				// instead of polling forever — advance the exit counter, tear down after
+				// the grace. (Without this the 30ms interval leaks for the whole session.)
+				S.outMs += STEP;
+				if (S.outMs >= GRACE) stop();
+				return;
+			}
+			var fly = flyout();
+			var tr = trig.getBoundingClientRect();
+			var fr = fly ? fly.getBoundingClientRect() : null;
+			if (isNear(tr, fr)) {
+				S.outMs = 0;
+				fire(trig, "mouseover"); // hold it open
+			} else {
+				S.outMs += STEP;
+				// Stop only after a sustained exit — never on one transient miss (that's
+				// what let dropped frames mid-move close it). mouseleave lets it close.
+				if (S.outMs >= GRACE) { fire(trig, "mouseleave"); stop(); }
+			}
+		}
+		function start() { if (!S.timer) { S.outMs = 0; S.timer = setInterval(tick, STEP); } }
+		_nxApps = { start: start };
+		start();
+	}
+
+	// The SPA app-switcher flyout shows BOTH frappe-ui's hard-coded "Desk" entry
+	// AND the erpnext app's own get_apps entry (branded "Nexum Air", route /desk).
+	// Both land on the same desk launcher — a genuine duplicate (owner-flagged,
+	// v16-prod-134). Hide the hard-coded "Desk" one and keep the branded entry.
+	// FAIL-SAFE: only hide when the same flyout ALSO contains another desk-routing
+	// link with a different label (the Nexum Air entry) — never remove the only
+	// path back to the desk (e.g. a user whose permissions hide the erpnext entry).
+	// NOTE: the flyout container varies per frappe-ui version — some SPAs portal it
+	// as [data-slot="content"], Drive's portals a bare <div> — so detection is
+	// anchor-first: find the "Desk" link, then walk up to the switcher list around
+	// it (an ancestor holding >=2 icon links) and look for the branded entry there.
+	function _path(a) {
+		return (a.getAttribute("href") || "").split("?")[0].replace(/\/+$/, "");
+	}
+	// The hard-coded "Desk" entry's route varies per app/frappe-ui version:
+	// /app, /desk, or /desk/<its-own-workspace> (lms -> /desk/learning,
+	// helpdesk -> /desk/helpdesk). Accept the whole family for the Desk link…
+	function _deskRoute(a) {
+		var path = _path(a);
+		return path === "/app" || path === "/desk" || path.indexOf("/desk/") === 0;
+	}
+	// …but the branded entry that justifies hiding it must be the erpnext
+	// get_apps entry itself (launcher route exactly), not another /desk/* link.
+	function _launcherRoute(a) {
+		var path = _path(a);
+		return path === "/app" || path === "/desk";
+	}
+	function hideDuplicateDeskEntry() {
+		var anchors = document.querySelectorAll("a[href]");
+		for (var i = 0; i < anchors.length; i++) {
+			var a = anchors[i];
+			if (a.getAttribute("data-nx-desk-hidden")) continue;
+			if ((a.textContent || "").replace(/\s+/g, " ").trim() !== "Desk") continue;
+			if (!_deskRoute(a)) continue;
+			// find the surrounding switcher list: nearest ancestor with >=2 icon links
+			var box = a.parentElement;
+			var depth = 0;
+			while (box && depth < 5 && box.querySelectorAll("a img").length < 2) {
+				box = box.parentElement;
+				depth++;
+			}
+			if (!box || box === document.body || box === document.documentElement) continue;
+			var links = box.querySelectorAll("a[href]");
+			var brandLink = null;
+			for (var j = 0; j < links.length; j++) {
+				var other = links[j];
+				if (other === a || !_launcherRoute(other)) continue;
+				if ((other.textContent || "").replace(/\s+/g, " ").trim() !== "Desk") {
+					brandLink = other;
+					break;
+				}
+			}
+			if (brandLink) {
+				a.setAttribute("data-nx-desk-hidden", "1");
+				// Hide the switcher CELL, not just the anchor: grid-style flyouts (LMS)
+				// wrap each tile, so display:none on the inner <a> leaves an empty
+				// grid slot and the first row renders with a hole. Walk up to the
+				// direct child of the switcher container and hide that — but only
+				// when it wraps this link alone (list-style flyouts where the anchor
+				// IS the direct child keep the old behavior).
+				var cell = a;
+				while (cell.parentElement && cell.parentElement !== box) cell = cell.parentElement;
+				var target = cell !== a && cell.querySelectorAll("a[href]").length === 1 ? cell : a;
+				target.style.display = "none";
+			}
+		}
+	}
+
+	// frappe/lms hard-codes its app-switcher "Desk" link to `/desk/learning` (its
+	// OWN desk workspace — the tile the desk launcher labels "Learning Admin"),
+	// unlike every other app whose "Desk" goes to `/app` (the Nexum Air home grid).
+	// So from the Learning app, "Desk" drops you into Learning Admin instead of the
+	// home launcher. Repoint it to /app to match the other apps. Scoped naturally —
+	// only LMS emits a /desk/learning link.
+	function fixLmsDeskLink() {
+		var links = document.querySelectorAll('a[href="/desk/learning"]');
+		for (var i = 0; i < links.length; i++) links[i].setAttribute("href", "/app");
+	}
+
 	function start() {
 		// one full initial pass
 		try {
 			ensureLogos();
+			ensureLegacyInsightsLogo();
 			brandTitle();
 			ensureFavicon();
 			brandSubtree(document.body);
 			ensureBackButton();
+			fixLmsDeskLink();
+			hideDuplicateDeskEntry();
 		} catch (e) {
 			/* never let branding break the app */
 		}
@@ -260,15 +473,33 @@
 		var obs = new MutationObserver(function (mutations) {
 			// Cheap per-mutation work: only rewrite the wordmark inside the subtrees
 			// that were just ADDED (route changes / new components), not the whole body.
+			var sawPopover = false;
 			for (var i = 0; i < mutations.length; i++) {
 				var added = mutations[i].addedNodes;
 				for (var j = 0; j < added.length; j++) {
 					try {
 						brandSubtree(added[j]);
+						// A popover/dropdown just mounted — the Apps switcher lives in one.
+						// Arm the keep-alive THIS tick (not on the 250ms debounce) so it's
+						// holding the flyout before the cursor starts to cross.
+						var n = added[j];
+						if (
+							n.nodeType === 1 &&
+							(n.matches && n.matches('[data-slot="content"]')
+								? true
+								: n.querySelector && n.querySelector('[data-slot="content"]'))
+						) {
+							sawPopover = true;
+						}
 					} catch (e) {
 						/* ignore */
 					}
 				}
+			}
+			if (sawPopover) {
+				try { nxAppsFlyoutKeepAlive(); } catch (e) { /* ignore */ }
+				try { fixLmsDeskLink(); } catch (e) { /* ignore */ }
+				try { hideDuplicateDeskEntry(); } catch (e) { /* ignore */ }
 			}
 			// Logos + title: a debounced light pass (cheap selector + title check).
 			if (pending) return;
@@ -276,10 +507,13 @@
 				pending = null;
 				try {
 					ensureLogos();
+					ensureLegacyInsightsLogo();
 					brandTitle();
 					ensureFavicon();
 					ensureBackButton();
-				} catch (e) {
+					fixLmsDeskLink();
+					hideDuplicateDeskEntry();
+					} catch (e) {
 					/* ignore */
 				}
 			}, 250);

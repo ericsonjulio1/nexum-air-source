@@ -145,6 +145,14 @@ def autocomplete_setup(company_name=None, country="Philippines", currency="PHP")
 		"fy_end_date": "%d-12-31" % year,
 		"setup_demo": 0,
 	}
+
+	# Frappe CRM's setup_wizard_complete hook (crm.demo.api.create_demo_data) ignores
+	# setup_demo and seeds demo users/leads/deals on every wizard completion — its only
+	# guard is this default. Pre-set it so real tenants never get @example.com demo
+	# users (whose assignment emails hard-bounce at Resend).
+	if "crm" in frappe.get_installed_apps():
+		frappe.db.set_default("crm_demo_data_created", "1")
+
 	stock_setup_complete(_json.dumps(args))
 
 	# Finalize: only frappe+erpnext have setup stages, so mark every installed app +

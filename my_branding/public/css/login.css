@@ -32,15 +32,15 @@ body.nexum-login .nexum-art{
 }
 body.nexum-login .nexum-art .net{ width:100%; height:100%; max-height:94vh; }
 body.nexum-login .nexum-art .link{
-  stroke:#7fd3e6; stroke-width:1.7; opacity:.45; stroke-dasharray:6 9;
+  stroke:#9DBEC8; stroke-width:1.7; opacity:.45; stroke-dasharray:6 9;
   animation:nexumflow 4.2s linear infinite;
 }
 @keyframes nexumflow{ to{ stroke-dashoffset:120; } }
-body.nexum-login .nexum-art .ring{ fill:none; stroke:#7fd3e6; stroke-width:1.1; opacity:.12; }
-body.nexum-login .nexum-art .spark{ fill:#cdeef6; }
-body.nexum-login .nexum-art .node-bg{ fill:#13262d; stroke:#5b97ab; stroke-width:1.6; }
-body.nexum-login .nexum-art .ico{ fill:none; stroke:#bfe9f6; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
-body.nexum-login .nexum-art .tagline{ fill:#a7c6d2; font-size:11.5px; font-weight:600; letter-spacing:2.6px; }
+body.nexum-login .nexum-art .ring{ fill:none; stroke:#9DBEC8; stroke-width:1.1; opacity:.12; }
+body.nexum-login .nexum-art .spark{ fill:#D3E7EC; }
+body.nexum-login .nexum-art .node-bg{ fill:#16242a; stroke:#557E94; stroke-width:1.6; }
+body.nexum-login .nexum-art .ico{ fill:none; stroke:#9DBEC8; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+body.nexum-login .nexum-art .tagline{ fill:#8FA7B2; font-size:11.5px; font-weight:600; letter-spacing:2.6px; }
 
 /* ---- RIGHT: Frappe's login content, pushed past the fixed panel ---- */
 body.nexum-login #page-login{
@@ -61,6 +61,14 @@ body.nexum-login .text-center.my-5{ display:none; }
 body.nexum-login .nexum-login-head{ margin:0 0 26px; text-align:left; }
 body.nexum-login .nexum-login-head h1{ font-size:26px; font-weight:700; margin:0 0 6px; color:var(--ink); }
 body.nexum-login .nexum-login-head p{ font-size:14px; color:var(--muted); margin:0; }
+/* Tagline: subsetted Plex Mono bridge (shared with the desk wordmark) */
+body.nexum-login .nexum-login-head p{
+  font-family:'NX Plex Mono', ui-monospace, monospace;
+  letter-spacing:.02em;
+  font-size:13px;
+  text-transform:uppercase;
+  color:var(--muted);
+}
 
 /* form fields */
 /* Frappe pins form.form-login to max-width:320px (plus a 20px side margin), which

@@ -21,6 +21,7 @@ site_config covers them):
   alerts the owner so the lead gets a human follow-up instead of being lost.
 """
 
+import json
 import os
 import re
 from html import escape
@@ -249,6 +250,53 @@ def _free_active_count():
 	)[0][0]
 
 
+def _stage_free_lead(lead, cap, email, subdomain, plan, ts, subdomain_locked=True):
+	"""Capacity-gate + auto-approve a free-tier lead, insert it, and return the signup()
+	response dict. Call under the nexum_free_cap lock so the count check and the 'Approved'
+	insert commit atomically against concurrent free signups (otherwise two racers both
+	read count<cap and both auto-approve, overshooting free_tier_cap)."""
+	waitlist = cap > 0 and _free_active_count() >= cap
+	if waitlist:
+		# free capacity reached — hold (don't reject the prospect), alert via the worker
+		lead.custom_provision_status = "Pending"
+		lead.custom_provision_log = (
+			"FREE WAITLIST: free-tier capacity (%d) reached — review or raise free_tier_cap "
+			"before provisioning" % cap
+		)
+	else:
+		approve, reason = _assess_trial_risk(email, subdomain, plan, ts)
+		if approve:
+			lead.custom_provision_status = "Approved"
+			lead.custom_provision_log = "auto-approved (free): " + reason
+			auto = 1
+		else:
+			lead.custom_provision_status = "Pending"
+			lead.custom_provision_log = "HELD for review (free): " + reason
+			auto = 0
+
+	# Re-check identity and subdomain at the insertion boundary while signup() holds
+	# the identity lock. The early checks remain useful fast paths, but are stale by now
+	# if another request inserted while this one was verifying Turnstile.
+	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
+		return {"ok": True, "dedup": 1}
+	if subdomain and not subdomain_locked:
+		lead.custom_provision_status = "Pending"
+		lead.custom_provision_log += "; HELD for review: subdomain lock unavailable at insert time"
+		if not waitlist:
+			auto = 0
+	if subdomain and _subdomain_taken(subdomain):
+		lead.custom_provision_status = "Pending"
+		lead.custom_provision_log += "; HELD for review: subdomain collision detected at insert time"
+		if not waitlist:
+			auto = 0
+
+	lead.insert(ignore_permissions=True)
+	frappe.db.commit()
+	if waitlist:
+		return {"ok": True, "lead": lead.name, "waitlist": 1}
+	return {"ok": True, "lead": lead.name, "auto": auto}
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def signup():
 	_require_signup_host()  # hq only — never run on a tenant site
@@ -262,13 +310,17 @@ def signup():
 	if not email or len(email) > 120 or not EMAIL_RE.match(email):
 		return {"ok": False, "error": "valid email required"}
 
+	# Dedup excludes FAILED leads (here and at every re-check): the retry email we
+	# send on a subdomain clash tells the customer to sign up again with another
+	# name — an email-only dedup returned {ok} while silently doing nothing, so the
+	# advertised retry flow never worked. A Failed lead's email may try again.
 	# Dedup + flood cap run BEFORE the (up to ~5s, outbound) Turnstile verification.
 	# Otherwise every request OVER the cap still pays a blocking Cloudflare round-trip
 	# before being rejected, so a bot flood pins a gunicorn worker ~5s each — exactly what
 	# the cap exists to prevent. check_subdomain()/capture_partial() already rate-limit
 	# first. Dedup runs first (cheap, indexed on email) so a benign double-submit / browser
 	# retry returns early and does NOT consume the global hourly budget.
-	if frappe.db.exists("CRM Lead", {"email": email}):
+	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
 		return {"ok": True, "dedup": 1}
 
 	# rate-limit backstop: signup() trusts Turnstile, but _verify_turnstile is FAIL-OPEN
@@ -294,61 +346,121 @@ def signup():
 	if not sub_ok:
 		return {"ok": False, "error": "invalid subdomain"}
 
-	# cap free-text lengths so a bot can't stuff megabytes into a lead
-	company = (d.get("company") or "").strip()[:140]
-	plan = (d.get("plan") or "").strip()[:40]
-	lead = frappe.new_doc("CRM Lead")
-	lead.first_name = company or email
-	lead.organization = company
-	lead.email = email
-	lead.status = "New"
-	lead.custom_plan = plan
-	lead.custom_subdomain = subdomain
-	# Marketing attribution (custom_utm_*/custom_referrer) is stamped from the request
-	# form params (utm_source/medium/campaign/content/term, ref) by the "lead-attribution"
-	# Before-Insert Server Script — see saas/hq-lead-capture-setup.py. The landing form
-	# forwards those params on this POST (index.html NX.append).
+	# Serialize each email's final re-check + insert. Fail-open: a lock hiccup falls
+	# back to the same insertion path rather than dropping a genuine prospect.
+	identity_lock_cm = None
+	got_identity_lock = False
+	try:
+		from frappe.utils.synchronization import filelock
+		identity_lock_cm = filelock("nexum_signup_identity:" + email.lower(), timeout=15)
+		identity_lock_cm.__enter__()
+		got_identity_lock = True
+	except Exception:
+		got_identity_lock = False
 
-	# Auto-approval. Free tier is instant BY DESIGN (no manual review, independent of the
-	# auto_approve_trials flag) — that frictionless path is the whole point of freemium —
-	# but still gated by Turnstile (above), the per-tenant risk backstop, AND a global cap
-	# that protects the shared server from unbounded free sites. Paid trials keep the
-	# original behaviour: instant only when auto_approve_trials is on and the signup is
-	# low-risk; otherwise Pending for human review.
-	auto = 0
-	if _is_free(plan):
-		cap = _free_cap()
-		if cap > 0 and _free_active_count() >= cap:
-			# free capacity reached — hold (don't reject the prospect), alert via the worker
-			lead.custom_provision_status = "Pending"
-			lead.custom_provision_log = (
-				"FREE WAITLIST: free-tier capacity (%d) reached — review or raise free_tier_cap "
-				"before provisioning" % cap
-			)
-			lead.insert(ignore_permissions=True)
-			frappe.db.commit()
-			return {"ok": True, "lead": lead.name, "waitlist": 1}
-		approve, reason = _assess_trial_risk(email, subdomain, plan, ts)
-		if approve:
-			lead.custom_provision_status = "Approved"
-			lead.custom_provision_log = "auto-approved (free): " + reason
-			auto = 1
-		else:
-			lead.custom_provision_status = "Pending"
-			lead.custom_provision_log = "HELD for review (free): " + reason
-	elif frappe.cint(frappe.conf.get("auto_approve_trials")):
-		approve, reason = _assess_trial_risk(email, subdomain, plan, ts)
-		if approve:
-			lead.custom_provision_status = "Approved"
-			lead.custom_provision_log = "auto-approved: " + reason
-			auto = 1
-		else:
-			lead.custom_provision_status = "Pending"
-			lead.custom_provision_log = "HELD for review: " + reason
+	# Different emails may still race for the same subdomain, so serialize only
+	# competing claims for that subdomain. Keep the same fail-open behavior.
+	subdomain_lock_cm = None
+	got_subdomain_lock = False
+	if subdomain:
+		try:
+			from frappe.utils.synchronization import filelock
+			subdomain_lock_cm = filelock("nexum_signup_subdomain:" + subdomain, timeout=15)
+			subdomain_lock_cm.__enter__()
+			got_subdomain_lock = True
+		except Exception:
+			got_subdomain_lock = False
+	try:
+		# cap free-text lengths so a bot can't stuff megabytes into a lead
+		company = " ".join((d.get("company") or "").split())[:140]
+		plan = (d.get("plan") or "").strip()[:40]
+		lead = frappe.new_doc("CRM Lead")
+		lead.first_name = company or email
+		lead.organization = company
+		lead.email = email
+		lead.status = "New"
+		lead.custom_plan = plan
+		lead.custom_subdomain = subdomain
+		# Marketing attribution (custom_utm_*/custom_referrer) is stamped from the request
+		# form params (utm_source/medium/campaign/content/term, ref) by the "lead-attribution"
+		# Before-Insert Server Script — see saas/hq-lead-capture-setup.py. The landing form
+		# forwards those params on this POST (index.html NX.append).
 
-	lead.insert(ignore_permissions=True)
-	frappe.db.commit()
-	return {"ok": True, "lead": lead.name, "auto": auto}
+		# Auto-approval. Free tier is instant BY DESIGN (no manual review, independent of the
+		# auto_approve_trials flag) — that frictionless path is the whole point of freemium —
+		# but still gated by Turnstile (above), the per-tenant risk backstop, AND a global cap
+		# that protects the shared server from unbounded free sites. Paid trials keep the
+		# original behaviour: instant only when auto_approve_trials is on and the signup is
+		# low-risk; otherwise Pending for human review.
+		auto = 0
+		if _is_free(plan):
+			cap = _free_cap()
+			# Serialize the capacity check with the 'Approved' insert so concurrent free signups
+			# can't each read count<cap and each auto-approve past free_tier_cap (overshooting the
+			# shared box by racers-1). The hourly/daily auto-approve caps are atomic via Redis INCR;
+			# the free cap needs count+insert atomic, so we take a short cross-worker lock. Fail-open:
+			# a lock hiccup falls back to the unlocked path rather than dropping a genuine prospect.
+			lock_cm = None
+			got_lock = False
+			try:
+				from frappe.utils.synchronization import filelock
+				lock_cm = filelock("nexum_free_cap", timeout=15)
+				lock_cm.__enter__()
+				got_lock = True
+			except Exception:
+				got_lock = False
+			try:
+				return _stage_free_lead(
+					lead, cap, email, subdomain, plan, ts,
+					subdomain_locked=got_subdomain_lock,
+				)
+			finally:
+				if got_lock:
+					try:
+						lock_cm.__exit__(None, None, None)
+					except Exception:
+						pass
+		elif frappe.cint(frappe.conf.get("auto_approve_trials")):
+			approve, reason = _assess_trial_risk(email, subdomain, plan, ts)
+			if approve:
+				lead.custom_provision_status = "Approved"
+				lead.custom_provision_log = "auto-approved: " + reason
+				auto = 1
+			else:
+				lead.custom_provision_status = "Pending"
+				lead.custom_provision_log = "HELD for review: " + reason
+
+		# Repeat the early checks at the insertion boundary while the identity lock is
+		# held, closing the check-then-insert window for concurrent same-email signups.
+		if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
+			return {"ok": True, "dedup": 1}
+		if subdomain and not got_subdomain_lock:
+			lead.custom_provision_status = "Pending"
+			lead.custom_provision_log = "HELD for review: subdomain lock unavailable at insert time"
+			auto = 0
+		if subdomain and _subdomain_taken(subdomain):
+			lead.custom_provision_status = "Pending"
+			collision_log = "HELD for review: subdomain collision detected at insert time"
+			if not got_subdomain_lock:
+				lead.custom_provision_log += "; " + collision_log
+			else:
+				lead.custom_provision_log = collision_log
+			auto = 0
+
+		lead.insert(ignore_permissions=True)
+		frappe.db.commit()
+		return {"ok": True, "lead": lead.name, "auto": auto}
+	finally:
+		if got_subdomain_lock:
+			try:
+				subdomain_lock_cm.__exit__(None, None, None)
+			except Exception:
+				pass
+		if got_identity_lock:
+			try:
+				identity_lock_cm.__exit__(None, None, None)
+			except Exception:
+				pass
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -380,16 +492,23 @@ def capture_partial():
 	# see per-client IPs, so cap total captures/hour to stop a bot flooding Pending leads +
 	# owner emails. Fail-open: a cache hiccup must never drop a genuine lead.
 	try:
-		if _bump_window("nexum_capture", "%Y%m%d%H", 3700) > 40:
-			return {"ok": True, "throttled": 1}
+		over_cap = _bump_window("nexum_capture", "%Y%m%d%H", 3700) > 40
 	except Exception:
-		pass
+		over_cap = False
+	if over_cap:
+		# lead-table + owner-mailbox flood protection stands, but a REAL prospect
+		# past the cap must not vanish (bots eating the first 40 slots used to
+		# silently discard customer #41). Known emails just dedup; new ones spill
+		# to a durable file the daily signup-funnel digest surfaces for follow-up.
+		if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
+			return {"ok": True, "dedup": 1}
+		return _spill_overflow(d, email)
 
 	# don't duplicate an existing lead (a completed signup, or an earlier capture)
-	if frappe.db.exists("CRM Lead", {"email": email}):
+	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
 		return {"ok": True, "dedup": 1}
 
-	company = (d.get("company") or "").strip()[:140]
+	company = " ".join((d.get("company") or "").split())[:140]
 	plan = (d.get("plan") or "").strip()[:40]
 	# This is the "don't lose the prospect" path, so DON'T reject on a bad subdomain —
 	# just drop an invalid/reserved one to blank (the owner picks the real name at
@@ -452,6 +571,38 @@ def capture_partial():
 			)
 
 	return {"ok": True, "lead": lead.name, "captured": 1}
+
+
+OVERFLOW_MAX_BYTES = 1_000_000  # ~4k entries; a sustained bot flood hits this lid, not the disk
+
+
+def _spill_overflow(d, email):
+	"""Durably queue an over-cap capture beacon instead of dropping it.
+
+	Appends a JSON line to sites/<site>/private/capture-overflow.jsonl —
+	``private/`` is never web-served and lives on the sites volume, so entries
+	survive deploys. signup-funnel.py folds them into the daily digest (escaped
+	there — every field here is attacker-controlled) and archives the file.
+	Returns ok only once the line is actually on disk; a write failure reports
+	the truthful throttled error so the landing page keeps its retry path open."""
+	try:
+		path = frappe.get_site_path("private", "capture-overflow.jsonl")
+		if os.path.exists(path) and os.path.getsize(path) > OVERFLOW_MAX_BYTES:
+			return {"ok": False, "error": "throttled"}
+		entry = {
+			"ts": str(frappe.utils.now_datetime()),
+			"email": email,
+			"company": " ".join((d.get("company") or "").split())[:140],
+			"plan": (d.get("plan") or "").strip()[:40],
+			"subdomain": (d.get("subdomain") or "").strip()[:60],
+			"reason": (d.get("reason") or "unknown").strip()[:60],
+		}
+		with open(path, "a") as fh:
+			fh.write(json.dumps(entry) + "\n")
+		return {"ok": True, "overflow": 1}
+	except Exception:
+		frappe.log_error(title="capture overflow spill failed", message=frappe.get_traceback())
+		return {"ok": False, "error": "throttled"}
 
 
 @frappe.whitelist(allow_guest=True)

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2E5562"/>
+      <stop offset="0.55" stop-color="#557E94"/>
+      <stop offset="1" stop-color="#9DBEC8"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="100" height="100" rx="24" fill="url(#g)"/>
+  <!-- course "records" list: bullet + row, x3 — the admin/records view of Learning -->
+  <g fill="#ffffff">
+    <rect x="29" y="31"   width="8"  height="8"   rx="2"/>
+    <rect x="43" y="32.5" width="30" height="5.5" rx="2.75"/>
+    <rect x="29" y="47.5" width="8"  height="8"   rx="2"/>
+    <rect x="43" y="49"   width="30" height="5.5" rx="2.75"/>
+    <rect x="29" y="64"   width="8"  height="8"   rx="2"/>
+    <rect x="43" y="65.5" width="30" height="5.5" rx="2.75"/>
+  </g>
+</svg>

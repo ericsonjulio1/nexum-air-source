@@ -5,6 +5,17 @@
   --brand-gradient: linear-gradient(135deg, #2E5562 0%, #557E94 55%, #9DBEC8 100%);
 }
 
+/* Subsetted IBM Plex Mono (OFL) — shared typographic bridge for the wordmark
+   and the login tagline. Self-hosted subset (A-Z a-z 0-9 + basic punctuation),
+   no external font requests. */
+@font-face {
+  font-family: 'NX Plex Mono';
+  src: url('/assets/my_branding/fonts/plex-mono-subset.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 .navbar.navbar-expand {
   background: var(--brand-gradient) !important;
   border-bottom: none;
@@ -37,7 +48,8 @@
   color: #ffffff;
   font-weight: 600;
   font-size: 14px;
-  letter-spacing: 0.2px;
+  font-family: 'NX Plex Mono', ui-monospace, monospace;
+  letter-spacing: .03em;
   white-space: nowrap;
   margin-left: 10px;
   vertical-align: middle;
@@ -154,6 +166,16 @@ a:hover {
   background: url("/assets/my_branding/images/nexum-mark-white.png") center / contain no-repeat;
   animation: nexum-splash-pulse 1.5s ease-in-out infinite;
 }
+/* Dark-mode splash: the light teal->cyan gradient reads glaring on the dark
+   theme — swap both splash surfaces to the deep-teal ramp. Must come AFTER the
+   light rules above (source order); !important on .splash matches the light
+   rule's !important so the later declaration wins. */
+[data-theme="dark"] .splash {
+  background: linear-gradient(135deg, #16242a 0%, #1c2b30 55%, #2e5562 100%) !important;
+}
+[data-theme="dark"] #nexum-splash {
+  background: linear-gradient(135deg, #16242a 0%, #1c2b30 55%, #2e5562 100%);
+}
 
 /* Centre the workspace launcher icons in the space below the search bar.
    .desktop-wrapper fills the viewport; the .desktop-navbar header stays at the
@@ -178,7 +200,11 @@ a:hover {
    so every page stays identical. */
 .desktop-wrapper .desktop-container:not(:has(.right-page-arrow)) .icons {
   grid-template-rows: none !important;
-  grid-auto-rows: 126px !important;
+  /* minmax(126px, auto): a 2-line caption tile (~30px caption + ~59px icon +
+     8px gap + 24px padding ≈ 121px) barely fits 126px — let the row grow a
+     few px rather than clip. Rows with only 1-line captions stay 126px, so
+     short-caption alignment is unchanged. */
+  grid-auto-rows: minmax(126px, auto) !important;
 }
 
 /* ---- Workspace launcher + sidebar: brand the module icons & labels ---- */
@@ -290,7 +316,8 @@ img[src*="print-designer-logo"] {
 }
 img[src$="solid/account_setup.svg"] { content: url("/assets/my_branding/images/icons/account_setup.svg"); }
 img[src$="solid/accounts_setup.svg"] { content: url("/assets/my_branding/images/icons/accounts_setup.svg"); }
-img[src$="solid/assets.svg"] { content: url("/assets/my_branding/images/icons/assets.svg"); }
+/* assets4 = gear+wrench maintenance glyph (EAM: meter-based PM + spare parts), 3-stop slate/teal ramp, horizontally optically recentered (translate(4.9,0) — measured ink-centroid offset was ~-5% on X). New filename: same-URL SVGs are PWA/edge-cached. */
+img[src$="solid/assets.svg"] { content: url("/assets/my_branding/images/icons/assets4.svg"); }
 img[src$="solid/banking.svg"] { content: url("/assets/my_branding/images/icons/banking.svg"); }
 img[src$="solid/budget.svg"] { content: url("/assets/my_branding/images/icons/budget.svg"); }
 img[src$="solid/buying.svg"] { content: url("/assets/my_branding/images/icons/buying.svg"); }
@@ -389,12 +416,27 @@ img[src$="/assets/slides/frontend/slides-logo.svg"]       { content: url("/asset
   display: none !important;
 }
 
-/* LMS ships TWO launcher tiles: the app "Frappe Learning" (-> /lms, the learner
-   SPA; relabelled "Nexum Air Learning" via the Translation override) and this
-   "Learning" desk-workspace tile (-> /desk/lms-course). That's a confusing
-   duplicate, so hide the workspace tile and keep the single branded app tile.
-   (Course admin is still reachable from inside the LMS app / search.) */
-.desktop-icon[data-id="Learning"] {
+/* LMS ships TWO launcher tiles that both read "Learning": the app tile
+   "Frappe Learning" (-> /lms, the learner SPA, open-book icon) and this desk
+   WORKSPACE tile (-> /desk/lms-course), which is the course-ADMIN / records
+   view. To tell them apart we relabel the workspace tile to "Learning Admin"
+   (branding.reconcile_lms_admin_workspace) and paint it a distinct "records"
+   icon here. It otherwise renders a bare grey "L" letter avatar (same as the
+   old Settings tile), so paint the icon as the container background + hide the
+   letter. data-id stays "Learning" (we change only the label, not the doc
+   name), so this selector is stable across migrates.
+   (An earlier build tried `display:none` to hide this tile, but the later
+   Glass&Aurora home-grid rule `body.nx-desk-home .desktop-container
+   .desktop-icon{display:flex}` out-specifies it — hence differentiate, not
+   hide.) */
+.desktop-icon[data-id="Learning"] .icon-container {
+  background-color: transparent !important;
+  background-image: url("/assets/my_branding/images/icons/learning_admin.svg") !important;
+  background-size: contain !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+.desktop-icon[data-id="Learning"] .icon-container .desktop-alphabet {
   display: none !important;
 }
 
@@ -479,12 +521,15 @@ body[data-path="login"]::after {
 [data-theme="dark"] .standard-sidebar-item .sidebar-item-icon use {
   color: var(--brand-primary-light);
 }
-/* Sidebar labels: solid bright-teal base, and a bright-only gradient inside the
-   @supports guard so the clipped text never falls back to the dim dark end. */
+/* Sidebar labels + desktop-icon launcher-tile captions: solid bright-teal base,
+   and a bright-only gradient inside the @supports guard so the clipped text
+   never falls back to the dim dark end. */
+[data-theme="dark"] .desktop-icon .icon-title,
 [data-theme="dark"] .standard-sidebar-item > .item-anchor > .sidebar-item-label {
   color: var(--brand-primary-light);
 }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  [data-theme="dark"] .desktop-icon .icon-title,
   [data-theme="dark"] .standard-sidebar-item > .item-anchor > .sidebar-item-label {
     background-image: linear-gradient(135deg, #5FB0C8 0%, #9AD2E0 100%);
     -webkit-background-clip: text;
@@ -646,6 +691,25 @@ body.nx-desk-home .desktop-container .desktop-icon .icon-caption {
   line-height: 1.15 !important;
   margin: 0 !important;
   padding: 0 !important;
+  /* Long captions ("Assets & Maintenance") overflowed the tile box. Allow a
+     wrap onto a second line, then clamp with an ellipsis beyond 2 lines. */
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* icon-title is the real text node (see brand.js relabelAssetsTile/relabelLearningAdminTile
+   fix) — frappe's own .icon-title forces white-space:nowrap + ellipsis (single-line
+   truncation by default), which would defeat the 2-line wrap/clamp above the moment text
+   lives inside it instead of directly in .icon-caption. Neutralize icon-title's own
+   single-line truncation so the .icon-caption clamp above is what governs wrapping. */
+body.nx-desk-home .desktop-container .desktop-icon .icon-caption .icon-title {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
 }
 body.nx-desk-home .desktop-container .desktop-icon .icon-container {
   margin: 0 !important;
@@ -696,3 +760,61 @@ body.nx-desk-home .desktop-container .desktop-icon:hover {
 [data-theme="dark"] body.nx-desk .widget:focus-visible { outline-color: #9DBEC8; }
 [data-theme="dark"] .nx-greeting-hi { color: #eaf5f8; }
 [data-theme="dark"] .nx-greeting-sub { color: #8fa7b2; }
+
+/* Launcher section headers — brand.js's applyLauncherSectionHeaders() tags
+   launcher tiles with two row-alignment classes (strictly attribute/class-
+   only: nothing is inserted into the sortable grid):
+   - .nx-section-start (+ data-nx-section-title): the first visible tile of
+     EACH ratified section on the current pager page — every section is
+     labeled, even a lone-tile one (e.g. the single-tile
+     Administration/Settings section). Forced onto grid-column:1 so the
+     section starts a fresh row of the fluid repeat(auto-fill,
+     minmax(150px,1fr)) grid; the section title renders as a ::before floated
+     above the tile — pointer-events:none + absolute positioning keep the
+     tile's own box, click-area, and drag-target completely unaffected.
+   - .nx-row-head: the OTHER tiles sharing that section-start's grid row.
+     CSS Grid's default align-items:stretch stretches every tile in a row to
+     the row's (now taller, margin-inclusive) track, so giving ONLY the
+     section-start tile margin-top made it droop ~48px below its stretched
+     row siblings. The row-mates get the SAME margin-top so the whole row
+     shifts down uniformly and the ::before label still has headroom. */
+body.nx-desk-home .desktop-container .desktop-icon.nx-section-start {
+  grid-column: 1;
+  position: relative;
+}
+body.nx-desk-home .desktop-container .desktop-icon.nx-section-start,
+body.nx-desk-home .desktop-container .desktop-icon.nx-row-head {
+  margin-top: 48px;
+}
+body.nx-desk-home .desktop-container .desktop-icon.nx-section-start::before {
+  content: attr(data-nx-section-title);
+  position: absolute;
+  top: -30px;
+  left: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  font-family: 'NX Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+}
+/* Dark-mode override (kept after the light rules, matching the light/dark
+   source-order convention used throughout this file): swap the label to the
+   same lighter teal already used for dark-mode brand text (.desktop-icon
+   .icon-title, sidebar labels, links) so it stays legible on the dark aurora. */
+[data-theme="dark"] body.nx-desk-home .desktop-container .desktop-icon.nx-section-start::before {
+  color: var(--brand-primary-light);
+}
+
+/* Rows holding a section header need headroom: the 48px margin-top would
+   otherwise overflow the fixed 126px tracks (our single-page rule above AND
+   Frappe's inline grid-template-rows on the multi-page pager — an author
+   !important declaration outranks inline styles, so this reaches both).
+   Scoped via :has to grids actually containing a header, so unmarked pager
+   pages keep their identical fixed-height layout. */
+body.nx-desk-home .desktop-container .icons:has(.desktop-icon.nx-section-start) {
+  grid-template-rows: none !important;
+  grid-auto-rows: minmax(126px, auto) !important;
+}

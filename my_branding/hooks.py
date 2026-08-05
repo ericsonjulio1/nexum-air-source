@@ -10,10 +10,11 @@ app_license = "mit"
 app_logo_url = "/assets/my_branding/images/nexum-mark.png"
 brand_html = '<span style="font-weight:700;color:#fff;letter-spacing:0.3px;">Nexum Air</span>'
 
-app_include_css = "/assets/my_branding/css/brand.css?v=20260707a"
-app_include_js = "/assets/my_branding/js/brand.js?v=20260706a"
+_BRAND_CSS_VER = "20260724c"
+app_include_css = f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}"
+app_include_js = "/assets/my_branding/js/brand.js?v=20260725c"
 web_include_css = [
-	"/assets/my_branding/css/brand.css?v=20260707a",
+	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
 	"/assets/my_branding/css/login.css?v=20260705a",
 ]
 # split login page (left brand diagram + right credentials); login.js guards on
@@ -41,7 +42,8 @@ fixtures = [
 
 # Keep the rebranded "Settings" workspace from being duplicated by the standard
 # ERPNext workspace sync on each migrate, and re-assert desk string overrides
-# (e.g. "Frappe HR" -> "HR").
+# (e.g. "Frappe HR" -> "HR"). Launcher visibility must run before launcher
+# ordering so catch-all ordering sees the final parent/child hidden state.
 after_migrate = [
 	"my_branding.branding.reconcile_workspaces",
 	"my_branding.branding.ensure_translations",
@@ -51,16 +53,21 @@ after_migrate = [
 	"my_branding.webshop.ensure_online_store_workspace",
 	"my_branding.branding.ensure_gameplan_tile_label",
 	"my_branding.branding.reconcile_app_workspace_labels",
+	"my_branding.branding.reconcile_lms_admin_workspace",
 	"my_branding.branding.reconcile_content_leaks",
+	"my_branding.coa_guard.reconcile_ph_coa_defaults",
 	"my_branding.roles.ensure_role_profiles",
+	"my_branding.roles.ensure_owner_asset_manager",
 	"my_branding.branding.ensure_email_settings",
 	"my_branding.branding.ensure_app_landing",
 	"my_branding.branding.reconcile_onboarding",
 	"my_branding.branding.reconcile_workspace_visibility",
 	"my_branding.branding.ensure_web_title_prefix",
 	"my_branding.branding.reconcile_workspace_order",
+	"my_branding.branding.reconcile_framework_desktop_icon_visibility",
 	"my_branding.branding.reconcile_desktop_icon_order",
 	"my_branding.invoicing.ensure_invoice_design",
+	"my_branding.demo.reconcile_demo_start",
 ]
 
 # "Invoice Design" button on the Sales Invoice form -> Print Designer editor
@@ -367,4 +374,3 @@ on_login = "my_branding.lifecycle.wake_scheduler"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-

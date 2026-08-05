@@ -371,6 +371,43 @@ def reconcile_app_workspace_labels():
 		)
 
 
+def reconcile_lms_admin_workspace():
+	"""after_migrate: the LMS app puts TWO launcher tiles that both read "Learning"
+	— the app tile "Frappe Learning" (-> /lms, the learner SPA) and its desk
+	WORKSPACE tile (-> /desk/lms-course), which is really the course-admin / records
+	view. We differentiate the workspace tile in the ASSET layer instead of the
+	data: brand.css paints it a distinct records icon and brand.js relabels its
+	caption to "Learning Admin".
+
+	The Desktop Icon `label` MUST stay "Learning": frappe's launcher gates a
+	workspace-link tile on `bootinfo.workspace_sidebar_item.get(icon.label.lower())`
+	(get_desktop_icons), and `create_desktop_icons_from_workspace` sets that label to
+	the workspace NAME — so any other label makes the tile vanish entirely (learned
+	the hard way in v16-prod-111). So here we only HEAL the label back to "Learning"
+	if a prior build changed it, and set the Workspace `title` (the header shown when
+	the workspace is opened) to "Learning Admin". Idempotent + hardened; can never
+	abort a migrate."""
+	try:
+		# HEAL: the launcher tile must carry label == workspace name "Learning".
+		if frappe.db.table_exists("Desktop Icon") and frappe.db.exists("Desktop Icon", "Learning"):
+			if frappe.db.get_value("Desktop Icon", "Learning", "label") != "Learning":
+				frappe.db.set_value("Desktop Icon", "Learning", "label", "Learning", update_modified=False)
+		if frappe.db.table_exists("Workspace") and frappe.db.exists("Workspace", "Learning"):
+			meta = frappe.get_meta("Workspace")
+			vals = {}
+			if meta.has_field("label") and frappe.db.get_value("Workspace", "Learning", "label") != "Learning":
+				vals["label"] = "Learning"  # keep label == name; header rename is via `title`
+			if meta.has_field("title"):
+				vals["title"] = "Learning Admin"
+			if vals:
+				frappe.db.set_value("Workspace", "Learning", vals, update_modified=False)
+	except Exception:
+		frappe.log_error(
+			title="my_branding reconcile_lms_admin_workspace failed",
+			message=frappe.get_traceback(),
+		)
+
+
 def reconcile_content_leaks():
 	"""after_migrate: scrub Frappe-brand leaks that live INSIDE standard docs and
 	get re-synced on every migrate, so neither Translations nor label relabels can
@@ -493,23 +530,51 @@ def reconcile_workspace_order():
 		)
 
 
-# Tiered desk-launcher order: CORE ERP -> BUSINESS -> ENTERPRISE -> system/admin,
-# matching the Nexum Air plan tiers. Keyed on the Desktop Icon `label` (== the
-# launcher tile's data-id). The /desk launcher renders top-level icons ordered by
-# `idx` (frappe.desk...desktop_icon.get_desktop_icons), so assigning these idx gives
-# the order server-side — no client-side DOM sorting, no flicker, persistent. Labels
-# not listed keep their own idx and fall wherever; folder children (e.g. Accounting's
-# Invoicing/Payments) stay grouped under their parent regardless.
+# Ratified desk-launcher sections and order, keyed on the Desktop Icon `label`
+# (== the launcher tile's data-id). These labels are linkage keys, not display
+# names. The /desk launcher renders top-level icons ordered by `idx`
+# (frappe.desk...desktop_icon.get_desktop_icons), so assigning these idx gives the
+# order server-side — no client-side DOM sorting, no flicker, persistent. Labels
+# not listed are placed after the curated set only when they can render top-level;
+# folder children (e.g. Accounting's Invoicing/Payments) keep their own idx and
+# stay grouped under their visible parent.
+LAUNCHER_SECTIONS = [
+	{
+		"title": "Sales & Money",
+		"labels": ["Accounting", "Selling", "Online Store", "Buying", "Stock", "Lending"],
+	},
+	{
+		"title": "Operations",
+		"labels": [
+			"Manufacturing",
+			"Subcontracting",
+			"Assets",
+			"Projects",
+			"Quality",
+			"Organization",
+		],
+	},
+	{
+		"title": "Customers & Team",
+		"labels": ["Frappe CRM", "Frappe HR", "Helpdesk", "Insights"],
+	},
+	{
+		"title": "Files & Office",
+		"labels": [
+			"Frappe Drive",
+			"Slides",
+			"Teams",
+			"Frappe Builder",
+			# Default site-building/content placement; may move after adjudication.
+			"Website",
+			"Frappe Learning",
+			"Learning",
+		],
+	},
+	{"title": "Administration", "labels": ["Settings", "My Workspaces", "Framework"]},
+]
 DESKTOP_ICON_ORDER = [
-	# --- CORE ERP (baseline / Essentials: erpnext modules) ---
-	"Accounting", "Selling", "Buying", "Stock", "Manufacturing",
-	"Subcontracting", "Assets", "Projects", "Quality", "Organization",
-	# --- BUSINESS (crm, hrms, helpdesk, insights, lending) ---
-	"Frappe CRM", "Frappe HR", "Helpdesk", "Insights", "Lending",
-	# --- ENTERPRISE (drive, slides, gameplan, builder, lms) ---
-	"Frappe Drive", "Slides", "Teams", "Frappe Builder", "Frappe Learning", "Learning",
-	# --- system / admin (last) ---
-	"Settings", "Framework",
+	label for section in LAUNCHER_SECTIONS for label in section["labels"]
 ]
 
 
@@ -517,9 +582,12 @@ def reconcile_desktop_icon_order():
 	"""after_migrate: stamp the tiered launcher order onto Desktop Icon `idx` so the
 	/desk app grid reads CORE ERP -> BUSINESS -> ENTERPRISE -> system. Idempotent +
 	hardened so it can never abort a migrate. Spaced by 10s (10,20,30,...) so a future
-	tile can be slotted between two without a full renumber. Clears the desktop_icons
-	cache for ALL users so the new order shows without a hard restart (the stock
-	clear_desktop_icons_cache() only clears the migrate-runner's own entry)."""
+	tile can be slotted between two without a full renumber. Unlisted visible icons
+	that have no visible parent are kept in their existing relative order and stamped
+	after the curated set; children nested under a visible folder retain their own idx.
+	Clears the desktop_icons cache for ALL users so the new order shows without a hard
+	restart (the stock clear_desktop_icons_cache() only clears the migrate-runner's
+	own entry)."""
 	if not frappe.db.table_exists("Desktop Icon"):
 		return
 	try:
@@ -528,6 +596,31 @@ def reconcile_desktop_icon_order():
 			for name in frappe.get_all("Desktop Icon", filters={"label": label}, pluck="name"):
 				if frappe.db.get_value("Desktop Icon", name, "idx") != idx:
 					frappe.db.set_value("Desktop Icon", name, "idx", idx, update_modified=False)
+
+		# desktop.js builds its parent lookup from visible labels only. Mirror that
+		# rule so only icons that would render top-level receive catch-all indices;
+		# children of visible folders keep the idx used within their folder.
+		rows = frappe.get_all(
+			"Desktop Icon",
+			fields=["name", "label", "parent_icon", "hidden", "idx"],
+			order_by="idx asc, name asc",
+		)
+		visible_labels = {row.label for row in rows if row.hidden != 1}
+		curated_labels = set(DESKTOP_ICON_ORDER)
+		trailing = [
+			row
+			for row in rows
+			if row.hidden != 1
+			and row.label not in curated_labels
+			and (not row.parent_icon or row.parent_icon not in visible_labels)
+		]
+		for i, row in enumerate(trailing, start=len(DESKTOP_ICON_ORDER) + 1):
+			idx = i * 10
+			if row.idx != idx:
+				frappe.db.set_value(
+					"Desktop Icon", row.name, "idx", idx, update_modified=False
+				)
+
 		# Drop the whole per-user cache hash (not just this user's entry) so every
 		# logged-in user picks up the new order, not only the migrate-runner.
 		try:
@@ -538,6 +631,42 @@ def reconcile_desktop_icon_order():
 	except Exception:
 		frappe.log_error(
 			title="my_branding reconcile_desktop_icon_order failed", message=frappe.get_traceback()
+		)
+
+
+def reconcile_framework_desktop_icon_visibility():
+	"""after_migrate: hide Framework and its developer-facing child icons site-wide.
+
+	desktop.js removes hidden icons before building its parent lookup (`icon_map`).
+	Hiding Framework alone therefore orphans its visible children and promotes them
+	into the top-level launcher grid. Hide every current/future Framework child too,
+	except Website: Website is an intentional content-management tile whose visibility
+	and curated position are governed by DESKTOP_ICON_ORDER. Idempotent + hardened so
+	it can never abort a migrate.
+	"""
+	if not frappe.db.table_exists("Desktop Icon"):
+		return
+	try:
+		names = frappe.get_all(
+			"Desktop Icon", filters={"label": "Framework"}, pluck="name"
+		)
+		names += frappe.get_all(
+			"Desktop Icon",
+			filters={"parent_icon": "Framework", "label": ("!=", "Website")},
+			pluck="name",
+		)
+		for name in names:
+			if frappe.db.get_value("Desktop Icon", name, "hidden") != 1:
+				frappe.db.set_value("Desktop Icon", name, "hidden", 1, update_modified=False)
+		try:
+			frappe.cache.delete_key("desktop_icons")
+			frappe.cache.delete_key("bootinfo")
+		except Exception:
+			pass
+	except Exception:
+		frappe.log_error(
+			title="my_branding reconcile_framework_desktop_icon_visibility failed",
+			message=frappe.get_traceback(),
 		)
 
 

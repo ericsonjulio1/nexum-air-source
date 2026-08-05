@@ -72,14 +72,22 @@ a.active\:bg-surface-gray-5:active { background-color: #1C2B30 !important; }
 
 /* Hide each app's native Frappe logo (spa-brand.js drops a Nexum Air <img>
  * beside it): the cube as an inline svg (117 = HR, 118 = Drive/Helpdesk/
- * Gameplan), CRM's 300 svg, Builder's png, and Insights' inlined base64 logo.
- * We leave Vue to keep re-rendering it — it just stays hidden, no flash. */
+ * Gameplan), CRM's 300 svg, and Builder's png. We leave Vue to keep
+ * re-rendering it — it just stays hidden, no flash. */
 svg[viewBox="0 0 117 117"],
 svg[viewBox="0 0 118 118"],
 svg[viewBox="0 0 300 300"],
 svg[viewBox="0 0 80 79"],
-img[src$="builder_logo.png"],
-img[src^="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHe"] {
+img[src$="builder_logo.png"] {
+	display: none !important;
+}
+/* Frappe Insights' (<v2.2) inlined base64 logo: hidden ONLY once spa-brand.js's
+ * ensureLegacyInsightsLogo() has confirmed we're on the Insights route and
+ * tagged the element — see spa-brand.js for why this can't be a bare
+ * attribute-selector match in CSS (the base64 header is not unique to the
+ * logo file; matching it globally would risk hiding arbitrary embedded
+ * images on other frappe-ui SPAs). */
+.nx-legacy-logo-hidden {
 	display: none !important;
 }
 

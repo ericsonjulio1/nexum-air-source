@@ -35,3 +35,17 @@ def boot_session(bootinfo):
 					app["app_logo_url"] = "/assets/my_branding/images/icons/insights_app.svg"
 	except Exception:
 		frappe.log_error(title="my_branding boot_session failed", message=frappe.get_traceback())
+
+	try:
+		from my_branding.branding import LAUNCHER_SECTIONS
+
+		launcher_sections = [
+			{"title": section["title"], "labels": list(section["labels"])}
+			for section in LAUNCHER_SECTIONS
+		]
+		bootinfo.nexumair_launcher_sections = launcher_sections
+	except Exception:
+		frappe.log_error(
+			title="my_branding launcher sections bootinfo failed",
+			message=frappe.get_traceback(),
+		)

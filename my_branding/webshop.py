@@ -30,7 +30,27 @@ _ROUTE = "/app/online-store"
 
 
 def _ensure_workspace():
+	want = {
+		"title": _WS,
+		"label": _WS,
+		"public": 1,
+		"icon": "retail",
+		# Own the workspace under the webshop app so the v16 desk launcher (which
+		# groups workspaces by their app and DROPS any app-less/module-less page)
+		# renders the tile. Setting module is enough — Workspace.validate resolves
+		# app="webshop" via get_module_app. Without this the workspace exists but
+		# never appears in the apps grid.
+		"module": "Webshop",
+	}
 	if frappe.db.exists("Workspace", _WS):
+		ws = frappe.get_doc("Workspace", _WS)
+		changed = False
+		for field, value in want.items():
+			if getattr(ws, field) != value:
+				setattr(ws, field, value)
+				changed = True
+		if changed:
+			ws.save(ignore_permissions=True)
 		return
 	h = lambda: frappe.generate_hash(length=10)
 	shortcuts = [
@@ -53,16 +73,7 @@ def _ensure_workspace():
 		{"id": h(), "type": "card", "data": {"card_name": "Online Store", "col": 4}},
 	]
 	ws = frappe.new_doc("Workspace")
-	ws.title = _WS
-	ws.label = _WS
-	ws.public = 1
-	ws.icon = "retail"
-	# Own the workspace under the webshop app so the v16 desk launcher (which
-	# groups workspaces by their app and DROPS any app-less/module-less page)
-	# renders the tile. Setting module is enough — Workspace.validate resolves
-	# app="webshop" via get_module_app. Without this the workspace exists but
-	# never appears in the apps grid.
-	ws.module = "Webshop"
+	ws.update(want)
 	ws.content = json.dumps(content)
 	for s in shortcuts:
 		ws.append("shortcuts", s)
@@ -84,14 +95,25 @@ def _ensure_sidebar():
 	"""
 	if not frappe.db.exists("DocType", "Workspace Sidebar"):
 		return
+	want = {
+		"title": _WS,
+		"header_icon": "retail",
+		"module": "Webshop",
+		"app": "webshop",
+		"standard": 0,
+	}
 	if frappe.db.exists("Workspace Sidebar", _WS):
+		sb = frappe.get_doc("Workspace Sidebar", _WS)
+		changed = False
+		for field, value in want.items():
+			if getattr(sb, field) != value:
+				setattr(sb, field, value)
+				changed = True
+		if changed:
+			sb.save(ignore_permissions=True)
 		return
 	sb = frappe.new_doc("Workspace Sidebar")
-	sb.title = _WS
-	sb.header_icon = "retail"
-	sb.module = "Webshop"
-	sb.app = "webshop"
-	sb.standard = 0
+	sb.update(want)
 	sb.append(
 		"items",
 		{"label": "Home", "link_type": "Workspace", "icon": "retail", "type": "Link", "link_to": _WS, "collapsible": 1},

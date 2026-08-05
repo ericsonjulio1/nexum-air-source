@@ -175,6 +175,85 @@
 	);
 })();
 
+// Desk-launcher tiles swallow "jittery" clicks: each tile is an `<a draggable>`
+// anchor managed by the grid's drag-to-reorder (SortableJS, native HTML5 mode),
+// and the browser starts a drag — cancelling the click outright — once the
+// pointer travels ~4px between mousedown and mouseup. Wireless/Bluetooth mice
+// routinely drift that much during a normal click, so tiles intermittently
+// "do nothing". A timed guard (drags allowed only after a 300ms hold) still
+// swallowed slow drifting clicks — a press held past the window with ≥4px of
+// drift died exactly like before. Since the launcher order is centrally
+// reconciled (LAUNCHER_SECTIONS + reconcile_desktop_icon_order re-stamp idx on
+// every migrate), a user drag-reorder is overwritten on the next deploy anyway,
+// so drag-to-reorder is disabled on tiles outright: every press releases as an
+// ordinary click.
+(function () {
+	document.addEventListener(
+		"dragstart",
+		function (e) {
+			try {
+				if (e.target && e.target.closest && e.target.closest(".desktop-container .desktop-icon")) {
+					e.preventDefault();
+				}
+			} catch (err) {
+				/* never let this break a drag */
+			}
+		},
+		true
+	);
+})();
+
+// Desk sidebar opens the wrong workspace (e.g. a report under Assets showing the
+// Website/Framework sidebar): frappe v16 Sidebar.resolve_sidebar() rule 2 trusts
+// localStorage.sidebar_item_map[entity][0] — a per-browser remembered choice —
+// UNCONDITIONALLY, without checking that the remembered sidebar still links the
+// entity at all; and store_last_show_sidebar_for_item() only ever appends, so
+// the oldest (possibly stale/corrupt) entry wins forever. Sanitize on every
+// resolve: keep only remembered sidebars that are real candidates for the
+// entity (per get_workspace_sidebars), dedupe, and write the pruned map back —
+// this also self-heals browsers already carrying a poisoned entry. When the
+// entity has no candidates at all, stock behavior is left untouched.
+(function () {
+	function wrap() {
+		var S = frappe.ui && frappe.ui.Sidebar;
+		if (!S || !S.prototype || !S.prototype.resolve_sidebar || S.prototype.__nxSidebarSanitized) {
+			return !!(S && S.prototype && S.prototype.__nxSidebarSanitized);
+		}
+		var orig = S.prototype.resolve_sidebar;
+		S.prototype.resolve_sidebar = function (entity, module) {
+			try {
+				var raw = JSON.parse(localStorage.getItem("sidebar_item_map") || "{}");
+				var entry = raw[entity];
+				if (entry && entry.length) {
+					var candidates = this.get_workspace_sidebars(entity) || [];
+					if (candidates.length) {
+						var valid = [];
+						entry.forEach(function (s) {
+							if (candidates.indexOf(s) !== -1 && valid.indexOf(s) === -1) valid.push(s);
+						});
+						if (valid.length !== entry.length) {
+							if (valid.length) raw[entity] = valid;
+							else delete raw[entity];
+							localStorage.setItem("sidebar_item_map", JSON.stringify(raw));
+						}
+					}
+				}
+			} catch (err) {
+				/* sanitizing is best-effort; never block sidebar resolution */
+			}
+			return orig.call(this, entity, module);
+		};
+		S.prototype.__nxSidebarSanitized = true;
+		return true;
+	}
+	if (!wrap()) {
+		var tries = 0;
+		var t = setInterval(function () {
+			if (wrap() || ++tries > 50) clearInterval(t);
+		}, 200);
+	}
+})();
+
 // Nexum Air chart palette — frappe-charts ships a default colour sequence with a
 // pink/red, seen on report charts (Balance Sheet / P&L) AND dashboard charts
 // (AR/AP Ageing donuts). Force the brand slate/teal palette on every chart by
@@ -250,6 +329,88 @@
 	}
 })();
 
+// Frozen first column on wide report tables — Balance Sheet / P&L / GL and every
+// other datatable-backed grid scrolls horizontally, and the row's identity (the
+// Account / ID column) scrolls away with it, so users lose track of which row a
+// number belongs to. frappe-datatable 1.20.4 already ships full sticky-column
+// machinery (column.sticky -> .dt-cell--sticky, position:sticky + cumulative left
+// offsets recomputed on resize in setStickyColumnStyle) — it's just only applied
+// to the internal checkbox/serial columns by default. We turn it on for the FIRST
+// visible data column of every table.
+//
+// Hook point: every desk grid is constructed from a class that some bundle assigns
+// to `window.DataTable` (query_report.js, report_view.js) or `frappe.DataTable`
+// (ui/datatable.js) — patching that CLASS's prototype covers even call sites that
+// hold the module-scope binding (report_view's `new DataTable(...)` is the same
+// class object it assigns to window). Two prototype methods need the mark:
+//   - buildOptions(options): runs inside the constructor with the raw options
+//   - refresh(data, columns): query_report re-runs pass freshly built column
+//     objects here on every filter change, which would otherwise drop the flag
+// Same intercept-the-assignment pattern as the frappe.Chart palette wrap above,
+// because these bundles load lazily (report bundle only on first report route).
+// Respect an explicit author choice: if any column is already marked sticky we
+// leave the table alone.
+(function () {
+	function markSticky(columns) {
+		if (!Array.isArray(columns) || columns.length < 2) return;
+		for (var i = 0; i < columns.length; i++) {
+			if (columns[i] && columns[i].sticky) return; // report author already chose
+		}
+		for (var j = 0; j < columns.length; j++) {
+			var c = columns[j];
+			if (c && !c.hidden) {
+				c.sticky = true;
+				return;
+			}
+		}
+	}
+	function patch(Cls) {
+		if (typeof Cls !== "function" || !Cls.prototype || Cls.__nxStickyPatched) return Cls;
+		var buildOptions = Cls.prototype.buildOptions;
+		if (buildOptions) {
+			Cls.prototype.buildOptions = function (options) {
+				try {
+					// 'fluid' layout hides horizontal overflow entirely — sticky
+					// could never engage, so don't add the pinned-edge shadow there.
+					if (options && options.layout !== "fluid") markSticky(options.columns);
+				} catch (e) {
+					/* never block a table from rendering */
+				}
+				return buildOptions.apply(this, arguments);
+			};
+		}
+		var refresh = Cls.prototype.refresh;
+		if (refresh) {
+			Cls.prototype.refresh = function (data, columns) {
+				try {
+					if (!this.options || this.options.layout !== "fluid") markSticky(columns);
+				} catch (e) {}
+				return refresh.apply(this, arguments);
+			};
+		}
+		Cls.__nxStickyPatched = true;
+		return Cls;
+	}
+	function hook(obj, prop) {
+		try {
+			var stored = obj[prop];
+			if (stored) patch(stored);
+			Object.defineProperty(obj, prop, {
+				configurable: true,
+				enumerable: true,
+				get: function () {
+					return stored;
+				},
+				set: function (v) {
+					stored = patch(v);
+				},
+			});
+		} catch (e) {}
+	}
+	hook(window, "DataTable");
+	if (window.frappe) hook(window.frappe, "DataTable");
+})();
+
 // EAM/Maintenance breadcrumb: our Maintenance doctypes are surfaced inside the Assets
 // workspace but belong to the "EAM" module, which Frappe doesn't map to a workspace — so
 // opening one from Assets drops the "Assets" breadcrumb (leaving only the Home icon).
@@ -274,6 +435,168 @@
 			if (mapEamToAssets() || ++n > 100) clearInterval(t);
 		}, 50);
 	}
+})();
+
+// Desk breadcrumb "home" icon -> last-viewed workspace.
+// frappe.breadcrumbs.clear() (frappe/public/js/frappe/views/breadcrumbs.js) always
+// re-renders the crumb bar with a bare `<a href="/desk">` (the home icon) as its
+// FIRST element, on every route change. A plain click on that anchor is caught by
+// the global delegated click-handler in router.js (`$("body").on("click", "a", ...)`),
+// which sees `is_app_route("/desk")` === true (router.js `is_app_route`: path
+// segment "desk") and calls `frappe.set_route("/desk")`. `get_route_from_arguments`
+// strips the leading "desk" segment, leaving an EMPTY route, so `router.render()`
+// falls to `frappe.views.pageview.show("")` -> `name = frappe.boot.home_page`
+// (pageview.js ~line 52). Site default `desktop:home_page` is "workspace", which
+// `frappe/boot.py::add_home_page` can't resolve (no Page doc named "workspace" /
+// "Workspaces" exists), so core's fallback lands `bootinfo.home_page = "desktop"`
+// — the legacy app-icon grid, not the last-viewed workspace.
+//
+// We used to fix this by force-overriding `bootinfo.home_page = "Workspaces"`
+// server-side (my_branding/boot.py, commit 019ea2b). That's a GLOBAL override:
+// every other "back to app grid" affordance also resolves through the same empty
+// route + bootinfo.home_page fallback (the workspace sidebar's "Desktop" dropdown
+// item, every frappe-ui SPA's "Desk" switcher, spa-brand.js ensureBackButton(),
+// fixLmsDeskLink()) — so it silently hijacked ALL of them into the Workspaces UI
+// too. Reverted; fixed instead with a scoped client-side intercept, ONLY on this
+// one anchor, that skips the empty-route/home_page fallback entirely:
+// `frappe.set_route("Workspaces")` builds the URL "/desk/Workspaces" (router.js
+// `convert_from_standard_route` leaves an unrecognised first segment like
+// "Workspaces" untouched, since it only special-cases List/Form/Tree views), which
+// `convert_to_standard_route` also leaves unrecognised (frappe.workspaces keys are
+// always lowercase-slugged by `frappe.router.slug()`, so it can never collide with
+// the literal "Workspaces"), so `render_page()` calls
+// `pageview.show("Workspaces")` -> `frappe.standard_pages["Workspaces"]` (registered
+// unconditionally by frappe/public/js/frappe/views/workspace/workspace.js:4,
+// regardless of bootinfo.home_page) -> its `get_page_to_show()` (~line 137)
+// restores `localStorage.current_page`, the user's last-viewed workspace. Same
+// desired destination, without touching bootinfo or any other back-to-grid path.
+(function () {
+	function onBreadcrumbHomeClick(e) {
+		// Respect modified clicks / non-primary buttons (open-in-new-tab etc.) —
+		// let the browser's native handling take over, same as router.js's own
+		// delegated click-handler does for ctrlKey/metaKey.
+		if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+			return;
+		}
+		var a = e.target && e.target.closest && e.target.closest('.navbar-breadcrumbs a[href="/desk"]');
+		if (!a) return;
+		e.preventDefault();
+		e.stopPropagation();
+		// v136+: home goes to the BRANDED LAUNCHER, deterministically. The previous
+		// behavior (restore localStorage.current_page via the Workspaces page —
+		// v117/v118) could resurrect a workspace the user last touched weeks ago:
+		// owner video 2026-07-24 showed home landing on a stale HR "Expense Claims"
+		// workspace under a "Setup" sidebar — chaos for tenants. When v117 shipped,
+		// the alternative was the ugly legacy grid; since the v128-131 sectioned
+		// launcher, the grid IS the product's curated home, so send home there.
+		// The empty route resolves through bootinfo.home_page ("desktop") -> the
+		// launcher grid, same as every other back-to-apps affordance.
+		frappe.set_route("");
+	}
+	// Delegated on document (breadcrumbs.clear() empties + re-appends the anchor
+	// on every route change, so a direct listener on the element would be lost;
+	// capture phase so we run before router.js's own delegated "a" click-handler
+	// on `body`, which would otherwise treat this as a plain "/desk" navigation).
+	document.addEventListener("click", onBreadcrumbHomeClick, true);
+})();
+
+// Page-type routes (Chart of Accounts / Chart of Cost Centers) carry no sidebar
+// context of their own: the "Accounts Setup" sidebar they render under is passed
+// by the LINK that opens them (frappe.route_options.sidebar). A naked arrival —
+// deep link, awesomebar, set_route — leaves the WHOLE sidebar (and therefore the
+// crumb) stuck on whatever workspace the user came from (2026-07-25 nav sweep:
+// from Website you get a Website sidebar on the Chart of Accounts). Claim the
+// proper sidebar for these routes whenever it didn't come along.
+(function () {
+	var PAGE_SIDEBARS = {
+		"chart-of-accounts": "Accounts Setup",
+		"chart-of-cost-centers": "Accounts Setup",
+	};
+	function fix() {
+		try {
+			var r = frappe.get_route ? frappe.get_route() : null;
+			var want = r && r.length === 1 && PAGE_SIDEBARS[r[0]];
+			if (!want) return;
+			var sb = frappe.app && frappe.app.sidebar;
+			if (!sb || sb.sidebar_title === want) return;
+			// only when that sidebar actually exists in this site's boot payload
+			if (!frappe.boot.workspace_sidebar_item || !frappe.boot.workspace_sidebar_item[want.toLowerCase()]) return;
+			sb.setup(want);
+		} catch (e) {
+			/* cosmetic — never break navigation */
+		}
+	}
+	function arm() {
+		try {
+			frappe.router.on("change", function () {
+				setTimeout(fix, 300);
+			});
+			fix();
+		} catch (e) {
+			setTimeout(arm, 500);
+		}
+	}
+	arm();
+})();
+
+// The breadcrumb's workspace crumb can freeze on the PREVIOUS context: core
+// appends it from `frappe.app.sidebar.sidebar_title` at breadcrumb-update time,
+// which runs BEFORE the sidebar's own route handler has switched — so landing on
+// the Company list from the launcher showed crumb "Stock" beside a correctly
+// switched "Organization" sidebar (owner video, 2026-07-24). Re-sync the crumb
+// to the settled sidebar title on a rAF-coalesced observer tick; strict no-op
+// when they already agree. (Upstream class name really is "worksapce-breadcrumb".)
+(function () {
+	var pending = null;
+	function syncCrumb() {
+		pending = null;
+		try {
+			var sb = frappe.app && frappe.app.sidebar;
+			var title = sb && sb.sidebar_title;
+			if (!title) return;
+			// The workspace crumb is built by DIFFERENT code paths per view type:
+			// list/form views tag it `worksapce-breadcrumb` (upstream typo), but
+			// page-type views (Chart of Accounts / Accounts Setup, ...) append a
+			// bare classless <a href="#"> — so select by POSITION: the first
+			// crumb anchor that isn't the home icon (href="/desk").
+			var crumb = document.querySelector(".navbar-breadcrumbs a.worksapce-breadcrumb");
+			if (!crumb) {
+				var anchors = document.querySelectorAll(".navbar-breadcrumbs a");
+				for (var i = 0; i < anchors.length; i++) {
+					if (anchors[i].getAttribute("href") !== "/desk") {
+						crumb = anchors[i];
+						break;
+					}
+				}
+				// only treat the positional match as a workspace crumb when its
+				// text IS a known launcher-tile label — never rewrite a doctype
+				// or record crumb that merely sits first.
+				if (crumb && !frappe.utils.get_desktop_icon_by_label(crumb.textContent.trim())) return;
+			}
+			if (!crumb) return;
+			var icon = frappe.utils.get_desktop_icon_by_label(title);
+			var label = (icon && icon.label) || title;
+			if (crumb.textContent.trim() !== label) {
+				crumb.textContent = label;
+				var url = icon && frappe.utils.get_route_for_icon(icon);
+				if (url) crumb.setAttribute("href", url);
+			}
+		} catch (e) {
+			/* cosmetic — never break navigation */
+		}
+	}
+	function schedule() {
+		if (!pending) pending = requestAnimationFrame(syncCrumb);
+	}
+	function arm() {
+		try {
+			new MutationObserver(schedule).observe(document.body, { subtree: true, childList: true });
+		} catch (e) {
+			/* ignore */
+		}
+	}
+	if (document.body) arm();
+	else document.addEventListener("DOMContentLoaded", arm);
 })();
 
 // --- Desk-home glass/aurora scope + greeting -------------------------------
@@ -327,11 +650,194 @@
 	// for a display:none element) — otherwise the class stays ON and the fixed
 	// aurora + greeting leak onto every subsequent list/form for the session.
 	function isVisible(el) { return !!(el && el.getClientRects().length); }
+	// The LMS ships two launcher tiles that both read "Learning": the app tile
+	// "Frappe Learning" (-> /lms, the learner app, open-book icon) and its desk
+	// WORKSPACE tile (-> /desk/lms-course, the course-admin/records view, given a
+	// distinct records icon in brand.css). Their Desktop Icon label must stay
+	// "Learning" for frappe's launcher to render the workspace tile at all, so we
+	// relabel ONLY its visible caption here to "Learning Admin" to tell them apart.
+	// Re-applied each sync so it survives the grid's re-renders.
+	function relabelLearningAdminTile() {
+		var el = document.querySelector('.desktop-container .desktop-icon[data-id="Learning"]');
+		if (!el) return;
+		// Target .icon-title specifically: in frappe's desktop-icon DOM it is the
+		// INNER text node (child of the .icon-caption wrapper) that carries the
+		// caption typography (weight/size/line-height + our gradient-clip color).
+		// A comma-selector querySelector would return .icon-caption first (tree
+		// order, ancestor first), and writing textContent on it would DESTROY the
+		// inner .icon-title, orphaning a bare text node with none of that styling.
+		var caption = el.querySelector(".icon-caption");
+		var c = caption && caption.querySelector(".icon-title");
+		if (!c) return;
+		if (c.textContent.trim() !== "Learning Admin") {
+			c.textContent = "Learning Admin";
+			c.setAttribute("data-original-title", "Learning Admin");
+		}
+	}
+	// The custom EAM app (meter-based preventive maintenance + spare parts, the
+	// product differentiator) lives under the "Assets" workspace/tile. Its Desktop
+	// Icon label must stay "Assets" — it's the ordering/linkage key read by
+	// DESKTOP_ICON_ORDER in branding.py and by Frappe's own launcher-tile render
+	// gating — so we relabel ONLY its visible caption here to "Assets &
+	// Maintenance", same pattern as the Learning Admin tile above. Re-applied
+	// each sync so it survives the grid's re-renders.
+	function relabelAssetsTile() {
+		var el = document.querySelector('.desktop-container .desktop-icon[data-id="Assets"]');
+		if (!el) return;
+		// Same .icon-caption > .icon-title targeting as relabelLearningAdminTile
+		// above — never write textContent on the outer wrapper.
+		var caption = el.querySelector(".icon-caption");
+		var c = caption && caption.querySelector(".icon-title");
+		if (!c) return;
+		if (c.textContent.trim() !== "Assets & Maintenance") {
+			c.textContent = "Assets & Maintenance";
+			c.setAttribute("data-original-title", "Assets & Maintenance");
+		}
+	}
+	// Section headers above the ratified 5-group launcher layout (Sales & Money,
+	// Operations, Customers & Team, Files & Office, Administration). The backend
+	// publishes the groupings as frappe.boot.nexumair_launcher_sections — an
+	// ordered array of {title, labels:[...]} where each label is a Desktop Icon
+	// label == the tile's data-id. Attribute-only: no nodes are ever inserted
+	// into the sortable grid; we just tag tiles and let brand.css do the visuals
+	// (SortableJS + the tile hit-targets stay untouched):
+	//   - .nx-section-start + data-nx-section-title on the first tile of EVERY
+	//     section -> grid-column:1 + a ::before floating label (lone-tile
+	//     sections are labeled too — no tile-count gate);
+	//   - .nx-row-head on a section-start's row-mates -> same margin-top, so
+	//     the whole row shifts down uniformly instead of the marked tile
+	//     drooping below its stretched row siblings.
+	// Fail-open: a missing/empty boot key leaves the grid completely unmarked.
+	function applyLauncherSectionHeaders() {
+		// Idempotency: tiles get re-rendered and pager pages flipped between
+		// syncs, so ALWAYS clear stale marks first — even when we end up not
+		// re-marking below (boot key absent, grid gone, customized layout).
+		// .nx-row-head is class-only (no attributes), so a plain
+		// classList.remove clears it fully.
+		var marked = document.querySelectorAll(".nx-section-start");
+		for (var i = 0; i < marked.length; i++) {
+			marked[i].classList.remove("nx-section-start");
+			marked[i].removeAttribute("data-nx-section-title");
+		}
+		var rowMarked = document.querySelectorAll(".nx-row-head");
+		for (var rm = 0; rm < rowMarked.length; rm++) {
+			rowMarked[rm].classList.remove("nx-row-head");
+		}
+		var sections = null;
+		try {
+			sections = frappe.boot && frappe.boot.nexumair_launcher_sections;
+		} catch (e) { sections = null; }
+		if (!Array.isArray(sections) || !sections.length) return;
+		// Anchor on the TOP-LEVEL launcher grid only: folder tiles render their
+		// own nested .icons-container > .icons INSIDE a .desktop-icon, and folder
+		// pop-ups reuse the same class names in a modal — the direct-child chain
+		// structurally excludes both.
+		var grid = document.querySelector(".desktop-container > .icons-container > .icons");
+		if (!grid) return;
+		// label -> its section's index (first occurrence wins), plus the
+		// flattened canonical tile order — both derived fresh from the boot data
+		// every call (no separate hardcoded copy to drift out of sync).
+		var labelToSectionIndex = {};
+		var canonicalOrder = [];
+		for (var s = 0; s < sections.length; s++) {
+			var labels = Array.isArray(sections[s] && sections[s].labels) ? sections[s].labels : [];
+			for (var l = 0; l < labels.length; l++) {
+				var label = labels[l];
+				if (typeof label !== "string" || !label) continue;
+				if (!Object.prototype.hasOwnProperty.call(labelToSectionIndex, label)) {
+					labelToSectionIndex[label] = s;
+					canonicalOrder.push(label);
+				}
+			}
+		}
+		// Only this grid's DIRECT-CHILD tiles, in DOM order, and only those on
+		// the currently visible pager page — recomputed from the DOM every sync,
+		// so paging needs no persisted state.
+		var tiles = grid.querySelectorAll(":scope > .desktop-icon[data-id]");
+		var visible = [];
+		for (var t = 0; t < tiles.length; t++) {
+			if (isVisible(tiles[t])) visible.push(tiles[t]);
+		}
+		// Canonical-order guard: if the known tiles' positions in the ratified
+		// order are not strictly increasing in DOM order, the user has
+		// drag-customized their layout and headers would lie — leave everything
+		// unmarked (already cleared above, the correct no-headers state). Tiles
+		// with unknown data-ids (custom/unlisted apps) are skipped, not breaks.
+		var lastCanonical = -1;
+		var qualifying = [];
+		for (var v = 0; v < visible.length; v++) {
+			var id = visible[v].getAttribute("data-id");
+			if (!Object.prototype.hasOwnProperty.call(labelToSectionIndex, id)) continue;
+			var ci = canonicalOrder.indexOf(id);
+			if (ci <= lastCanonical) return;
+			lastCanonical = ci;
+			qualifying.push(visible[v]);
+		}
+		// Group by section preserving DOM order; mark the FIRST visible tile of
+		// every section on this page with .nx-section-start +
+		// data-nx-section-title (a labeled row header, ::before in CSS) —
+		// lone-tile sections are labeled exactly like multi-tile ones.
+		var seen = {};
+		for (var q2 = 0; q2 < qualifying.length; q2++) {
+			var si2 = labelToSectionIndex[qualifying[q2].getAttribute("data-id")];
+			if (seen[si2]) continue;
+			seen[si2] = true;
+			qualifying[q2].classList.add("nx-section-start");
+			qualifying[q2].setAttribute("data-nx-section-title", sections[si2].title || "");
+		}
+		// Row-mate pass: tag the tiles sharing a labeled section-start's grid
+		// ROW with .nx-row-head so CSS gives them the same margin-top — the
+		// whole row shifts down uniformly instead of the section-start tile
+		// drooping 48px below its row siblings (grid align-items:stretch
+		// stretches every tile in the row to the now-taller row track).
+		// Column count comes from the RESOLVED gridTemplateColumns (a
+		// space-separated list of track sizes) — one computed-style read, no
+		// offsetTop/getBoundingClientRect layout probes and no class toggling
+		// to measure. Walk the FULL visible array (not just `qualifying`):
+		// unknown/custom tiles still occupy real grid cells and count as
+		// row-mates. Stop the walk at any tile that itself forces a new row
+		// (.nx-section-start sets grid-column:1) — it can never share the
+		// earlier tile's row. Runs AFTER the marking loop above so the walk
+		// sees the freshly applied classes.
+		var columnCount = 0;
+		try {
+			var tracks = (window.getComputedStyle(grid).gridTemplateColumns || "").split(/\s+/);
+			for (var tc = 0; tc < tracks.length; tc++) {
+				if (tracks[tc]) columnCount++;
+			}
+		} catch (e) { columnCount = 0; }
+		if (columnCount > 1) {
+			for (var m = 0; m < visible.length; m++) {
+				if (!visible[m].classList.contains("nx-section-start")) continue;
+				var mates = 0;
+				for (var k = m + 1; k < visible.length && mates < columnCount - 1; k++) {
+					var mate = visible[k];
+					if (mate.classList.contains("nx-section-start")) break;
+					mate.classList.add("nx-row-head");
+					mates++;
+				}
+			}
+		}
+	}
+	// Same tile opened inside the desk: its workspace sidebar header renders the
+	// workspace LABEL ("Learning"), which must stay "Learning" for the launcher to
+	// keep showing the tile (see reconcile_lms_admin_workspace). So relabel just the
+	// visible header text to "Learning Admin" too. Only the LMS module workspace is
+	// named "Learning", so a text match is safe + self-scoping (fires only when
+	// that workspace is the current one).
+	function relabelLearningWorkspaceHeader() {
+		var h = document.querySelector(".sidebar-header .header-title");
+		if (h && h.textContent.trim() === "Learning") h.textContent = "Learning Admin";
+	}
 	function sync() {
+		relabelLearningWorkspaceHeader(); // runs on every desk page (header is app-wide)
 		var grid = document.querySelector(".desktop-container");
 		if (isVisible(grid)) {
 			document.body.classList.add("nx-desk-home");
 			ensureGreeting(grid);
+			relabelLearningAdminTile();
+			relabelAssetsTile();
+			applyLauncherSectionHeaders();
 		} else {
 			document.body.classList.remove("nx-desk-home");
 			var g = document.getElementById("nx-greeting");
@@ -359,7 +865,235 @@
 			new MutationObserver(schedule)
 				.observe(document.body, { childList: true, subtree: true });
 		} catch (e) {}
+		// The launcher grid's columns are fluid (repeat(auto-fill, minmax(150px,1fr))),
+		// so a pure window resize changes the column count — and therefore which
+		// tiles are row-mates of a section header — WITHOUT any DOM mutation the
+		// observer above would see. Re-run the SAME rAF-coalesced schedule() on
+		// resize so .nx-row-head tags shrink/grow to match the new column count.
+		// Safe: schedule() is single-flight (one sync per frame), so even a
+		// resize-event storm coalesces — no layout thrash, and the marking pass
+		// only toggles classes/attributes, which can trigger the MutationObserver
+		// but converges immediately (same marks re-applied = no further change
+		// beyond one extra no-op sync, and childList-only observation ignores
+		// attribute changes anyway). No new observer/scheduler needed.
+		window.addEventListener("resize", schedule, { passive: true });
 	}
 	if (document.readyState !== "loading") start();
 	else document.addEventListener("DOMContentLoaded", start);
+})();
+
+// Frappe chart terminal x-axis label overlap — frappe-charts 2.0.0-rc27's
+// src/js/utils/axis-chart-utils.js:100-134 getShortenedLabels blanks interior
+// labels on a stride, but line 124 force-draws the FINAL label without checking
+// its proximity to the last kept stride label; line 128's guard only covers
+// stride-skipped labels, not that forced terminal one. With 31 daily points at
+// about 800px chart width and a stride of 4, index 28 is kept and index 30 is
+// force-drawn only ~52px later even though the label is ~70px wide, so they
+// overlap. Every workspace, dashboard, and query-report chart rendered through
+// frappe.Chart shares this path. Fix only the rendered x-axis text after render
+// (and after resize): no chart data, tooltip, legend, or y-axis changes. This
+// wrapper composes with, rather than replaces, the Nexum Air palette wrap above.
+(function () {
+	function fixLabels(container) {
+		try {
+			if (!container) return;
+			// Restore our previous choices before measuring the freshly rendered
+			// labels, so a resize can reveal labels that no longer collide.
+			var hidden = container.querySelectorAll("[data-nx-label-hidden]");
+			for (var h = 0; h < hidden.length; h++) {
+				hidden[h].style.visibility = "";
+				hidden[h].removeAttribute("data-nx-label-hidden");
+			}
+
+			var nodes = container.querySelectorAll(".x.axis > g > text");
+			var labels = [];
+			var rects = [];
+			for (var i = 0; i < nodes.length; i++) {
+				if ((nodes[i].textContent || "").trim()) {
+					labels.push(nodes[i]);
+					rects.push(nodes[i].getBoundingClientRect());
+				}
+			}
+			if (labels.length < 2) return;
+
+			// Walk from the forced terminal label towards the first label. The
+			// terminal label is always kept; each earlier label is compared with
+			// the nearest label already kept to its right.
+			var lastKeptRect = rects[rects.length - 1];
+			for (var j = labels.length - 2; j >= 1; j--) {
+				var thisRect = rects[j];
+				if (thisRect.right + 4 > lastKeptRect.left) {
+					labels[j].style.visibility = "hidden";
+					labels[j].setAttribute("data-nx-label-hidden", "1");
+				} else {
+					lastKeptRect = thisRect;
+				}
+			}
+		} catch (e) {
+			/* never block a chart from rendering */
+		}
+	}
+
+	function attachLabelFix(chart) {
+		var observer;
+		var schedule;
+		try {
+			if (!chart || chart.__nxLabelObserver || !chart.container) return;
+			var container = chart.container;
+			var stopped = false;
+			var scheduled = false;
+
+			var stop = function () {
+				if (stopped) return;
+				stopped = true;
+				try {
+					if (observer) observer.disconnect();
+				} catch (e) {
+					/* never block a chart from rendering */
+				}
+				try {
+					window.removeEventListener("resize", schedule);
+				} catch (e) {
+					/* never block a chart from rendering */
+				}
+			};
+
+			var run = function () {
+				try {
+					if (
+						!chart.container ||
+						chart.container !== container ||
+						!document.documentElement ||
+						!document.documentElement.contains(container)
+					) {
+						stop();
+						return;
+					}
+					fixLabels(container);
+				} catch (e) {
+					/* never block a chart from rendering */
+				}
+			};
+
+			// Mutation churn and resize events share one settled-frame scheduler,
+			// so at most one measurement/fix pass is pending at a time.
+			schedule = function () {
+				try {
+					if (stopped || scheduled) return;
+					scheduled = true;
+					var raf = window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); };
+					raf(function () {
+						scheduled = false;
+						run();
+					});
+				} catch (e) {
+					scheduled = false;
+					/* never block a chart from rendering */
+				}
+			};
+
+			observer = new MutationObserver(schedule);
+			observer.observe(container, { childList: true, subtree: true });
+			window.addEventListener("resize", schedule);
+			chart.__nxLabelObserver = observer;
+			chart.__nxLabelResizeListener = schedule;
+			schedule();
+		} catch (e) {
+			try {
+				if (observer) observer.disconnect();
+			} catch (ignored) {
+				/* never block a chart from rendering */
+			}
+			try {
+				window.removeEventListener("resize", schedule);
+			} catch (ignored) {
+				/* never block a chart from rendering */
+			}
+			/* never block a chart from rendering */
+		}
+	}
+
+	function wrap(Orig) {
+		if (typeof Orig !== "function" || Orig.__nxChartLabelPatched) return Orig;
+		function NexumChartLabels() {
+			// Function#bind is ES5's constructor-safe way to forward every argument
+			// while preserving the inner constructor's normal `new` behaviour.
+			var args = [null].concat(Array.prototype.slice.call(arguments));
+			var Bound = Function.prototype.bind.apply(Orig, args);
+			var chart = new Bound();
+			try {
+				attachLabelFix(chart);
+			} catch (e) {
+				/* never block a chart from rendering */
+			}
+			return chart;
+		}
+		NexumChartLabels.prototype = Orig.prototype;
+		try {
+			Object.keys(Orig).forEach(function (k) {
+				NexumChartLabels[k] = Orig[k];
+			});
+		} catch (e) {
+			/* never block a chart from rendering */
+		}
+		NexumChartLabels.__nxChartLabelPatched = true;
+		return NexumChartLabels;
+	}
+
+	function install() {
+		try {
+			if (!window.frappe) return false;
+			if (frappe.__nxChartLabelHook) return true;
+			// The palette IIFE is earlier in this file. If neither its accessor nor
+			// a loaded Chart exists yet, let the shared 50ms poll try again.
+			if (!frappe.Chart && !frappe.__nexumChartHook) return false;
+
+			var prior = Object.getOwnPropertyDescriptor(frappe, "Chart");
+			var current = frappe.Chart;
+			var stored = current;
+			var usePriorGetter = !!(prior && prior.get);
+			Object.defineProperty(frappe, "Chart", {
+				configurable: true,
+				enumerable: true,
+				get: function () {
+					try {
+						return usePriorGetter ? prior.get.call(frappe) : stored;
+					} catch (e) {
+						/* never block a chart from rendering */
+						return stored;
+					}
+				},
+				set: function (v) {
+					try {
+						if (prior && prior.set) {
+							// Let the palette accessor wrap first, then make its stored
+							// constructor the inner constructor for this visual patch.
+							prior.set.call(frappe, v);
+							stored = wrap(prior.get ? prior.get.call(frappe) : v);
+							prior.set.call(frappe, stored);
+						} else {
+							stored = wrap(v);
+							usePriorGetter = false;
+						}
+					} catch (e) {
+						/* never block a chart from rendering */
+					}
+				},
+			});
+			frappe.__nxChartLabelHook = true;
+			// Feed an already-loaded constructor through the new outer accessor;
+			// its setter then calls the palette accessor's setter, preserving both.
+			if (current) frappe.Chart = current;
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	if (!install()) {
+		var n = 0;
+		var t = setInterval(function () {
+			if (install() || ++n > 100) clearInterval(t);
+		}, 50);
+	}
 })();
