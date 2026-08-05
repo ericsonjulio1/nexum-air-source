@@ -56,6 +56,7 @@ after_migrate = [
 	"my_branding.branding.reconcile_lms_admin_workspace",
 	"my_branding.branding.reconcile_content_leaks",
 	"my_branding.coa_guard.reconcile_ph_coa_defaults",
+	"my_branding.pd_preview.ensure_pd_preview_images",
 	"my_branding.roles.ensure_role_profiles",
 	"my_branding.roles.ensure_owner_asset_manager",
 	"my_branding.branding.ensure_email_settings",
