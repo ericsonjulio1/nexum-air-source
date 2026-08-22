@@ -82,6 +82,16 @@ of the Corresponding Source:
    path-traversal / symlink tar members instead of shelling out to `tar` without
    validation (GHSA-58w2-4cjg-hvp6 / CVE-2026-55852). See
    `patches/frappe-package-import-tarslip.md`.
+8. **frappe** (MIT) + **erpnext** (GPLv3) — security backports 2026-08-22 (first
+   shipped as `v16-prod-151`): `restrict_globals=True` on user-editable jinja
+   templates (erpnext GHSA-qq49-v74j-hjh7, GHSA-6w83-8777-v93q), OAuth2 consent
+   hardening (frappe GHSA-2ph8-x773-8p2x), login-gated workflow e-mail approval
+   (frappe GHSA-cgwf-xgph-hxgm), `set_value` standard-field guard (frappe
+   GHSA-2c6h-wv85-fxvj) and permission checks on item / variant / valuation /
+   payment-request endpoints (erpnext GHSA-4j82, m5xh, 48wc, q8wq). Each file is
+   the pinned upstream file plus exactly the upstream security hunks (one custom
+   read-permission guard). See `patches/security-2026-08-22.md` and
+   `patches/security-2026-08-22/`.
 
 ## Reproducing the build
 

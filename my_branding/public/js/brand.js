@@ -27,9 +27,19 @@
 						});
 					}).catch(function () {});
 				}
-				if (hadController && !sessionStorage.getItem("nx_sw_cleared")) {
-					try { sessionStorage.setItem("nx_sw_cleared", "1"); } catch (e) {}
-					location.reload();
+				if (hadController) {
+					// A SW controlled this page and may have already served stale
+					// bundles/API data — reload ONCE to discard them. The latch is
+					// per (re)appearance of a controller: cleared below whenever no SW
+					// controls the page, so a SW that RE-registers later (e.g. a second
+					// visit to Slides) still gets its own one-shot reload instead of
+					// being permanently suppressed by a stale latch.
+					if (!sessionStorage.getItem("nx_sw_cleared")) {
+						try { sessionStorage.setItem("nx_sw_cleared", "1"); } catch (e) {}
+						location.reload();
+					}
+				} else {
+					try { sessionStorage.removeItem("nx_sw_cleared"); } catch (e) {}
 				}
 			});
 		}).catch(function () {});

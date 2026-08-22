@@ -44,21 +44,32 @@ def _ph_holidays(year):
         nhd -= datetime.timedelta(days=1)
     items = [
         (datetime.date(year, 1, 1), "New Year's Day"),
-        (datetime.date(year, 2, 25), "EDSA People Power Anniversary"),
+        # NO EDSA anniversary: Feb 25 has been a special WORKING day since 2024
+        # (2026: Proclamation No. 1006) — listing it as a holiday miscounted
+        # working days for HR/attendance.
         (easter - datetime.timedelta(days=3), "Maundy Thursday"),
         (easter - datetime.timedelta(days=2), "Good Friday"),
+        (easter - datetime.timedelta(days=1), "Black Saturday"),
         (datetime.date(year, 4, 9), "Araw ng Kagitingan (Day of Valor)"),
         (datetime.date(year, 5, 1), "Labor Day"),
         (datetime.date(year, 6, 12), "Independence Day"),
         (datetime.date(year, 8, 21), "Ninoy Aquino Day"),
         (nhd, "National Heroes Day"),
         (datetime.date(year, 11, 1), "All Saints' Day"),
+        (datetime.date(year, 11, 2), "All Souls' Day"),
         (datetime.date(year, 11, 30), "Bonifacio Day"),
         (datetime.date(year, 12, 8), "Immaculate Conception"),
+        (datetime.date(year, 12, 24), "Christmas Eve"),
         (datetime.date(year, 12, 25), "Christmas Day"),
         (datetime.date(year, 12, 30), "Rizal Day"),
         (datetime.date(year, 12, 31), "Last Day of the Year"),
     ]
+    # Lunar-calendar days are proclaimed per-year and can't be derived (same reason
+    # Eid'l Fitr / Eid'l Adha are excluded). Add each year's proclaimed date here.
+    proclaimed = {
+        2026: [(datetime.date(2026, 2, 17), "Chinese New Year")],  # Proclamation 1006
+    }
+    items += proclaimed.get(year, [])
     items.sort(key=lambda t: t[0])
     return [(d.strftime("%Y-%m-%d"), desc) for d, desc in items]
 

@@ -279,6 +279,23 @@ COPY --chown=frappe:frappe patches/financial_report_growth_columnar.py /tmp/patc
 RUN python3 /tmp/patches/financial_report_growth_columnar.py \
       apps/erpnext/erpnext/accounts/doctype/financial_report_template/financial_report_engine.py
 
+# NexumAir SECURITY patch set 2026-08-22: no-version-bump backports onto our
+# frappe v16.25.0 / erpnext v16.26.2 pins (first shipped as v16-prod-151, derived
+# image). Closes erpnext GHSA-qq49-v74j-hjh7 + GHSA-6w83-8777-v93q (CRITICAL SSTI:
+# restrict_globals=True on user-editable jinja templates), frappe GHSA-2ph8-x773-8p2x
+# (HIGH OAuth2 consent CSRF/auto-approve), frappe GHSA-cgwf-xgph-hxgm (LOW guest
+# workflow approval), frappe GHSA-2c6h-wv85-fxvj (MEDIUM set_value mass assignment,
+# still unpatched upstream on version-16) and the erpnext MEDIUM perm-check set
+# (GHSA-4j82/m5xh/48wc/q8wq). Pure py/jinja, no asset rebuild. One shared
+# patcher + manifest + vetted files (each = pin + exactly the security hunks,
+# diff-verified 2026-08-22): idempotent (sha/marker no-op), upstream-fixed aware
+# (marker no-op so a future bump never double-applies) and drift-guarded (build
+# FAILS LOUDLY if a target is neither pin nor patched). Deferred, need bench build:
+# GHSA-8pr6-r75h-h8xx (JS bundle XSS), GHSA-mvr5-2j8r-53p4 (banking UI).
+COPY --chown=frappe:frappe patches/security-2026-08-22/ /tmp/patches/security-2026-08-22/
+RUN python3 /tmp/patches/security-2026-08-22/apply.py /home/frappe/frappe-bench \
+ && python3 /tmp/patches/security-2026-08-22/apply.py --verify /home/frappe/frappe-bench
+
 RUN echo "{}" > sites/common_site_config.json && \
     find apps -mindepth 1 -path "*/.git" | xargs rm -fr
 

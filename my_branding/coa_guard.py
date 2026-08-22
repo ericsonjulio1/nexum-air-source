@@ -54,14 +54,27 @@ def _fix_company(company):
 	vin = _leaf(company, "1611 - VAT Input Tax - Goods")
 	vout = _leaf(company, "2201 - VAT Output Tax")
 	if vin and vout:
-		_repoint_tax_templates(company, vin, vout)
-		# park the generic catch-all VAT leaf once nothing routes to it
-		generic = frappe.db.get_value(
-			"Account",
-			{"company": company, "name": ["like", "VAT - %"], "is_group": 0, "disabled": 0},
-			"name",
+		# The auto-created catch-all is named exactly "VAT - <company abbr>". Match it
+		# EXACTLY — a `like "VAT - %"` here also caught tenant-created accounts such as
+		# "VAT - Export Output - <abbr>" and silently rewrote/disabled them every
+		# migrate, fighting a customization the tenant made on purpose.
+		abbr = frappe.db.get_value("Company", company, "abbr")
+		generic = (
+			frappe.db.get_value(
+				"Account",
+				{"company": company, "name": "VAT - %s" % abbr, "is_group": 0},
+				"name",
+			)
+			if abbr
+			else None
 		)
-		if generic and not frappe.db.count("GL Entry", {"account": generic}):
+		_repoint_tax_templates(company, vin, vout, generic)
+		# park the generic catch-all VAT leaf once nothing routes to it
+		if (
+			generic
+			and not frappe.db.get_value("Account", generic, "disabled")
+			and not frappe.db.count("GL Entry", {"account": generic})
+		):
 			frappe.db.set_value("Account", generic, "disabled", 1)
 
 	transit = _leaf(company, "1532 - Inventory in Transit")
@@ -69,14 +82,19 @@ def _fix_company(company):
 		frappe.db.set_value("Account", transit, "account_type", "Stock")
 
 
-def _repoint_tax_templates(company, vin, vout):
+def _repoint_tax_templates(company, vin, vout, generic):
+	"""Repoint template rows that route to the auto-created generic VAT account onto
+	the chart's dedicated 1611/2201 leaves. Only rows pointing at the EXACT generic
+	account are touched — any other "VAT - ..." account is a tenant's own ledger."""
+	if not generic:
+		return
 	for child_dt, parent_dt, target in (
 		("Purchase Taxes and Charges", "Purchase Taxes and Charges Template", vin),
 		("Sales Taxes and Charges", "Sales Taxes and Charges Template", vout),
 	):
 		for row in frappe.get_all(
 			child_dt,
-			filters={"parenttype": parent_dt, "account_head": ["like", "VAT - %"]},
+			filters={"parenttype": parent_dt, "account_head": generic},
 			fields=["name", "parent"],
 		):
 			if frappe.db.get_value(parent_dt, row.parent, "company") == company:
@@ -86,7 +104,7 @@ def _repoint_tax_templates(company, vin, vout):
 		doc = frappe.get_doc("Item Tax Template", itt)
 		changed = False
 		for row in doc.taxes:
-			if row.tax_type and row.tax_type.startswith("VAT - "):
+			if row.tax_type == generic:
 				row.tax_type = vout
 				changed = True
 		if changed and not any(r.tax_type == vin for r in doc.taxes):

@@ -46,16 +46,27 @@ def ensure_pd_preview_images():
 
 def _heal_preview(pf):
     file_name = pf.print_designer_preview_img.split("/")[-1]
-    attached = frappe.db.exists(
+    attached = frappe.db.get_value(
         "File",
         {
             "attached_to_doctype": "Print Format",
             "attached_to_name": pf.name,
             "attached_to_field": "print_designer_preview_img",
         },
+        "name",
     )
     if attached:
-        return
+        # A File row alone isn't proof the preview is healthy: a database-only
+        # restore keeps the metadata row while the private jpg on disk is gone, so
+        # the preview still 404s. Only treat it as healed when the bytes exist;
+        # otherwise drop the orphan row and fall through to re-copy the packaged jpg.
+        try:
+            disk_path = frappe.get_doc("File", attached).get_full_path()
+        except Exception:
+            disk_path = None
+        if disk_path and os.path.exists(disk_path):
+            return
+        frappe.delete_doc("File", attached, force=True, ignore_permissions=True, delete_permanently=True)
 
     from print_designer.default_formats import get_preview_image_folder_path
 

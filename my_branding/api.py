@@ -83,6 +83,16 @@ def _require_signup_host():
 		raise frappe.PermissionError("This endpoint is not available on this site.")
 
 
+def _accepted():
+	"""Uniform guest 'signup accepted' response. Every success path — a brand-new lead,
+	a waitlisted one, or a duplicate of an existing lead — returns exactly this, so an
+	unauthenticated caller can't use the payload to tell whether an email is already a
+	NexumAir prospect/customer (the email-enumeration oracle). The landing page only reads
+	`.ok`; the real lead record lives in CRM. (A residual timing side-channel remains —
+	dedup returns before the ~5s Turnstile call — best bounded by a per-IP edge rate rule.)"""
+	return {"ok": True}
+
+
 def _clean_subdomain(raw):
 	"""Normalise + validate a client-supplied subdomain at the WRITE layer.
 
@@ -278,7 +288,7 @@ def _stage_free_lead(lead, cap, email, subdomain, plan, ts, subdomain_locked=Tru
 	# the identity lock. The early checks remain useful fast paths, but are stale by now
 	# if another request inserted while this one was verifying Turnstile.
 	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
-		return {"ok": True, "dedup": 1}
+		return _accepted()
 	if subdomain and not subdomain_locked:
 		lead.custom_provision_status = "Pending"
 		lead.custom_provision_log += "; HELD for review: subdomain lock unavailable at insert time"
@@ -293,7 +303,7 @@ def _stage_free_lead(lead, cap, email, subdomain, plan, ts, subdomain_locked=Tru
 	lead.insert(ignore_permissions=True)
 	frappe.db.commit()
 	if waitlist:
-		return {"ok": True, "lead": lead.name, "waitlist": 1}
+		return _accepted()
 	return {"ok": True, "lead": lead.name, "auto": auto}
 
 
@@ -321,7 +331,7 @@ def signup():
 	# first. Dedup runs first (cheap, indexed on email) so a benign double-submit / browser
 	# retry returns early and does NOT consume the global hourly budget.
 	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
-		return {"ok": True, "dedup": 1}
+		return _accepted()
 
 	# rate-limit backstop: signup() trusts Turnstile, but _verify_turnstile is FAIL-OPEN
 	# (it passes when Cloudflare is unreachable or no turnstile_secret is set), so on a
@@ -433,7 +443,7 @@ def signup():
 		# Repeat the early checks at the insertion boundary while the identity lock is
 		# held, closing the check-then-insert window for concurrent same-email signups.
 		if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
-			return {"ok": True, "dedup": 1}
+			return _accepted()
 		if subdomain and not got_subdomain_lock:
 			lead.custom_provision_status = "Pending"
 			lead.custom_provision_log = "HELD for review: subdomain lock unavailable at insert time"
@@ -449,7 +459,7 @@ def signup():
 
 		lead.insert(ignore_permissions=True)
 		frappe.db.commit()
-		return {"ok": True, "lead": lead.name, "auto": auto}
+		return _accepted()
 	finally:
 		if got_subdomain_lock:
 			try:
@@ -501,12 +511,12 @@ def capture_partial():
 		# silently discard customer #41). Known emails just dedup; new ones spill
 		# to a durable file the daily signup-funnel digest surfaces for follow-up.
 		if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
-			return {"ok": True, "dedup": 1}
+			return _accepted()
 		return _spill_overflow(d, email)
 
 	# don't duplicate an existing lead (a completed signup, or an earlier capture)
 	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
-		return {"ok": True, "dedup": 1}
+		return _accepted()
 
 	company = " ".join((d.get("company") or "").split())[:140]
 	plan = (d.get("plan") or "").strip()[:40]

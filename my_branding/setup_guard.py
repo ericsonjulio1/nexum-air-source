@@ -20,7 +20,9 @@ import frappe
 from frappe import _
 
 
-@frappe.whitelist()
+# methods=["POST"]: GET on a whitelisted method skips CSRF validation, so a
+# state-mutating endpoint reachable by GET is CSRF-able via a crafted link.
+@frappe.whitelist(methods=["POST"])
 def setup_complete(args):
 	# Imported lazily so the override map resolves the *stock* function (not us),
 	# avoiding any recursion through the whitelisted-method dispatch.
@@ -86,7 +88,7 @@ def setup_complete(args):
 	return stock_setup_complete(json.dumps(data))
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def autocomplete_setup(company_name=None, country="Philippines", currency="PHP"):
 	"""Provision-time onboarding: complete the setup wizard programmatically so a NEW
 	tenant never lands on the (fragile) wizard at all — they log straight into a ready

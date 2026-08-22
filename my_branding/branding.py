@@ -408,6 +408,24 @@ def reconcile_lms_admin_workspace():
 		)
 
 
+def _is_frappe_leak_block(text):
+	"""True only for the specific Frappe-brand paragraph leaks that standard
+	workspaces re-ship on migrate — the classic CRM/Support "deprecated, use Frappe
+	CRM/Helpdesk instead" banner, and Learning's docs.frappe.io link. A tenant's own
+	paragraph that merely cites a frappe.io URL is NOT a leak and must survive, so we
+	require the deprecation phrasing or a docs/help link, not a bare 'frappe.io'."""
+	low = (text or "").lower()
+	if "frappe.io" not in low:
+		return False
+	return (
+		"deprecated" in low
+		or "use frappe" in low
+		or "switch to frappe" in low
+		or "docs.frappe.io" in low
+		or "https://frappe.io/" in low
+	)
+
+
 def reconcile_content_leaks():
 	"""after_migrate: scrub Frappe-brand leaks that live INSIDE standard docs and
 	get re-synced on every migrate, so neither Translations nor label relabels can
@@ -437,7 +455,7 @@ def reconcile_content_leaks():
 			out, dirty = [], False
 			for b in blocks:
 				data = b.get("data") or {}
-				if "frappe.io" in (data.get("text") or ""):
+				if _is_frappe_leak_block(data.get("text")):
 					dirty = True
 					continue
 				sc = data.get("shortcut_name") or ""
