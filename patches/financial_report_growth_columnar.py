@@ -25,6 +25,15 @@ Usage (run inside the derived image build, against the baked erpnext app):
 financial_report_template/financial_report_engine.py
 
 Idempotent (re-running is a no-op) and verifies the result compiles.
+
+Upstream status: erpnext version-16 fixed the columnar Growth lookup itself in
+04e7457cea ("refactor(financial-report): fix row transformation for growth
+calculations", 2026-07-08) + 1f5281d3b8 (same day) - shipped in erpnext >= 16.32.x
+(verified present at v16.32.3). GrowthViewTransformer.transform() now dispatches on
+row_data["segment_values"] (_transform_segmented_row / _compute_growth_values) and
+uses .get() lookups, so no KeyError on seg_<n>_<period> rows. On such a base this
+patcher is a NO-OP ("no patch needed (upstream fixed)"); it still applies the patch
+on the old (v16.26.2) shape and still FAILS LOUDLY on any other shape.
 """
 import sys
 import py_compile
@@ -75,6 +84,14 @@ NEW_METHOD = '''\tdef transform(self) -> None:
 ANCHOR_START = "\tdef transform(self) -> None:"
 ANCHOR_END = "\n\tdef _calculate_growth"
 
+# Upstream's own segment-aware rewrite (erpnext 04e7457cea + 1f5281d3b8, >= v16.32.x).
+# All three must be present inside GrowthViewTransformer for the no-op verdict.
+UPSTREAM_FIXED_MARKERS = (
+    "\tdef _transform_segmented_row(self, row_data: dict):",
+    "\tdef _compute_growth_values(self, source: dict) -> dict:",
+    'row_data.get("segment_values")',
+)
+
 
 def main() -> int:
     if len(sys.argv) != 2:
@@ -86,6 +103,10 @@ def main() -> int:
 
     if MARKER in src:
         print("already patched, nothing to do:", path)
+        return 0
+
+    if "class GrowthViewTransformer" in src and all(m in src for m in UPSTREAM_FIXED_MARKERS):
+        print("no patch needed (upstream fixed: segment-aware growth, erpnext 04e7457cea/1f5281d3b8):", path)
         return 0
 
     try:
