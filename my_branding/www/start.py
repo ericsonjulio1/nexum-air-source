@@ -20,6 +20,23 @@ DEMO_USER = "demo@nexumair.com"
 no_cache = 1
 
 
+def _login_manager():
+    """frappe <= 16.25 always hung a LoginManager on frappe.local for web requests;
+    16.31 no longer does for a guest website page (AttributeError: login_manager —
+    the 2026-08-22 bump broke the auto-login). Build one on demand: a fresh
+    LoginManager() resumes/creates the guest session, then login_as() issues the
+    demo session + cookies through the cookie manager (ensured too)."""
+    lm = getattr(frappe.local, "login_manager", None)
+    if lm is None:
+        from frappe.auth import CookieManager, LoginManager
+
+        if getattr(frappe.local, "cookie_manager", None) is None:
+            frappe.local.cookie_manager = CookieManager()
+        lm = LoginManager()
+        frappe.local.login_manager = lm
+    return lm
+
+
 def get_context(context):
     if not frappe.conf.get("is_demo_site"):
         raise frappe.PageDoesNotExistError
@@ -35,7 +52,7 @@ def get_context(context):
 
     try:
         if frappe.db.get_value("User", DEMO_USER, "enabled"):
-            frappe.local.login_manager.login_as(DEMO_USER)
+            _login_manager().login_as(DEMO_USER)
             frappe.local.flags.redirect_location = "/app"
             raise frappe.Redirect(302)
     except frappe.Redirect:
