@@ -710,16 +710,21 @@ def reconcile_default_portal_home():
 	ranks the portal default ABOVE Website Settings, so on a multi-app site EVERY system
 	user's post-login home became /helpdesk — the desk/desktop app opened onto the
 	Helpdesk SPA instead of the ERP desk (reported 2026-08-23 after the 16.31/helpdesk-1.29
-	bump). Reset it to /app (the desk). Genuine Helpdesk customers are unaffected: the
-	HD Customer / HD Customer Manager roles carry their own role.home_page=/helpdesk, which
-	get_home_page() ranks ABOVE the portal default. Idempotent, hardened, and clears the
-	per-user home_page cache so the change takes effect without a restart."""
+	bump). Reset it to EMPTY (the pre-bump state): get_home_page() then falls through to
+	Website Settings.home_page (our split-brand "login" page), and the bare website root
+	`/` — which the desktop app opens — correctly lands a logged-in system user on /desk.
+	(A literal /app is WRONG here: get_home_page() strips it to "app" and the WEBSITE root
+	has no such route -> "Page not found"; /app only works as a desk URL, not a home_page.)
+	Genuine Helpdesk customers are unaffected: the HD Customer / HD Customer Manager roles
+	carry their own role.home_page=/helpdesk, which get_home_page() ranks ABOVE the portal
+	default. Idempotent, hardened, clears the per-user home_page cache."""
 	try:
 		if not frappe.db.exists("DocType", "Portal Settings"):
 			return
 		current = frappe.db.get_single_value("Portal Settings", "default_portal_home")
-		if current == "/helpdesk":
-			frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", "/app")
+		# undo helpdesk's /helpdesk (and the interim wrong /app, if a site still carries it)
+		if current in ("/helpdesk", "/app"):
+			frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", "")
 			try:
 				frappe.cache.delete_key("home_page")
 			except Exception:

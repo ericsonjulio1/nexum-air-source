@@ -113,10 +113,15 @@ class TestDefaultPortalHome(unittest.TestCase):
         frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", self._orig)
         frappe.db.commit()
 
-    def test_helpdesk_value_is_reset_to_app(self):
+    def test_helpdesk_value_is_reset_to_empty(self):
         frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", "/helpdesk")
         branding.reconcile_default_portal_home()
-        self.assertEqual(frappe.db.get_single_value("Portal Settings", "default_portal_home"), "/app")
+        self.assertEqual(frappe.db.get_single_value("Portal Settings", "default_portal_home"), "")
+
+    def test_interim_app_value_also_reset(self):
+        frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", "/app")
+        branding.reconcile_default_portal_home()
+        self.assertEqual(frappe.db.get_single_value("Portal Settings", "default_portal_home"), "")
 
     def test_other_value_left_untouched(self):
         frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", "/custom-portal")
