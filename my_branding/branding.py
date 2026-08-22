@@ -693,7 +693,13 @@ def reconcile_framework_desktop_icon_visibility():
 # state, and the niche Lending vertical. We ALSO de-duplicate the classic ERPNext
 # Support/CRM workspaces when the standalone Helpdesk/CRM apps are installed (both
 # would otherwise show side by side).
-_HIDE_WORKSPACES_ALWAYS = ["Build", "Integrations", "Welcome Workspace", "Lending"]
+_HIDE_WORKSPACES_ALWAYS = ["Build", "Integrations", "Welcome Workspace"]
+# Workspaces an earlier reconciler hid but that MUST be reachable: the /desk launcher
+# carries a "Lending" tile (the lending app's own apps-screen icon) that routes to this
+# workspace; hidden, every non-System-Manager user got "No permission for Page"
+# (2026-08-22 demo report). Its own `roles` (Loan Manager) already scope who sees it
+# in the sidebar, so hiding bought nothing but a dead tile.
+_UNHIDE_WORKSPACES = ["Lending"]
 
 
 def reconcile_workspace_visibility():
@@ -719,6 +725,16 @@ def reconcile_workspace_visibility():
 			except Exception:
 				frappe.log_error(
 					title="my_branding hide workspace failed", message=f"{name}\n{frappe.get_traceback()}"
+				)
+		for name in _UNHIDE_WORKSPACES:
+			try:
+				if frappe.db.exists("Workspace", name) and frappe.db.get_value(
+					"Workspace", name, "is_hidden"
+				):
+					frappe.db.set_value("Workspace", name, "is_hidden", 0, update_modified=False)
+			except Exception:
+				frappe.log_error(
+					title="my_branding unhide workspace failed", message=f"{name}\n{frappe.get_traceback()}"
 				)
 		try:
 			frappe.cache.delete_key("bootinfo")

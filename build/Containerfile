@@ -94,7 +94,7 @@ RUN : "${SHA_GAMEPLAN:?missing pin}" && bench get-app --branch main --skip-asset
     git -C apps/gameplan fetch --depth 1 https://github.com/frappe/gameplan "$SHA_GAMEPLAN" && git -C apps/gameplan checkout --force --detach FETCH_HEAD && \
     env/bin/pip install --quiet --upgrade -e apps/gameplan
 ARG SHA_BUILDER
-RUN : "${SHA_BUILDER:?missing pin}" && bench get-app --branch develop --skip-assets https://github.com/frappe/builder && \
+RUN : "${SHA_BUILDER:?missing pin}" && bench get-app --branch master --skip-assets https://github.com/frappe/builder && \
     git -C apps/builder fetch --depth 1 https://github.com/frappe/builder "$SHA_BUILDER" && git -C apps/builder checkout --force --detach FETCH_HEAD && \
     env/bin/pip install --quiet --upgrade -e apps/builder
 ARG SHA_LMS
@@ -184,7 +184,7 @@ RUN rm -rf sites/assets/my_branding && cp -r apps/my_branding/my_branding/public
 # has its own develop/v1 line (no version-16 branch); needs erpnext (present) at
 # per-tenant install-app time. get-app registers it in apps.txt; build its assets.
 ARG SHA_LENDING
-RUN : "${SHA_LENDING:?missing pin}" && bench get-app --branch develop --skip-assets https://github.com/frappe/lending && \
+RUN : "${SHA_LENDING:?missing pin}" && bench get-app --branch version-16 --skip-assets https://github.com/frappe/lending && \
     git -C apps/lending fetch --depth 1 https://github.com/frappe/lending "$SHA_LENDING" && git -C apps/lending checkout --force --detach FETCH_HEAD && \
     env/bin/pip install --quiet --upgrade -e apps/lending
 # Rebrand: overwrite Lending's own logo file with the Nexum Air icon, so EVERY

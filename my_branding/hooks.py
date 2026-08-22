@@ -69,6 +69,7 @@ after_migrate = [
 	"my_branding.branding.reconcile_desktop_icon_order",
 	"my_branding.invoicing.ensure_invoice_design",
 	"my_branding.demo.reconcile_demo_start",
+	"my_branding.demo.reconcile_demo_health",
 ]
 
 # "Invoice Design" button on the Sales Invoice form -> Print Designer editor

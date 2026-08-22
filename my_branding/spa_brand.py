@@ -21,13 +21,14 @@ SPA_BRAND = brand_config.spa_brand()
 
 # Bump when editing spa-brand.css / spa-brand.js (the SPA service worker + HTTP
 # layer cache them aggressively).
-_VER = "20260724c"
+_VER = "20260822a"
 
 _FAVICON = "/assets/my_branding/images/favicon.png"
 # Swap the href of any <link rel="icon"|"shortcut icon"> to the Nexum Air favicon.
 _FAVICON_RE = re.compile(r'(<link\b[^>]*\brel="(?:shortcut )?icon"[^>]*\bhref=")[^"]*"', re.I)
 _TITLE_RE = re.compile(r"<title>.*?</title>", re.I | re.S)
 _MARKER = "nexum-spa-brand"
+_DEMO_THEME_RESET = '<script>try{localStorage.setItem("theme","light")}catch(e){}</script>'
 
 
 def _match(path):
@@ -70,6 +71,13 @@ def inject_brand_assets(response, request):
 			"<script>window.__NEXUM_BRAND__=%s;</script>"
 			'<script src="/assets/my_branding/js/spa-brand.js?v=%s"></script>'
 		) % (_MARKER, _VER, brand, _VER)
+		if frappe.conf.get("is_demo_site"):
+			# the public demo must always show the branded LIGHT look: frappe-ui apps
+			# (CRM/HR/Helpdesk/…) read `localStorage.theme`, so a visitor who once flipped
+			# the in-app toggle (or a shared browser) would see a dark CRM next to the
+			# light desk. Reset it before the app bundle reads it; real tenants keep
+			# their own choice.
+			inject = _DEMO_THEME_RESET + inject
 		html = html.replace("</head>", inject + "</head>", 1)
 		response.set_data(html)
 	except Exception:

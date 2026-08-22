@@ -77,7 +77,12 @@ def _fix_company(company):
 		):
 			frappe.db.set_value("Account", generic, "disabled", 1)
 
-	transit = _leaf(company, "1532 - Inventory in Transit")
+	# upstream renumbered the PH chart (erpnext 5281d538ce / PR #56817, 16.27+): the leaf
+	# is "1542 - Inventory in Transit" on sites created after that, "1532 - ..." before —
+	# match by account_name so both heal (still typed "Stock Adjustment" upstream)
+	transit = frappe.db.get_value(
+		"Account", {"company": company, "account_name": "Inventory in Transit", "is_group": 0}, "name"
+	) or _leaf(company, "1532 - Inventory in Transit")
 	if transit and frappe.db.get_value("Account", transit, "account_type") == "Stock Adjustment":
 		frappe.db.set_value("Account", transit, "account_type", "Stock")
 

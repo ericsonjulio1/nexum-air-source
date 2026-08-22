@@ -1,23 +1,24 @@
 {
-  "generated": "2026-07-07T10:12:48Z",
+  "generated": "2026-08-22T10:27:32Z",
   "apps": [
-    {"url": "https://github.com/frappe/frappe", "branch": "version-16", "commit": "9a8daf343db69a0127f470bad8be0af192cd80c8"}
-    , {"url": "https://github.com/frappe/erpnext", "branch": "version-16", "commit": "d1d3b241ae7bc21d18cf830a4bacd568e21a2a19"}
-    , {"url": "https://github.com/frappe/hrms", "branch": "version-16", "commit": "666bf10a9271421abc361bded124d2d961a977e3"}
+    {"url": "https://github.com/frappe/frappe", "branch": "version-16", "commit": "6a329d068416768ec47ccd3326b9cc95a8d7bf99"}
+    , {"url": "https://github.com/frappe/erpnext", "branch": "version-16", "commit": "11e0ba0a1c45f217e2e73e885f699102d06da325"}
+    , {"url": "https://github.com/frappe/hrms", "branch": "version-16", "commit": "f281e8b172ac8836ad89c59df65a922101103097"}
     , {"url": "https://github.com/frappe/payments", "branch": "version-16", "commit": "cca07d9f9392e2ea0e521c5975151db9e4b6c321"}
     , {"url": "https://github.com/frappe/print_designer", "branch": "main", "commit": "9d62227e20d13c52fb4be13d05d71f544228af1d"}
     , {"url": "https://github.com/frappe/insights", "branch": "main", "commit": "c9af45de73b3c71de053f33f78629407a2943bb3"}
-    , {"url": "https://github.com/frappe/helpdesk", "branch": "main", "commit": "47aaf15b1e9a78ec8a844e0fc43fac4d1869e03e"}
-    , {"url": "https://github.com/frappe/crm", "branch": "main", "commit": "799205c9c0d3930ef4ecfe5d8e7f15618e3baedf"}
+    , {"url": "https://github.com/frappe/helpdesk", "branch": "main", "commit": "480486287b2b7179dd42a09c2a62fca9cc89c26d"}
+    , {"url": "https://github.com/frappe/crm", "branch": "main", "commit": "49d98d61e7d42c3bfc97ea65725c68d632c6b849"}
     , {"url": "https://github.com/frappe/gameplan", "branch": "main", "commit": "30d4f16f9f2c5b18ad684252c61e851228943162"}
-    , {"url": "https://github.com/frappe/lms", "branch": "main", "commit": "18531e16023933ccc7e033e55fe5ebb337aee446"}
+    , {"url": "https://github.com/frappe/lms", "branch": "main", "commit": "d3bfe97d178eb076310dffd7407106bcdec15d67"}
     , {"url": "https://github.com/frappe/drive", "branch": "main", "commit": "0bd11d8f412410922ec704647e29d61216e500b4"}
-    , {"url": "https://github.com/frappe/builder", "branch": "develop", "commit": "8193a981ae3dde9d0e17a55d263feae40cbafd23"}
-    , {"url": "https://github.com/frappe/slides", "branch": "develop", "commit": "6bb230cc06cac623b6933415dec98ccf646605c2"}
-    , {"url": "https://github.com/frappe/telephony", "branch": "develop", "commit": "58d32184e44b193e27498d3dd156085c793b7528"}
+    , {"url": "https://github.com/frappe/builder", "branch": "master", "commit": "34ee4ee01ca447c8732e9d417fb96048996723e9"}
+    , {"url": "https://github.com/frappe/slides", "branch": "develop", "commit": "f66f430656e767b61831c54cbf12d673a6ebf3e4"}
+    , {"url": "https://github.com/frappe/telephony", "branch": "develop", "commit": "039cf39f245d6818ead03cf94eea6ce7f9c1e1f7"}
     , {"url": "https://github.com/frappe/webshop", "branch": "develop", "commit": "1a5239d4482800b8fe1cb7d88c4ea0d9e837a03e"}
     , {"url": "https://github.com/frappe/ecommerce_integrations", "branch": "develop", "commit": "ba8ac5055fd68a095c6861d72faaa7b24a90a939"}
-    , {"url": "https://github.com/frappe/lending", "branch": "develop", "commit": "6c6d4988c79f7701264775febe3421931845e3db"}
-    , {"url": "local:my_branding", "branch": "main", "commit": "87ea74b8da434e3f159a971485f3062b94aac466"}
+    , {"url": "https://github.com/frappe/lending", "branch": "version-16", "commit": "75b92108a227bad51a8269d5f6f11defafb435d2"}
+    , {"url": "local:my_branding", "branch": "main", "commit": "43b69c6249c5797a863125ac46cb1a922655fcc6"}
+    , {"url": "local:eam", "branch": "main", "commit": "8561df79222c7e3bd0139f03888488937e92aad8"}
   ]
 }
