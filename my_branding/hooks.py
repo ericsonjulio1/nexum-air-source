@@ -12,7 +12,7 @@ brand_html = '<span style="font-weight:700;color:#fff;letter-spacing:0.3px;">Nex
 
 _BRAND_CSS_VER = "20260724c"
 app_include_css = f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}"
-app_include_js = "/assets/my_branding/js/brand.js?v=20260823a"
+app_include_js = "/assets/my_branding/js/brand.js?v=20260823b"
 web_include_css = [
 	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
 	"/assets/my_branding/css/login.css?v=20260705a",

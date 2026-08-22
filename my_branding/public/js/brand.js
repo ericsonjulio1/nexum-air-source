@@ -1181,3 +1181,36 @@
 		}, 50);
 	}
 })();
+
+// -----------------------------------------------------------------------------
+// Launcher grid: full-width, fluid tiles (match the desktop app).
+// frappe's /desk launcher renders `.icons` with hard-coded pixel columns
+// (e.g. "127px 127px 127px 127px 127px 127px") computed in JS at load, inside a
+// fixed ~880px `.icons-container` CENTERED in the full-width `.desktop-container`
+// — so in a browser the tiles sit in a narrow centred block with a big empty
+// left/right gutter. The macOS desktop app already fixes this with an injected
+// stylesheet; this brings the SAME full-width fluid grid to the web desk (and
+// makes the desktop inject redundant). Scoped to the MAIN launcher via the
+// `>` direct-child chain so folder pop-ups / nested app launchers (which reuse
+// `.icons` inside their own narrow modal) keep their native multi-column layout.
+(function () {
+	if (document.getElementById("nx-launcher-layout")) return;
+	var css =
+		".layout-main:has(.desktop-wrapper)," +
+		".layout-main-section:has(.desktop-wrapper){max-width:none !important}" +
+		".desktop-wrapper,.desktop-container,.desktop-container > .icons-container{" +
+		"width:100% !important;max-width:none !important}" +
+		".desktop-container > .icons-container > .icons{" +
+		"width:100% !important;display:grid !important;gap:15px !important;" +
+		"justify-content:stretch !important;" +
+		"grid-template-columns:repeat(auto-fill,minmax(150px,1fr)) !important}";
+	function add() {
+		if (document.getElementById("nx-launcher-layout")) return;
+		var s = document.createElement("style");
+		s.id = "nx-launcher-layout";
+		s.textContent = css;
+		(document.head || document.documentElement).appendChild(s);
+	}
+	if (document.head) add();
+	else document.addEventListener("DOMContentLoaded", add);
+})();
