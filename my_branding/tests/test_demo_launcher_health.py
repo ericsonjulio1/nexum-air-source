@@ -6,7 +6,7 @@ import unittest
 
 import frappe
 
-from my_branding import branding, demo, spa_brand
+from my_branding import branding, demo, spa_brand  # noqa
 
 
 class _Resp:
@@ -99,3 +99,26 @@ class TestDemoSidebarHeal(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDefaultPortalHome(unittest.TestCase):
+    """helpdesk sets Portal Settings.default_portal_home=/helpdesk; frappe ranks it above
+    Website Settings, so system users' post-login home became the Helpdesk SPA. The
+    reconciler resets it to /app (desk). (2026-08-23 bump fallout.)"""
+
+    def setUp(self):
+        self._orig = frappe.db.get_single_value("Portal Settings", "default_portal_home")
+
+    def tearDown(self):
+        frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", self._orig)
+        frappe.db.commit()
+
+    def test_helpdesk_value_is_reset_to_app(self):
+        frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", "/helpdesk")
+        branding.reconcile_default_portal_home()
+        self.assertEqual(frappe.db.get_single_value("Portal Settings", "default_portal_home"), "/app")
+
+    def test_other_value_left_untouched(self):
+        frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", "/custom-portal")
+        branding.reconcile_default_portal_home()
+        self.assertEqual(frappe.db.get_single_value("Portal Settings", "default_portal_home"), "/custom-portal")

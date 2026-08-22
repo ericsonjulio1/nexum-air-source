@@ -702,6 +702,34 @@ _HIDE_WORKSPACES_ALWAYS = ["Build", "Integrations", "Welcome Workspace"]
 _UNHIDE_WORKSPACES = ["Lending"]
 
 
+def reconcile_default_portal_home():
+	"""after_migrate: undo helpdesk's `default_portal_home = "/helpdesk"`.
+
+	helpdesk (>=1.29) sets Portal Settings.default_portal_home to /helpdesk (fresh
+	install + the `set_default_portal_settings` migrate patch). frappe's get_home_page()
+	ranks the portal default ABOVE Website Settings, so on a multi-app site EVERY system
+	user's post-login home became /helpdesk — the desk/desktop app opened onto the
+	Helpdesk SPA instead of the ERP desk (reported 2026-08-23 after the 16.31/helpdesk-1.29
+	bump). Reset it to /app (the desk). Genuine Helpdesk customers are unaffected: the
+	HD Customer / HD Customer Manager roles carry their own role.home_page=/helpdesk, which
+	get_home_page() ranks ABOVE the portal default. Idempotent, hardened, and clears the
+	per-user home_page cache so the change takes effect without a restart."""
+	try:
+		if not frappe.db.exists("DocType", "Portal Settings"):
+			return
+		current = frappe.db.get_single_value("Portal Settings", "default_portal_home")
+		if current == "/helpdesk":
+			frappe.db.set_value("Portal Settings", "Portal Settings", "default_portal_home", "/app")
+			try:
+				frappe.cache.delete_key("home_page")
+			except Exception:
+				pass
+	except Exception:
+		frappe.log_error(
+			title="my_branding reconcile_default_portal_home failed", message=frappe.get_traceback()
+		)
+
+
 def reconcile_workspace_visibility():
 	"""after_migrate: hide dev/admin/duplicate/boilerplate workspaces from the client
 	desk sidebar (is_hidden=1). The workspace stays reachable via search; a client owner

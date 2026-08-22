@@ -62,6 +62,7 @@ after_migrate = [
 	"my_branding.branding.ensure_email_settings",
 	"my_branding.branding.ensure_app_landing",
 	"my_branding.branding.reconcile_onboarding",
+	"my_branding.branding.reconcile_default_portal_home",
 	"my_branding.branding.reconcile_workspace_visibility",
 	"my_branding.branding.ensure_web_title_prefix",
 	"my_branding.branding.reconcile_workspace_order",
