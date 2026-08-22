@@ -1107,3 +1107,77 @@
 		}, 50);
 	}
 })();
+
+// -----------------------------------------------------------------------------
+// Balance Sheet chart: composition columns instead of three unrelated lines.
+// erpnext's Balance Sheet report ships a chart of three independent series
+// (Assets / Liabilities / Equity as lines when "Accumulated Values" is on) — trend
+// only, and the accounting identity is invisible. Re-shape it client-side (wrap of
+// QueryReport.get_chart_options, Balance Sheet only) into ONE stacked column per
+// period: Liabilities + Equity + Provisional P/L (= Assets − L − E, the unclosed
+// period result erpnext leaves out of the Equity row), so the column height IS
+// Total Assets and the composition is readable. Note: frappe-charts 2.0.0-rc27 sums
+// every dataset (a line included) for the stacked y-range, so a "bars + assets
+// line" mixed chart cannot share one correct scale — hence the derived 3rd segment
+// rather than an overlay line. Any other report / unexpected shape passes through.
+// -----------------------------------------------------------------------------
+(function () {
+	var SERIES = { assets: /^assets?$/i, liabilities: /^liabilit/i, equity: /^equity$/i };
+
+	function pick(datasets, re) {
+		for (var i = 0; i < datasets.length; i++) {
+			if (re.test(String(datasets[i].name || "").trim())) return datasets[i];
+		}
+		return null;
+	}
+
+	function reshape(opts) {
+		if (!opts || !opts.data || !Array.isArray(opts.data.datasets) || opts.data.datasets.length !== 3) return opts;
+		var ds = opts.data.datasets;
+		var a = pick(ds, SERIES.assets), l = pick(ds, SERIES.liabilities), e = pick(ds, SERIES.equity);
+		if (!a || !l || !e) return opts;
+		// bars first (stack order: liabilities at the base, equity on top), line last
+		// frappe-charts (rc27) sums EVERY dataset — a line included — for the stacked
+		// y-range, so "stacked bars + assets line" cannot share one correct scale. Use the
+		// accounting identity instead: Liabilities + Equity + Provisional P/L (the unclosed
+		// period result erpnext leaves out of the Equity row) stacks to EXACTLY Total Assets,
+		// so the column height IS the asset total and the composition is readable.
+		var pl = a.values.map(function (v, k) {
+			return Math.round(((+v || 0) - (+l.values[k] || 0) - (+e.values[k] || 0)) * 100) / 100;
+		});
+		opts.data.datasets = [
+			{ name: l.name, values: l.values },
+			{ name: e.name, values: e.values },
+			{ name: __("Provisional P/L"), values: pl },
+		];
+		opts.type = "bar";
+		opts.title = __("Column height = Total Assets");
+		opts.barOptions = Object.assign({}, opts.barOptions || {}, { stacked: 1, spaceRatio: 0.5 });
+		return opts;
+	}
+
+	function install() {
+		var QR = frappe.views && frappe.views.QueryReport;
+		if (!QR || !QR.prototype || QR.prototype.__nxBsChart) return !!(QR && QR.prototype && QR.prototype.__nxBsChart);
+		var orig = QR.prototype.get_chart_options;
+		if (typeof orig !== "function") return false;
+		QR.prototype.get_chart_options = function (data) {
+			var opts = orig.apply(this, arguments);
+			try {
+				if (this.report_name === "Balance Sheet") return reshape(opts);
+			} catch (err) {
+				/* never block a report from rendering */
+			}
+			return opts;
+		};
+		QR.prototype.__nxBsChart = true;
+		return true;
+	}
+
+	if (!install()) {
+		var n = 0;
+		var t = setInterval(function () {
+			if (install() || ++n > 100) clearInterval(t);
+		}, 50);
+	}
+})();
