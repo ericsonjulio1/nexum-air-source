@@ -257,6 +257,85 @@ def ensure_settings_desktop_icon():
 		)
 
 
+def ensure_home_desktop_icon():
+	"""after_migrate: make the standard Home workspace reachable from the /desk launcher.
+	frappe syncs a "Home" Desktop Icon from the Home Workspace Sidebar but it lands hidden
+	with no parent app, so the grid never shows it and an owner landing on the launcher
+	never sees the owner-first Home (Get-set-up panel + Receivables/Payables/Cash row).
+	Unhide it and group it under the ERPNext app icon (same parent as Selling/Stock) so
+	it renders as the first tile of "Sales & Money" (see LAUNCHER_SECTIONS). Idempotent +
+	hardened. Runs BEFORE the visibility/order reconcilers (hooks order)."""
+	if not frappe.db.table_exists("Desktop Icon"):
+		return
+	try:
+		if not frappe.db.exists("Desktop Icon", "Home") or not frappe.db.exists("Workspace", "Home"):
+			return
+		parent = frappe.db.get_value("Desktop Icon", {"icon_type": "App", "app": "erpnext"}, "name")
+		row = frappe.db.get_value("Desktop Icon", "Home", ["hidden", "parent_icon", "standard"], as_dict=True)
+		vals = {}
+		if row.hidden:
+			vals["hidden"] = 0
+		if parent and row.parent_icon != parent:
+			vals["parent_icon"] = parent
+		if not row.standard:
+			vals["standard"] = 1
+		if vals:
+			frappe.db.set_value("Desktop Icon", "Home", vals, update_modified=False)
+			frappe.cache.delete_key("desktop_icons")
+		# The tile routes to the sidebar's FIRST Link item (frappe utils.get_desktop_icon
+		# route) and erpnext ships the Home sidebar as Item, Home, Customer, … — so the
+		# tile would open the Item list. Put the Home workspace link first (DB-level idx,
+		# the sidebar is a standard doc re-synced each migrate; no doc.save -> no
+		# developer-mode export). Idempotent.
+		if frappe.db.table_exists("Workspace Sidebar Item"):
+			rows = frappe.get_all(
+				"Workspace Sidebar Item",
+				filters={"parent": "Home", "parenttype": "Workspace Sidebar"},
+				fields=["name", "idx", "type", "link_type", "link_to"],
+				order_by="idx asc",
+			)
+			home_rows = [r for r in rows if r.type == "Link" and r.link_type == "Workspace" and r.link_to == "Home"]
+			if home_rows and rows and rows[0].name != home_rows[0].name:
+				ordered = [home_rows[0]] + [r for r in rows if r.name != home_rows[0].name]
+				for i, r in enumerate(ordered, start=1):
+					if r.idx != i:
+						frappe.db.set_value("Workspace Sidebar Item", r.name, "idx", i, update_modified=False)
+				frappe.clear_cache()
+	except Exception:
+		frappe.log_error(title="my_branding ensure_home_desktop_icon failed", message=frappe.get_traceback())
+
+
+def ensure_owner_landing():
+	"""after_migrate: land owner-type users on the owner-first Home workspace instead of the
+	bare /desk launcher. frappe's get_home_page() returns the user's `default_workspace`
+	URL when set (ranked above role/portal/website defaults), so the post-login redirect
+	AND the bare `/` the desktop app opens both resolve to /app/home. Only users who have
+	System Manager and NO default_workspace yet are touched (a user who picked another
+	default keeps it; the launcher stays one click away via the Home tile / navbar)."""
+	if not frappe.db.table_exists("User") or not frappe.db.exists("Workspace", "Home"):
+		return
+	try:
+		users = frappe.get_all(
+			"Has Role",
+			filters={"role": "System Manager", "parenttype": "User"},
+			pluck="parent",
+			distinct=True,
+		)
+		changed = False
+		for u in users:
+			if u in ("Administrator", "Guest"):
+				continue
+			row = frappe.db.get_value("User", u, ["enabled", "user_type", "default_workspace"], as_dict=True)
+			if not row or not row.enabled or row.user_type != "System User" or row.default_workspace:
+				continue
+			frappe.db.set_value("User", u, "default_workspace", "Home", update_modified=False)
+			changed = True
+		if changed:
+			frappe.cache.delete_key("home_page")
+	except Exception:
+		frappe.log_error(title="my_branding ensure_owner_landing failed", message=frappe.get_traceback())
+
+
 def ensure_gameplan_tile_label():
 	"""after_migrate: the desk launcher Desktop Icon for gameplan registers the bare
 	label "Gameplan" (NOT "Frappe Gameplan"), so the Translation rebrand never reaches
@@ -559,7 +638,9 @@ def reconcile_workspace_order():
 LAUNCHER_SECTIONS = [
 	{
 		"title": "Sales & Money",
-		"labels": ["Accounting", "Selling", "Online Store", "Buying", "Stock", "Lending"],
+		# "Home" first: the owner-first Home workspace (Get-set-up panel + KPI row) must be
+		# one click from the launcher grid (2026-08-23 UX plan follow-up).
+		"labels": ["Home", "Accounting", "Selling", "Online Store", "Buying", "Stock", "Lending"],
 	},
 	{
 		"title": "Operations",

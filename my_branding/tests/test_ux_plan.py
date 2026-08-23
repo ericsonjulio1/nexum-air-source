@@ -222,3 +222,43 @@ class TestHomeWorkspace(unittest.TestCase):
 				self.assertRaises(frappe.PermissionError, fn)
 		finally:
 			frappe.set_user("Administrator")
+
+
+class TestHomeTileAndLanding(unittest.TestCase):
+	def test_home_desktop_icon_visible_under_erpnext(self):
+		from my_branding import branding
+
+		frappe.db.set_value("Desktop Icon", "Home", {"hidden": 1, "parent_icon": ""}, update_modified=False)
+		branding.ensure_home_desktop_icon()
+		row = frappe.db.get_value("Desktop Icon", "Home", ["hidden", "parent_icon"], as_dict=True)
+		self.assertEqual(row.hidden, 0)
+		self.assertEqual(row.parent_icon, frappe.db.get_value("Desktop Icon", {"icon_type": "App", "app": "erpnext"}, "name"))
+		self.assertEqual(branding.LAUNCHER_SECTIONS[0]["labels"][0], "Home")
+		first = frappe.get_all("Workspace Sidebar Item", filters={"parent": "Home", "parenttype": "Workspace Sidebar"}, fields=["link_type", "link_to"], order_by="idx asc", limit=1)
+		self.assertEqual((first[0].link_type, first[0].link_to), ("Workspace", "Home"))
+
+	def test_owner_landing_sets_default_workspace_once(self):
+		from my_branding import branding
+
+		email = "nx-owner-landing-test@example.com"
+		if not frappe.db.exists("User", email):
+			u = frappe.get_doc({"doctype": "User", "email": email, "first_name": "Owner Test", "user_type": "System User", "send_welcome_email": 0})
+			u.append("roles", {"role": "System Manager"})
+			u.flags.ignore_permissions = True
+			u.insert()
+		try:
+			frappe.db.set_value("User", email, "default_workspace", None, update_modified=False)
+			branding.ensure_owner_landing()
+			self.assertEqual(frappe.db.get_value("User", email, "default_workspace"), "Home")
+			# a user who chose something else is left alone
+			frappe.db.set_value("User", email, "default_workspace", "Selling", update_modified=False)
+			branding.ensure_owner_landing()
+			self.assertEqual(frappe.db.get_value("User", email, "default_workspace"), "Selling")
+			# and get_home_page honours it
+			frappe.set_user(email)
+			frappe.cache.hdel("home_page", email)
+			from frappe.website.utils import get_home_page
+			self.assertIn("selling", get_home_page())
+		finally:
+			frappe.set_user("Administrator")
+			frappe.delete_doc("User", email, force=True, ignore_permissions=True)

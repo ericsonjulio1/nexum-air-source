@@ -416,6 +416,20 @@ img[src$="/assets/slides/frontend/slides-logo.svg"]       { content: url("/asset
   display: none !important;
 }
 
+/* 'Home' launcher tile (2026-08-23, UX plan follow-up): the Home workspace has no
+   erpnext solid icon asset (grey letter-H avatar) -> paint the brand Home squircle
+   and hide the fallback glyph. Material `home` fill, same template as the set. */
+.desktop-icon[data-id="Home"] .icon-container {
+  background-color: transparent !important;
+  background-image: url("/assets/my_branding/images/icons/home_tile.svg") !important;
+  background-size: contain !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+.desktop-icon[data-id="Home"] .icon-container .desktop-alphabet {
+  display: none !important;
+}
+
 /* LMS ships TWO launcher tiles that both read "Learning": the app tile
    "Frappe Learning" (-> /lms, the learner SPA, open-book icon) and this desk
    WORKSPACE tile (-> /desk/lms-course), which is the course-ADMIN / records

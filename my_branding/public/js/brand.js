@@ -1489,3 +1489,35 @@
 		}, 50);
 	}
 })();
+
+// -----------------------------------------------------------------------------
+// Bare-root landing (2026-08-23 follow-up). The desktop app (and anyone typing the
+// domain) opens the bare `/`. For a logged-in system user frappe renders the DESK at
+// `/` without redirecting, and the desk router treats "/" as the launcher — so the
+// owner-first Home workspace (User.default_workspace=Home, set by
+// branding.ensure_owner_landing) only applied to the post-login redirect. Route the
+// bare root to the user's default workspace once, client-side. `/desk` typed
+// explicitly is left alone (that IS the launcher).
+// -----------------------------------------------------------------------------
+(function () {
+	function go() {
+		try {
+			if (location.pathname !== "/" || !window.frappe || !frappe.boot || !frappe.boot.user) return false;
+			var ws = frappe.boot.user.default_workspace;
+			if (!ws) return true; // nothing to do, stop polling
+			var name = typeof ws === "string" ? ws : ws.name || ws.title;
+			if (!name || !frappe.router || !frappe.set_route) return false;
+			var slug = frappe.router.slug(name);
+			frappe.set_route(ws.public === 0 || ws.public === false ? "private/" + slug : slug);
+			return true;
+		} catch (e) {
+			return true;
+		}
+	}
+	if (!go()) {
+		var n = 0;
+		var t = setInterval(function () {
+			if (go() || ++n > 100) clearInterval(t);
+		}, 50);
+	}
+})();

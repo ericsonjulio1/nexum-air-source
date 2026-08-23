@@ -10,9 +10,9 @@ app_license = "mit"
 app_logo_url = "/assets/my_branding/images/nexum-mark.png"
 brand_html = '<span style="font-weight:700;color:#fff;letter-spacing:0.3px;">Nexum Air</span>'
 
-_BRAND_CSS_VER = "20260823c"
+_BRAND_CSS_VER = "20260823d"
 app_include_css = f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}"
-app_include_js = "/assets/my_branding/js/brand.js?v=20260823c"
+app_include_js = "/assets/my_branding/js/brand.js?v=20260823d"
 web_include_css = [
 	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
 	"/assets/my_branding/css/login.css?v=20260705a",
@@ -50,6 +50,8 @@ after_migrate = [
 	"my_branding.branding.reconcile_navbar",
 	"my_branding.branding.ensure_insights_desktop_icon",
 	"my_branding.branding.ensure_settings_desktop_icon",
+	"my_branding.branding.ensure_home_desktop_icon",
+	"my_branding.branding.ensure_owner_landing",
 	"my_branding.webshop.ensure_online_store_workspace",
 	"my_branding.branding.ensure_gameplan_tile_label",
 	"my_branding.branding.reconcile_app_workspace_labels",
