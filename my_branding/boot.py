@@ -49,3 +49,12 @@ def boot_session(bootinfo):
 			title="my_branding launcher sections bootinfo failed",
 			message=frappe.get_traceback(),
 		)
+
+	# UX plan 2026-08-23: plan + simple-mode flags read by the gated depends_on
+	# property setters (simple_mode.py) and brand.js (report presets, form toggle).
+	try:
+		from my_branding.simple_mode import boot as _simple_mode_boot
+
+		_simple_mode_boot(bootinfo)
+	except Exception:
+		frappe.log_error(title="my_branding simple_mode bootinfo failed", message=frappe.get_traceback())

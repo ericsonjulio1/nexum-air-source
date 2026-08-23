@@ -10,9 +10,9 @@ app_license = "mit"
 app_logo_url = "/assets/my_branding/images/nexum-mark.png"
 brand_html = '<span style="font-weight:700;color:#fff;letter-spacing:0.3px;">Nexum Air</span>'
 
-_BRAND_CSS_VER = "20260724c"
+_BRAND_CSS_VER = "20260823c"
 app_include_css = f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}"
-app_include_js = "/assets/my_branding/js/brand.js?v=20260823b"
+app_include_js = "/assets/my_branding/js/brand.js?v=20260823c"
 web_include_css = [
 	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
 	"/assets/my_branding/css/login.css?v=20260705a",
@@ -71,11 +71,19 @@ after_migrate = [
 	"my_branding.invoicing.ensure_invoice_design",
 	"my_branding.demo.reconcile_demo_start",
 	"my_branding.demo.reconcile_demo_health",
+	# UX plan 2026-08-23: owner-first Home + module Getting-started panels, and the
+	# per-plan simple-mode property setters (Free/Essentials).
+	"my_branding.home.reconcile_home_workspace",
+	"my_branding.simple_mode.reconcile_simple_mode",
 ]
 
 # "Invoice Design" button on the Sales Invoice form -> Print Designer editor
 # for the branded "Invoice Design" format (see invoicing.py).
-doctype_js = {"Sales Invoice": "public/js/sales_invoice.js"}
+doctype_js = {
+	"Sales Invoice": ["public/js/sales_invoice.js", "public/js/simple_mode.js"],
+	"Purchase Invoice": "public/js/simple_mode.js",
+	"Payment Entry": "public/js/simple_mode.js",
+}
 
 # Rebrand the "ERPNext" app title shown in the workspace sidebar header.
 extend_bootinfo = "my_branding.boot.boot_session"

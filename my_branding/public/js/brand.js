@@ -1214,3 +1214,278 @@
 	if (document.head) add();
 	else document.addEventListener("DOMContentLoaded", add);
 })();
+
+// -----------------------------------------------------------------------------
+// Owner-first Home / Getting-started checklists (UX plan 2026-08-23, steps 1 + 4).
+// The Custom HTML Blocks my_branding.home reconciles into Home / Accounting / Selling /
+// Stock are a bare `<div class="nx-checklist" data-checklist="…">` inside a shadow
+// root; their tiny inline script calls window.NexumChecklist.mount(el). All rendering
+// lives here so it ships versioned with brand.js. Data: my_branding.home.get_checklist.
+// -----------------------------------------------------------------------------
+(function () {
+	var CSS =
+		".nx-ck{font-family:inherit;border:1px solid var(--border-color,#dce7eb);border-radius:14px;" +
+		"background:var(--card-bg,#fff);padding:16px 18px;margin:0 0 6px}" +
+		".nx-ck-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}" +
+		".nx-ck-title{font-size:15px;font-weight:700;color:var(--text-color,#1c2b30);margin:0}" +
+		".nx-ck-sub{font-size:12.5px;color:var(--text-muted,#5c7079);margin:2px 0 0}" +
+		".nx-ck-count{font-size:12px;font-weight:600;color:var(--text-color,#2E5562);white-space:nowrap}" +
+		".nx-ck-bar{height:6px;border-radius:999px;background:var(--control-bg,#edf3f5);margin:12px 0 14px;overflow:hidden}" +
+		".nx-ck-bar>span{display:block;height:100%;border-radius:999px;" +
+		"background:linear-gradient(90deg,#557E94,#2E5562);transition:width .3s}" +
+		".nx-ck-steps{list-style:none;margin:0;padding:0;display:grid;gap:8px;" +
+		"grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}" +
+		".nx-ck-step{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;" +
+		"border:1px solid var(--border-color,#dce7eb);background:var(--fg-color,#fff);cursor:pointer;" +
+		"transition:border-color .15s,transform .15s}" +
+		".nx-ck-step:hover{border-color:#557E94;transform:translateY(-1px)}" +
+		".nx-ck-step.done{opacity:.72;cursor:default}.nx-ck-step.done:hover{transform:none;border-color:var(--border-color,#dce7eb)}" +
+		".nx-ck-dot{flex:0 0 22px;width:22px;height:22px;border-radius:50%;border:2px solid #9DBEC8;display:grid;" +
+		"place-items:center;font-size:12px;font-weight:700;color:var(--text-color,#2E5562);margin-top:1px}" +
+		".nx-ck-step.done .nx-ck-dot{background:#2E5562;border-color:#2E5562;color:#fff}" +
+		".nx-ck-lbl{font-size:13px;font-weight:600;color:var(--text-color,#1c2b30);line-height:1.3}" +
+		".nx-ck-step.done .nx-ck-lbl{text-decoration:line-through;font-weight:500}" +
+		".nx-ck-help{font-size:12px;color:var(--text-muted,#5c7079);margin-top:2px;line-height:1.35}" +
+		".nx-ck-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}" +
+		".nx-ck-acts a{font-size:11.5px;font-weight:600;color:#2E5562;text-decoration:none;border:1px solid #9DBEC8;" +
+		"border-radius:999px;padding:2px 9px}.nx-ck-acts a:hover{background:#2E5562;color:#fff;border-color:#2E5562}" +
+		".nx-ck-foot{display:flex;justify-content:flex-end;margin-top:10px}" +
+		".nx-ck-hide{font-size:12px;color:var(--text-muted,#5c7079);background:none;border:0;cursor:pointer;padding:0}" +
+		".nx-ck-hide:hover{color:#2E5562;text-decoration:underline}" +
+		".nx-ck.complete{padding:12px 18px}.nx-ck.complete .nx-ck-title{font-size:14px}";
+	// Theme: the panel uses frappe's own tokens (--card-bg/--text-color/--border-color/
+	// --control-bg) which inherit INTO the shadow root and already flip with the desk
+	// theme, so no data-theme sniffing/snapshot class is needed (that went stale when the
+	// user switched theme after mount).
+
+	function esc(s) {
+		return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+			return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+		});
+	}
+
+	function go(route) {
+		if (!route) return;
+		if (Array.isArray(route)) return frappe.set_route.apply(frappe, route);
+		if (typeof route === "string" && route.charAt(0) === "/") window.location.href = route;
+		else frappe.set_route(route);
+	}
+
+	function render(el, data) {
+		var root = el.getRootNode && el.getRootNode();
+		var isShadow = root && root.host;
+		if (isShadow && !root.querySelector("style[data-nx-ck]")) {
+			var st = document.createElement("style");
+			st.setAttribute("data-nx-ck", "1");
+			st.textContent = CSS;
+			root.appendChild(st);
+		} else if (!isShadow && !document.getElementById("nx-ck-style")) {
+			var st2 = document.createElement("style");
+			st2.id = "nx-ck-style";
+			st2.textContent = CSS;
+			document.head.appendChild(st2);
+		}
+		if (!data || data.hidden) {
+			el.innerHTML = "";
+			el.closest && (function () {
+				// collapse the widget box entirely when hidden for this user
+				try {
+					var host = root && root.host;
+					var widget = host && host.closest(".widget");
+					if (widget) widget.style.display = "none";
+				} catch (e) {}
+			})();
+			return;
+		}
+		var pct = data.total ? Math.round((data.done / data.total) * 100) : 0;
+		var h = '<div class="nx-ck' + (data.complete ? " complete" : "") + '">';
+		h += '<div class="nx-ck-head"><div><p class="nx-ck-title">' + esc(data.title) + "</p>";
+		if (data.subtitle && !data.complete) h += '<p class="nx-ck-sub">' + esc(data.subtitle) + "</p>";
+		if (data.complete) h += '<p class="nx-ck-sub">' + esc(__("All done — you're set up.")) + "</p>";
+		h += '</div><span class="nx-ck-count">' + data.done + " / " + data.total + "</span></div>";
+		if (!data.complete) {
+			h += '<div class="nx-ck-bar"><span style="width:' + pct + '%"></span></div>';
+			h += '<ul class="nx-ck-steps">';
+			data.steps.forEach(function (s, i) {
+				h += '<li class="nx-ck-step' + (s.done ? " done" : "") + '" data-key="' + esc(s.key) + '">';
+				h += '<span class="nx-ck-dot">' + (s.done ? "✓" : i + 1) + "</span><div>";
+				h += '<div class="nx-ck-lbl">' + esc(s.label) + "</div>";
+				if (s.help) h += '<div class="nx-ck-help">' + esc(s.help) + "</div>";
+				if (!s.done && s.actions && s.actions.length) {
+					h += '<div class="nx-ck-acts">';
+					s.actions.forEach(function (a, j) {
+						h += '<a href="#" data-act="' + j + '">' + esc(a.label) + "</a>";
+					});
+					h += "</div>";
+				}
+				h += "</div></li>";
+			});
+			h += "</ul>";
+		}
+		h += '<div class="nx-ck-foot"><button type="button" class="nx-ck-hide">' +
+			esc(data.complete ? __("Hide") : __("Hide this panel")) + "</button></div></div>";
+		el.innerHTML = h;
+
+		function visit(step) {
+			if (step.kind === "visit" && !step.done) {
+				frappe.xcall("my_branding.home.mark_visited", { name: data.name, key: step.key }).catch(function () {});
+			}
+		}
+		el.querySelectorAll(".nx-ck-step").forEach(function (li) {
+			var step = data.steps.filter(function (s) { return s.key === li.getAttribute("data-key"); })[0];
+			if (!step) return;
+			li.querySelectorAll("a[data-act]").forEach(function (a) {
+				a.addEventListener("click", function (ev) {
+					ev.preventDefault();
+					ev.stopPropagation();
+					visit(step);
+					go(step.actions[+a.getAttribute("data-act")].route);
+				});
+			});
+			li.addEventListener("click", function () {
+				if (step.done && step.kind !== "visit") return;
+				visit(step);
+				go(step.route);
+			});
+		});
+		var hide = el.querySelector(".nx-ck-hide");
+		hide && hide.addEventListener("click", function () {
+			frappe.xcall("my_branding.home.hide_checklist", { name: data.name }).then(function () {
+				render(el, { hidden: 1 });
+			});
+		});
+	}
+
+	function mount(el) {
+		if (!el || !window.frappe || !frappe.xcall) return;
+		var name = el.getAttribute("data-checklist");
+		if (!name) return;
+		frappe
+			.xcall("my_branding.home.get_checklist", { name: name })
+			.then(function (data) { render(el, data); })
+			.catch(function () { el.innerHTML = ""; });
+	}
+
+	window.NexumChecklist = { mount: mount, render: render };
+})();
+
+// -----------------------------------------------------------------------------
+// Report presets for simple mode (UX plan 2026-08-23, step 3). On Free/Essentials
+// (frappe.boot.nx_simple_mode) the financial statements default to the current fiscal
+// year by MONTH, and the power-user filters (Finance Book, Cost Center, Project, Report
+// Template, presentation currency…) sit behind a "More filters" link instead of walling
+// the report. Wraps QueryReport.setup_filters; Business/Enterprise and "Show advanced
+// fields" users get the stock bar. Auto-expands when a hidden filter already has a value
+// (e.g. a drill-down arrived with route_options).
+// -----------------------------------------------------------------------------
+(function () {
+	var PRESET_REPORTS = {
+		"Profit and Loss Statement": { periodicity: "Monthly" },
+		"Balance Sheet": { periodicity: "Monthly" },
+		"Cash Flow": { periodicity: "Monthly" },
+		"Trial Balance": {},
+		"General Ledger": {},
+		"Accounts Receivable": {},
+		"Accounts Payable": {},
+		"Accounts Receivable Summary": {},
+		"Accounts Payable Summary": {},
+		"Gross Profit": {},
+		"Sales Register": {},
+		"Purchase Register": {},
+	};
+	var ADVANCED = [
+		"finance_book", "cost_center", "project", "selected_view", "report_template",
+		"presentation_currency", "include_default_book_entries", "show_zero_values",
+		"include_dimensions", "show_net_values_in_party_account", "add_values_in_transaction_currency",
+		"ignore_err", "ignore_cr_dr_notes", "show_cancelled_entries", "show_opening_entries",
+		"categorize_by", "group_by", "show_remarks", "based_on_payment_terms", "show_future_payments",
+		"show_delivery_notes", "show_sales_person", "show_gl_balance", "in_party_currency",
+		"handle_employee_advances", "territory", "sales_partner", "sales_person", "payment_terms_template",
+		"customer_group", "supplier_group", "include_uom", "brand", "branch", "department",
+		"against_voucher_no",
+	];
+	var ESSENTIAL_KEEP = ["company", "from_date", "to_date", "period_start_date", "period_end_date",
+		"from_fiscal_year", "to_fiscal_year", "filter_based_on", "periodicity", "accumulated_values",
+		"report_date", "ageing_based_on", "range", "range1", "range2", "range3", "range4", "item_code"];
+
+	function simple() {
+		return !!(window.frappe && frappe.boot && cint(frappe.boot.nx_simple_mode));
+	}
+
+	function install() {
+		var QR = frappe.views && frappe.views.QueryReport;
+		if (!QR || !QR.prototype || QR.prototype.__nxPresets) return !!(QR && QR.prototype && QR.prototype.__nxPresets);
+		var orig = QR.prototype.setup_filters;
+		if (typeof orig !== "function") return false;
+		QR.prototype.setup_filters = function () {
+			var me = this;
+			var preset = simple() ? PRESET_REPORTS[this.report_name] : null;
+			try {
+				if (preset && this.report_settings && Array.isArray(this.report_settings.filters)) {
+					this.report_settings.filters.forEach(function (df) {
+						if (df && preset[df.fieldname] !== undefined && !df.__nxOrigDefault) {
+							df.__nxOrigDefault = df.default === undefined ? null : df.default;
+							df.default = preset[df.fieldname];
+						}
+					});
+				}
+			} catch (e) { /* presets are best-effort */ }
+			var out = orig.apply(this, arguments);
+			try {
+				if (preset) applyMoreFilters(me);
+			} catch (e2) { /* never break a report */ }
+			return out;
+		};
+		QR.prototype.__nxPresets = true;
+		return true;
+	}
+
+	function norm(v) {
+		if (Array.isArray(v)) return v.length ? JSON.stringify(v) : "";
+		if (v === undefined || v === null || v === false || v === 0 || v === "0") return "";
+		return String(v);
+	}
+
+	// "has a value" = differs from the filter's own default (a checked-by-default box or
+	// a default Select option must not pop the advanced row open)
+	function hasValue(f) {
+		try {
+			return norm(f.get_value()) !== norm(f.df && f.df.default);
+		} catch (e) { return false; }
+	}
+
+	function applyMoreFilters(report) {
+		var filters = report.filters || [];
+		var adv = filters.filter(function (f) {
+			var fn = f.df && f.df.fieldname;
+			if (!fn || ESSENTIAL_KEEP.indexOf(fn) !== -1) return false;
+			return ADVANCED.indexOf(fn) !== -1;
+		});
+		if (!adv.length) return;
+		var $form = report.page.page_form;
+		$form.find(".nx-more-filters").remove();
+		var open = adv.some(hasValue);
+		var $btn = $('<button type="button" class="btn btn-xs nx-more-filters" style="margin:auto 0 6px 4px;white-space:nowrap;' +
+			'color:#2E5562;background:transparent;border:1px dashed #9DBEC8;border-radius:999px;padding:2px 10px;font-weight:600"></button>');
+		function paint() {
+			adv.forEach(function (f) { $(f.wrapper).toggleClass("nx-adv-hidden", !open); });
+			$btn.text(open ? __("Fewer filters") : __("More filters") + " (" + adv.length + ")");
+		}
+		$btn.on("click", function () { open = !open; paint(); });
+		paint();
+		$form.append($btn);
+		if (!document.getElementById("nx-adv-filter-css")) {
+			var st = document.createElement("style");
+			st.id = "nx-adv-filter-css";
+			st.textContent = ".page-form .nx-adv-hidden{display:none !important}";
+			document.head.appendChild(st);
+		}
+	}
+
+	if (!install()) {
+		var n = 0;
+		var t = setInterval(function () {
+			if (install() || ++n > 100) clearInterval(t);
+		}, 50);
+	}
+})();

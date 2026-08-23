@@ -1,0 +1,224 @@
+"""UX plan 2026-08-23 (steps 1-4) — integration tests on a bench site.
+
+Run via:  bench --site <site> run-tests --module my_branding.tests.test_ux_plan
+"""
+import json
+import unittest
+
+import frappe
+
+from my_branding import home, plan, simple_mode
+
+
+class _ConfPlan:
+	"""Temporarily force frappe.conf.nexum_plan."""
+
+	def __init__(self, value):
+		self.value = value
+
+	def __enter__(self):
+		self.old = frappe.conf.get("nexum_plan")
+		frappe.conf.nexum_plan = self.value
+		return self
+
+	def __exit__(self, *a):
+		if self.old is None:
+			frappe.conf.pop("nexum_plan", None)
+		else:
+			frappe.conf.nexum_plan = self.old
+
+
+class TestPlan(unittest.TestCase):
+	def test_conf_plan_wins(self):
+		with _ConfPlan("starter"):
+			self.assertEqual(plan.get_plan(), "starter")
+			self.assertTrue(plan.is_simple_plan())
+		with _ConfPlan("business"):
+			self.assertFalse(plan.is_simple_plan())
+
+	def test_inferred_plan_is_a_known_slug(self):
+		with _ConfPlan(""):
+			self.assertIn(plan.get_plan(), plan.PLANS)
+
+	def test_advanced_toggle_per_user(self):
+		with _ConfPlan("free"):
+			plan.set_advanced_fields(0)
+			self.assertEqual(plan.simple_mode_for_session(), 1)
+			plan.set_advanced_fields(1)
+			self.assertEqual(plan.simple_mode_for_session(), 0)
+			plan.set_advanced_fields(0)
+			self.assertEqual(plan.simple_mode_for_session(), 1)
+
+
+class TestSimpleMode(unittest.TestCase):
+	def _ps(self, dt, f, prop):
+		return frappe.db.get_value("Property Setter", f"{dt}-{f}-{prop}", ["value", "is_system_generated"], as_dict=True)
+
+	def test_apply_then_remove_is_clean(self):
+		with _ConfPlan("starter"):
+			simple_mode.reconcile_simple_mode()
+			row = self._ps("Sales Invoice", "is_return", "depends_on")
+			self.assertIsNotNone(row)
+			self.assertIn("!frappe.boot.nx_simple_mode", row.value)
+			# original depends_on preserved inside the gate
+			self.assertIn("!doc.is_debit_note", row.value)
+			self.assertEqual(row.is_system_generated, 1)
+			self.assertEqual(self._ps("Sales Invoice Item", "warehouse", "in_list_view").value, "0")
+			# meta reflects it
+			df = frappe.get_meta("Sales Invoice").get_field("is_return")
+			self.assertIn("nx_simple_mode", df.depends_on)
+			# idempotent: second run changes nothing
+			self.assertFalse(simple_mode.apply_simple_mode())
+		with _ConfPlan("business"):
+			simple_mode.reconcile_simple_mode()
+			self.assertIsNone(self._ps("Sales Invoice", "is_return", "depends_on"))
+			self.assertIsNone(self._ps("Sales Invoice Item", "warehouse", "in_list_view"))
+			df = frappe.get_meta("Sales Invoice").get_field("is_return")
+			self.assertNotIn("nx_simple_mode", df.depends_on or "")
+
+	def test_human_customisation_is_respected(self):
+		with _ConfPlan("business"):
+			simple_mode.reconcile_simple_mode()
+		frappe.make_property_setter(
+			{"doctype": "Sales Invoice", "fieldname": "incoterm", "property": "depends_on", "value": "eval:doc.customer", "property_type": "Data"},
+			validate_fields_for_doctype=False,
+			is_system_generated=False,
+		)
+		try:
+			with _ConfPlan("starter"):
+				simple_mode.reconcile_simple_mode()
+				self.assertEqual(self._ps("Sales Invoice", "incoterm", "depends_on").value, "eval:doc.customer")
+			with _ConfPlan("business"):
+				simple_mode.reconcile_simple_mode()
+				# the human one survives an upgrade too
+				self.assertEqual(self._ps("Sales Invoice", "incoterm", "depends_on").value, "eval:doc.customer")
+		finally:
+			frappe.delete_doc("Property Setter", "Sales Invoice-incoterm-depends_on", force=True, ignore_permissions=True)
+			frappe.clear_cache(doctype="Sales Invoice")
+
+	def test_boot_payload(self):
+		b = frappe._dict()
+		with _ConfPlan("free"):
+			plan.set_advanced_fields(0)
+			simple_mode.boot(b)
+		self.assertEqual(b.nx_plan, "free")
+		self.assertEqual(b.nx_simple_plan, 1)
+		self.assertEqual(b.nx_simple_mode, 1)
+
+
+class TestHomeWorkspace(unittest.TestCase):
+	@classmethod
+	def setUpClass(cls):
+		home.reconcile_home_workspace()
+
+	def test_blocks_and_cards_exist(self):
+		self.assertTrue(frappe.db.exists("Custom HTML Block", home.HOME_BLOCK))
+		for k, (_ws, block) in home.MODULE_BLOCKS.items():
+			if home.module_workspace(k):
+				self.assertTrue(frappe.db.exists("Custom HTML Block", block), block)
+		for label, method, doctype in home.NUMBER_CARDS:
+			nc = frappe.get_doc("Number Card", label)
+			self.assertEqual(nc.type, "Custom")
+			self.assertEqual(nc.method, method)
+			self.assertEqual(nc.document_type, doctype)
+
+	def test_home_content_starts_with_panel_and_kpi_row(self):
+		content = json.loads(frappe.db.get_value("Workspace", "Home", "content"))
+		self.assertEqual(content[0]["type"], "custom_block")
+		self.assertEqual(content[0]["data"]["custom_block_name"], home.HOME_BLOCK)
+		cards = [b["data"]["number_card_name"] for b in content[1:4]]
+		self.assertEqual(cards, [n for n, _m, _d in home.NUMBER_CARDS])
+		ws = frappe.get_doc("Workspace", "Home")
+		self.assertIn(home.HOME_BLOCK, [r.custom_block_name for r in ws.custom_blocks])
+		self.assertEqual(len([r for r in ws.number_cards if r.number_card_name in cards]), 3)
+		# the rest of the stock Home survived
+		self.assertTrue(any(b["type"] == "shortcut" for b in content))
+
+	def test_module_workspaces_start_with_panel(self):
+		for key, (_c, block) in home.MODULE_BLOCKS.items():
+			ws_name = home.module_workspace(key)
+			if not ws_name:
+				continue
+			content = json.loads(frappe.db.get_value("Workspace", ws_name, "content"))
+			self.assertEqual(content[0]["type"], "custom_block", ws_name)
+			self.assertEqual(content[0]["data"]["custom_block_name"], block)
+
+	def test_reconcile_is_idempotent(self):
+		before = frappe.db.get_value("Workspace", "Home", "modified")
+		home.reconcile_home_workspace()
+		self.assertEqual(frappe.db.get_value("Workspace", "Home", "modified"), before)
+
+	def test_self_heals_when_block_is_removed(self):
+		ws = frappe.get_doc("Workspace", "Home")
+		content = json.loads(ws.content)
+		ws.content = json.dumps([b for b in content if b.get("type") != "custom_block"])
+		ws.flags.ignore_permissions = True
+		ws.save()
+		home.reconcile_home_workspace()
+		content = json.loads(frappe.db.get_value("Workspace", "Home", "content"))
+		self.assertEqual(content[0]["data"]["custom_block_name"], home.HOME_BLOCK)
+
+	def test_checklist_api_shapes(self):
+		with _ConfPlan("starter"):
+			self._shapes()
+
+	def _shapes(self):
+		for name in ("home", "accounts", "selling", "stock"):
+			d = home.get_checklist(name)
+			self.assertEqual(d["name"], name)
+			self.assertGreaterEqual(d["total"], 3)
+			for s in d["steps"]:
+				self.assertIn(s["kind"], ("exists", "visit"))
+				self.assertIsInstance(s["route"], list)
+		self.assertRaises(frappe.ValidationError, home.get_checklist, "nope")
+
+	def test_visit_and_hide_are_per_user_and_reversible(self):
+		with _ConfPlan("starter"):
+			self._visit_hide()
+
+	def _visit_hide(self):
+		home.mark_visited("accounts", "coa")
+		d = home.get_checklist("accounts")
+		self.assertTrue(next(s for s in d["steps"] if s["key"] == "coa")["done"])
+		home.hide_checklist("stock")
+		self.assertEqual(home.get_checklist("stock")["hidden"], 1)
+		home.show_checklist("stock")
+		self.assertEqual(home.get_checklist("stock")["hidden"], 0)
+		frappe.defaults.clear_user_default("nx_ck:accounts:coa")
+
+	def test_panels_off_for_mature_enterprise_sites(self):
+		with _ConfPlan("enterprise"):
+			# dev/test sites are older than 45 days -> hidden; override re-enables
+			old = frappe.conf.get("nx_setup_panels")
+			try:
+				frappe.conf.pop("nx_setup_panels", None)
+				created = frappe.db.get_value("Company", {}, "creation", order_by="creation asc")
+				from frappe.utils import date_diff, nowdate
+				mature = created and date_diff(nowdate(), created) > home._MATURE_DAYS
+				self.assertEqual(home.panels_enabled_for_site(), not mature)
+				frappe.conf.nx_setup_panels = 1
+				self.assertTrue(home.panels_enabled_for_site())
+				self.assertEqual(home.get_checklist("home")["hidden"], 0)
+				frappe.conf.nx_setup_panels = 0
+				self.assertEqual(home.get_checklist("home")["hidden"], 1)
+			finally:
+				frappe.conf.pop("nx_setup_panels", None)
+				if old is not None:
+					frappe.conf.nx_setup_panels = old
+		with _ConfPlan("starter"):
+			self.assertTrue(home.panels_enabled_for_site())
+
+	def test_number_card_methods(self):
+		for fn in (home.receivables, home.payables, home.cash_and_bank):
+			r = fn()
+			self.assertEqual(r["fieldtype"], "Currency")
+			self.assertIsInstance(r["value"], float)
+			self.assertEqual(r["route"][0], "query-report")
+
+	def test_number_card_methods_need_read_permission(self):
+		frappe.set_user("Guest")
+		try:
+			for fn in (home.receivables, home.payables, home.cash_and_bank):
+				self.assertRaises(frappe.PermissionError, fn)
+		finally:
+			frappe.set_user("Administrator")
