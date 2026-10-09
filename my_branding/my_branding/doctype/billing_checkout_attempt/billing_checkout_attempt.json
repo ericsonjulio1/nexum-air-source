@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:plan_id",
+ "creation": "2026-08-30 14:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "plan_id",
+  "subdomain",
+  "tier",
+  "column_break_main",
+  "session_id",
+  "state",
+  "needs_deactivation",
+  "superseded_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "plan_id",
+   "fieldtype": "Data",
+   "label": "Xendit Plan ID",
+   "reqd": 1,
+   "unique": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "subdomain",
+   "fieldtype": "Data",
+   "label": "Subdomain",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "tier",
+   "fieldtype": "Select",
+   "label": "Priced Tier",
+   "options": "\nEssentials\nBusiness\nEnterprise",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "session_id",
+   "fieldtype": "Data",
+   "label": "Session ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Select",
+   "label": "State",
+   "options": "Pending\nActivated\nSuperseded\nInactive",
+   "default": "Pending",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "needs_deactivation",
+   "fieldtype": "Check",
+   "label": "Needs Deactivation",
+   "description": "Set durably BEFORE the Xendit deactivate call; cleared only on confirmed success \u2014 the worker retries every run"
+  },
+  {
+   "fieldname": "superseded_by",
+   "fieldtype": "Data",
+   "label": "Superseded By",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-30 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "My Branding",
+ "name": "Billing Checkout Attempt",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

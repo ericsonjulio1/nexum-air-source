@@ -1,7 +1,7 @@
 /* =============================================================================
    Nexum Air — split login page.
    Scoped to body.nexum-login (the class login.js adds only on /login), so it
-   can never affect any other web page. The brand diagram is a FIXED left panel;
+   can never affect any other web page. The industrial loop is a FIXED left panel;
    Frappe's existing login content (#page-login) is pushed to the right. Pure
    override — no Frappe template edits, survives app/Frappe updates.
    ============================================================================= */
@@ -20,27 +20,30 @@ body.nexum-login .page-card-head,
 body.nexum-login .app-logo,
 body.nexum-login .page_content h4{ display:none !important; }
 
-/* ---- LEFT: fixed brand / diagram panel (built by login.js) ---- */
+/* ---- LEFT: approved industrial animation (built by login.js) ---- */
 body.nexum-login .nexum-art{
   position:fixed; left:0; top:0; bottom:0; width:56%; z-index:1;
   overflow:hidden; color:#eaf2f5;
-  background:
-    radial-gradient(120% 90% at 18% 12%, rgba(157,190,200,.16), transparent 55%),
-    radial-gradient(90% 80% at 85% 90%, rgba(46,85,98,.28), transparent 60%),
-    linear-gradient(135deg, var(--teal-darkest) 0%, var(--teal-dark) 40%, var(--teal) 100%);
-  display:flex; align-items:center; justify-content:center; padding:28px;
+  background:#162930;
+  display:flex; align-items:center; justify-content:center; padding:0;
 }
-body.nexum-login .nexum-art .net{ width:100%; height:100%; max-height:94vh; }
-body.nexum-login .nexum-art .link{
-  stroke:#9DBEC8; stroke-width:1.7; opacity:.45; stroke-dasharray:6 9;
-  animation:nexumflow 4.2s linear infinite;
+body.nexum-login .nexum-plant-poster,
+body.nexum-login .nexum-plant-loop{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; object-position:center; pointer-events:none;
 }
-@keyframes nexumflow{ to{ stroke-dashoffset:120; } }
-body.nexum-login .nexum-art .ring{ fill:none; stroke:#9DBEC8; stroke-width:1.1; opacity:.12; }
-body.nexum-login .nexum-art .spark{ fill:#D3E7EC; }
-body.nexum-login .nexum-art .node-bg{ fill:#16242a; stroke:#557E94; stroke-width:1.6; }
-body.nexum-login .nexum-art .ico{ fill:none; stroke:#9DBEC8; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
-body.nexum-login .nexum-art .tagline{ fill:#8FA7B2; font-size:11.5px; font-weight:600; letter-spacing:2.6px; }
+body.nexum-login .nexum-plant-loop{ opacity:0; }
+body.nexum-login .nexum-art.has-video .nexum-plant-loop{ opacity:1; }
+body.nexum-login .nexum-motion-toggle{
+  position:absolute; left:18px; bottom:18px; z-index:1;
+  padding:7px 11px; border:1px solid rgba(157,190,200,.5); border-radius:7px;
+  background:rgba(22,41,48,.86); color:#e8f3f5;
+  font:11px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  cursor:pointer;
+}
+body.nexum-login .nexum-motion-toggle[hidden]{ display:none; }
+body.nexum-login .nexum-motion-toggle:hover{ background:#2e5562; }
+body.nexum-login .nexum-motion-toggle:focus-visible{ outline:2px solid #d3e7ec; outline-offset:3px; }
 
 /* ---- RIGHT: Frappe's login content, pushed past the fixed panel ---- */
 body.nexum-login #page-login{
@@ -131,6 +134,6 @@ body.nexum-login[data-path="login"]::after{
   body.nexum-login[data-path="login"]::after{ left:0; }
 }
 @media (prefers-reduced-motion:reduce){
-  body.nexum-login .nexum-art .link{ animation:none; }
-  body.nexum-login .nexum-art .spark{ display:none; }
+  body.nexum-login .nexum-plant-loop,
+  body.nexum-login .nexum-motion-toggle{ display:none; }
 }

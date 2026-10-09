@@ -1,0 +1,80 @@
+/* Nexum Air idle screen lock (idle_lock.js). Desk theme tokens, so light and dark
+ * both work. The logo sits on the dim backdrop above the card (owner rule: the logo
+ * blends on the background, never inside a box). */
+.nx-idle-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 10050;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+	background: rgba(14, 31, 38, 0.45);
+}
+.nx-idle-lock {
+	background: rgba(14, 31, 38, 0.6);
+}
+.nx-idle-logo {
+	height: 40px;
+	margin-bottom: 16px;
+}
+.nx-idle-card {
+	width: 100%;
+	max-width: 380px;
+	padding: 24px;
+	border-radius: 12px;
+	background: var(--card-bg, #fff);
+	color: var(--text-color, #1f272e);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.nx-idle-title {
+	margin: 0 0 8px;
+	font-size: 18px;
+	font-weight: 600;
+}
+.nx-idle-text {
+	margin: 0 0 16px;
+	font-size: 13px;
+	color: var(--text-muted, #6b7785);
+}
+.nx-idle-user {
+	margin: 0 0 16px;
+	font-size: 13px;
+}
+.nx-idle-user span,
+.nx-idle-note {
+	color: var(--text-muted, #6b7785);
+}
+.nx-idle-label {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 12px;
+	font-weight: 500;
+}
+.nx-idle-error {
+	min-height: 18px;
+	margin: 8px 0 0;
+	font-size: 12px;
+	color: var(--red-600, #c0392b);
+}
+.nx-idle-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 12px;
+}
+.nx-idle-note {
+	margin: 12px 0 0;
+	font-size: 12px;
+}
+#nx-idle-countdown {
+	font-variant-numeric: tabular-nums;
+}
+html.nx-idle-locked,
+html.nx-idle-locked body {
+	overflow: hidden;
+}
+html.nx-idle-locked body > *:not(.nx-idle-root) {
+	filter: blur(10px);
+}

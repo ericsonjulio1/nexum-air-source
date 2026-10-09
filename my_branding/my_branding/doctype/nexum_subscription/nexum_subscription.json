@@ -1,0 +1,174 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:subdomain",
+ "creation": "2026-08-30 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "subdomain",
+  "plan",
+  "status",
+  "paid_until",
+  "column_break_main",
+  "xendit_customer_id",
+  "xendit_plan_id",
+  "payment_method_type",
+  "last_event",
+  "section_checkout",
+  "pending_plan",
+  "pending_plan_id",
+  "checkout_session_id",
+  "column_break_checkout",
+  "checkout_url",
+  "checkout_expires_on",
+  "section_worker",
+  "last_paid_event",
+  "last_event_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "subdomain",
+   "fieldtype": "Data",
+   "label": "Tenant Subdomain",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "plan",
+   "fieldtype": "Select",
+   "label": "Plan",
+   "options": "\nEssentials\nBusiness\nEnterprise",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Pending\nActive\nRetrying\nFailed\nInactive\nSuspended",
+   "default": "Pending",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "paid_until",
+   "fieldtype": "Date",
+   "label": "Paid Until",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "xendit_customer_id",
+   "fieldtype": "Data",
+   "label": "Xendit Customer ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xendit_plan_id",
+   "fieldtype": "Data",
+   "label": "Xendit Plan ID",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "payment_method_type",
+   "fieldtype": "Data",
+   "label": "Payment Method"
+  },
+  {
+   "fieldname": "last_event",
+   "fieldtype": "Data",
+   "label": "Last Event",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_checkout",
+   "fieldtype": "Section Break",
+   "label": "Pending Checkout"
+  },
+  {
+   "fieldname": "pending_plan",
+   "fieldtype": "Select",
+   "options": "\nEssentials\nBusiness\nEnterprise",
+   "label": "Pending Plan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pending_plan_id",
+   "fieldtype": "Data",
+   "label": "Pending Plan ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "checkout_session_id",
+   "fieldtype": "Data",
+   "label": "Checkout Session ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_checkout",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "checkout_url",
+   "fieldtype": "Small Text",
+   "label": "Checkout URL",
+   "read_only": 1
+  },
+  {
+   "fieldname": "checkout_expires_on",
+   "fieldtype": "Datetime",
+   "label": "Checkout Expires On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_worker",
+   "fieldtype": "Section Break",
+   "label": "Worker State"
+  },
+  {
+   "fieldname": "last_paid_event",
+   "fieldtype": "Data",
+   "label": "Last Paid Event",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_event_at",
+   "fieldtype": "Datetime",
+   "label": "Last Event At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "My Branding",
+ "name": "Nexum Subscription",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

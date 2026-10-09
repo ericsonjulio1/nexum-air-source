@@ -296,6 +296,19 @@ COPY --chown=frappe:frappe patches/security-2026-08-22/ /tmp/patches/security-20
 RUN python3 /tmp/patches/security-2026-08-22/apply.py /home/frappe/frappe-bench \
  && python3 /tmp/patches/security-2026-08-22/apply.py --verify /home/frappe/frappe-bench
 
+# NexumAir patch 2026-08-25: frappe v16 sidebars hid ALL DocType/Page links from
+# every non-Administrator user (found verifying the eam Maintenance workspace on
+# sbl). Two stacked upstream bugs, both still on frappe develop: (1) the
+# domain_restricted_* cache builders omit entities with NO restrict_to_domain, so
+# is_item_allowed's membership check fails for everything; (2) Workspace
+# Sidebar's get_can_read_items is missing its return, so can_read is always None
+# (desktop.py's identical helper returns it — why workspace CARDS worked).
+# Pure-Python, no asset rebuild; idempotent + drift-guarded; domain-tagged
+# entities keep their gating. Drop when fixed upstream. First shipped as
+# v16-prod-178 (2026-08-25).
+COPY --chown=frappe:frappe patches/frappe_sidebar_visibility.py /tmp/patches/frappe_sidebar_visibility.py
+RUN python3 /tmp/patches/frappe_sidebar_visibility.py /home/frappe/frappe-bench
+
 RUN echo "{}" > sites/common_site_config.json && \
     find apps -mindepth 1 -path "*/.git" | xargs rm -fr
 
@@ -315,6 +328,11 @@ VOLUME [ \
 ]
 
 USER root
+# NexumAir nginx template (frappe_docker resources/core/nginx/nginx-template.conf): long-lived
+# Cache-Control for content-hashed / ?v=-versioned /assets and the Drive ff_integration stub.
+# The frappe/base image ships upstream's template, so copy ours over it explicitly.
+COPY resources/core/nginx/nginx-template.conf /templates/nginx/frappe.conf.template
+RUN chmod 644 /templates/nginx/frappe.conf.template
 COPY resources/core/main-entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 755 /usr/local/bin/entrypoint.sh
 COPY resources/core/start.sh /usr/local/bin/start.sh

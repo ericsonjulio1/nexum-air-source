@@ -10,16 +10,23 @@ app_license = "mit"
 app_logo_url = "/assets/my_branding/images/nexum-mark.png"
 brand_html = '<span style="font-weight:700;color:#fff;letter-spacing:0.3px;">Nexum Air</span>'
 
-_BRAND_CSS_VER = "20260823d"
-app_include_css = f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}"
-app_include_js = "/assets/my_branding/js/brand.js?v=20260823d"
+_BRAND_CSS_VER = "20260906a"
+app_include_css = [
+	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
+	"/assets/my_branding/css/idle_lock.css?v=20261006a",
+]
+app_include_js = [
+	"/assets/my_branding/js/brand.js?v=20261003a",
+	# idle screen lock: warning, lock in place, unlock (see idle_lock.py)
+	"/assets/my_branding/js/idle_lock.js?v=20261009a",
+]
 web_include_css = [
 	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
-	"/assets/my_branding/css/login.css?v=20260705a",
+	"/assets/my_branding/css/login.css?v=20261003-loop1",
 ]
-# split login page (left brand diagram + right credentials); login.js guards on
+# split login page (left industrial animation + right credentials); login.js guards on
 # #page-login so it only acts on /login, never other web pages.
-web_include_js = "/assets/my_branding/js/login.js?v=20260701a"
+web_include_js = "/assets/my_branding/js/login.js?v=20261003-loop1"
 website_theme_scss = "my_branding/public/scss/website"
 
 website_context = {
@@ -32,7 +39,9 @@ fixtures = [
 	{"dt": "Navbar Settings"},
 	{"dt": "Website Settings"},
 	{"dt": "Website Theme", "filters": [["custom", "=", 1]]},
-	{"dt": "Letter Head"},
+	# Letter Head moved to branding.ensure_letter_heads (insert-only reconciler,
+	# batch-183 sweep C37): the unfiltered fixture re-saved both letterheads on
+	# every migrate, reverting tenant content edits and their default choice.
 	{"dt": "Custom Field", "filters": [["module", "=", "My Branding"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "My Branding"]]},
 	# Rebranded Settings workspace (was "ERPNext Settings", now plain "Settings");
@@ -48,7 +57,9 @@ after_migrate = [
 	"my_branding.branding.reconcile_workspaces",
 	"my_branding.branding.ensure_translations",
 	"my_branding.branding.reconcile_navbar",
+	"my_branding.branding.ensure_letter_heads",
 	"my_branding.branding.ensure_insights_desktop_icon",
+	"my_branding.branding.ensure_maintenance_desktop_icon",
 	"my_branding.branding.ensure_settings_desktop_icon",
 	"my_branding.branding.ensure_home_desktop_icon",
 	"my_branding.branding.ensure_owner_landing",
@@ -66,6 +77,7 @@ after_migrate = [
 	"my_branding.branding.reconcile_onboarding",
 	"my_branding.branding.reconcile_default_portal_home",
 	"my_branding.branding.reconcile_workspace_visibility",
+	"my_branding.core_focus.reconcile_core_focus",
 	"my_branding.branding.ensure_web_title_prefix",
 	"my_branding.branding.reconcile_workspace_order",
 	"my_branding.branding.reconcile_framework_desktop_icon_visibility",
@@ -77,6 +89,11 @@ after_migrate = [
 	# per-plan simple-mode property setters (Free/Essentials).
 	"my_branding.home.reconcile_home_workspace",
 	"my_branding.simple_mode.reconcile_simple_mode",
+	# Official PH invoice format: Company fields it reads (the Print Format itself is a
+	# standard doc in my_branding/my_branding/print_format/, synced by migrate).
+	"my_branding.invoice_ph.ensure_company_invoice_fields",
+	# Idle screen lock: System Settings fields, deploy-grace seed, enforcement switch.
+	"my_branding.idle_lock.ensure_setup",
 ]
 
 # "Invoice Design" button on the Sales Invoice form -> Print Designer editor
@@ -93,7 +110,11 @@ extend_bootinfo = "my_branding.boot.boot_session"
 # Paint Nexum Air branding onto the standalone frappe-ui SPAs (Frappe HR, ...),
 # which serve their own HTML and never load brand.css. Post-processes their
 # rendered response — no app-source edits, so it survives app updates.
-after_request = ["my_branding.spa_brand.inject_brand_assets"]
+after_request = [
+	"my_branding.spa_brand.inject_brand_assets",
+	# idle screen lock: activity reporter on every non-desk page a desk user opens
+	"my_branding.idle_lock.inject_activity_reporter",
+]
 
 # Relabel the /apps switcher + navbar app dropdown to the Nexum Air names
 # (scoped rename — safer than Translation-ing bare words like "Drive"/"ERPNext").
@@ -256,6 +277,9 @@ doc_events = {
 		"before_insert": "my_branding.storage.enforce_file_quota",
 		"on_trash": "my_branding.storage.invalidate_used_cache",
 	},
+	"System Settings": {
+		"validate": "my_branding.idle_lock.validate_system_settings",
+	},
 }
 
 # Free-tier document-count caps (nexum_doc_caps in site_config; absent = unlimited/paid).
@@ -277,6 +301,13 @@ for _capped_dt in (
 
 # A returning customer on an idle-parked Free site re-enables its own scheduler.
 on_login = "my_branding.lifecycle.wake_scheduler"
+
+# Idle screen lock (idle_lock.py): every new signed-in session starts with a fresh
+# human-activity record.
+on_session_creation = ["my_branding.idle_lock.on_session_creation"]
+# ...and the server refuses a cookie session with no human activity for longer than
+# idle + 60 s warning + 90 s grace (see idle_lock.enforce).
+before_request = ["my_branding.idle_lock.enforce"]
 
 # Scheduled Tasks
 # ---------------

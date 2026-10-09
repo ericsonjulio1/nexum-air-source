@@ -208,6 +208,39 @@ class TestHomeWorkspace(unittest.TestCase):
 		with _ConfPlan("starter"):
 			self.assertTrue(home.panels_enabled_for_site())
 
+	def test_boot_flags_agree_with_get_checklist(self):
+		"""brand.js skips the get_checklist call when boot says hidden, so the two must
+		never disagree — in either direction, across plan, override and per-user hide."""
+		old = frappe.conf.get("nx_setup_panels")
+		try:
+			for plan_slug, override in (("starter", None), ("enterprise", 0), ("enterprise", 1)):
+				with _ConfPlan(plan_slug):
+					if override is None:
+						frappe.conf.pop("nx_setup_panels", None)
+					else:
+						frappe.conf.nx_setup_panels = override
+					home.hide_checklist("selling")
+					try:
+						boot = home.checklist_boot()
+						for name in home.CHECKLIST_NAMES:
+							with self.subTest(plan=plan_slug, override=override, name=name):
+								self.assertEqual(name in boot["hidden"], bool(home.get_checklist(name)["hidden"]))
+					finally:
+						home.show_checklist("selling")
+		finally:
+			frappe.conf.pop("nx_setup_panels", None)
+			if old is not None:
+				frappe.conf.nx_setup_panels = old
+
+	def test_get_checklist_runs_only_the_requested_checks(self):
+		"""Each step's done check is lazy: asking for one checklist must not query the
+		tables behind the other three (Quotation is only on Selling)."""
+		from unittest import mock
+
+		with _ConfPlan("starter"), mock.patch.object(home, "_exists", wraps=home._exists) as probe:
+			home.get_checklist("home")
+		self.assertFalse([c for c in probe.call_args_list if c.args and c.args[0] in ("Quotation", "Delivery Note")])
+
 	def test_number_card_methods(self):
 		for fn in (home.receivables, home.payables, home.cash_and_bank):
 			r = fn()
@@ -230,10 +263,13 @@ class TestHomeTileAndLanding(unittest.TestCase):
 
 		frappe.db.set_value("Desktop Icon", "Home", {"hidden": 1, "parent_icon": ""}, update_modified=False)
 		branding.ensure_home_desktop_icon()
-		row = frappe.db.get_value("Desktop Icon", "Home", ["hidden", "parent_icon"], as_dict=True)
+		row = frappe.db.get_value("Desktop Icon", "Home", ["hidden", "parent_icon", "app"], as_dict=True)
 		self.assertEqual(row.hidden, 0)
+		self.assertEqual(row.app, "my_branding")
+		import os
+		self.assertTrue(os.path.exists(os.path.join(frappe.get_app_path("my_branding"), "public", "icons", "desktop_icons", "solid", "home.svg")))
 		self.assertEqual(row.parent_icon, frappe.db.get_value("Desktop Icon", {"icon_type": "App", "app": "erpnext"}, "name"))
-		self.assertEqual(branding.LAUNCHER_SECTIONS[0]["labels"][0], "Home")
+		self.assertEqual(branding.LAUNCHER_SECTIONS[0]["labels"], ["Home"])
 		first = frappe.get_all("Workspace Sidebar Item", filters={"parent": "Home", "parenttype": "Workspace Sidebar"}, fields=["link_type", "link_to"], order_by="idx asc", limit=1)
 		self.assertEqual((first[0].link_type, first[0].link_to), ("Workspace", "Home"))
 
@@ -262,3 +298,31 @@ class TestHomeTileAndLanding(unittest.TestCase):
 		finally:
 			frappe.set_user("Administrator")
 			frappe.delete_doc("User", email, force=True, ignore_permissions=True)
+
+
+class TestInvoicePH(unittest.TestCase):
+	def test_print_format_json_in_sync_with_sources(self):
+		import pathlib, subprocess, sys
+
+		root = pathlib.Path(frappe.get_app_path("my_branding")).parent
+		r = subprocess.run([sys.executable, str(root / "scripts" / "build_print_formats.py"), "--check"], capture_output=True, text=True)
+		self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+	def test_company_fields_and_format_exist(self):
+		from my_branding import invoice_ph
+
+		invoice_ph.ensure_company_invoice_fields()
+		for f in ("nx_registered_name", "nx_tax_registration", "nx_invoice_footer"):
+			self.assertTrue(frappe.db.exists("Custom Field", f"Company-{f}"), f)
+		self.assertTrue(frappe.db.exists("Print Format", invoice_ph.PRINT_FORMAT))
+		pf = frappe.get_doc("Print Format", invoice_ph.PRINT_FORMAT)
+		self.assertEqual((pf.standard, pf.custom_format, pf.doc_type), ("Yes", 1, "Sales Invoice"))
+		self.assertIn("NOT VALID FOR CLAIM OF INPUT TAX", pf.html)
+
+	def test_renders_html_for_a_sales_invoice(self):
+		name = frappe.db.get_value("Sales Invoice", {"docstatus": ["<", 2]}, "name")
+		if not name:
+			self.skipTest("no Sales Invoice on this site")
+		html = frappe.get_print("Sales Invoice", name, print_format="Nexum Invoice (PH)")
+		self.assertIn('class="nxi"', html)
+		self.assertIn("Amount in words", html)

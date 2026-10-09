@@ -33,7 +33,13 @@ def reconcile_ph_coa_defaults():
 		try:
 			_fix_company(company)
 		except Exception:
-			frappe.log_error(f"coa_guard failed for {company}", "my_branding.coa_guard")
+			# message must be the traceback (batch-183, sweep C35): passing a label
+			# as the second positional arg logged the literal string and dropped the
+			# actual exception entirely
+			frappe.log_error(
+				title=f"coa_guard failed for {company}",
+				message=frappe.get_traceback(),
+			)
 	frappe.db.commit()
 
 
@@ -44,9 +50,13 @@ def _fix_company(company):
 		if current and "Customer Deposits" in current:
 			frappe.db.set_value("Company", company, "default_payable_account", ap)
 
-	# the chart's baked-in demo account — drop it while it is still unused
+	# the chart's baked-in demo account — drop it while it is still unused.
+	# Match account_name EXACTLY (2026-08-29 sweep): the old `like
+	# "%Raw Materials - Demo%"` also caught tenant-created accounts such as
+	# "Raw Materials - Demolition - <abbr>" and force-deleted them on every
+	# migrate — the same lesson the VAT block below already documents (MB-1).
 	leak = frappe.db.get_value(
-		"Account", {"company": company, "name": ["like", "%Raw Materials - Demo%"]}, "name"
+		"Account", {"company": company, "account_name": "Raw Materials - Demo"}, "name"
 	)
 	if leak and not frappe.db.count("GL Entry", {"account": leak}):
 		frappe.delete_doc("Account", leak, force=True, ignore_permissions=True)
@@ -108,12 +118,22 @@ def _repoint_tax_templates(company, vin, vout, generic):
 	for itt in frappe.get_all("Item Tax Template", filters={"company": company}, pluck="name"):
 		doc = frappe.get_doc("Item Tax Template", itt)
 		changed = False
+		repointed_rates = []
 		for row in doc.taxes:
 			if row.tax_type == generic:
 				row.tax_type = vout
 				changed = True
-		if changed and not any(r.tax_type == vin for r in doc.taxes):
-			doc.append("taxes", {"tax_type": vin, "tax_rate": 12.0})
+				repointed_rates.append(row.tax_rate or 0)
+		# the appended input-VAT row INHERITS the repointed row's rate (batch-183,
+		# sweep C11): the hardcoded 12.0 silently turned a zero-rated/exempt template
+		# into one that computes 12% input VAT on every purchase. All-zero rates =
+		# a zero-rated template — no input-VAT row belongs on it at all.
+		if changed and not any(r.tax_type == vin for r in doc.taxes) \
+				and any(r for r in repointed_rates):
+			# first NON-ZERO rate (review L4): a mixed template whose first generic
+			# row was 0% would otherwise append a useless 0% input-VAT row
+			doc.append("taxes", {"tax_type": vin,
+			                     "tax_rate": next(r for r in repointed_rates if r)})
 		if changed:
 			doc.flags.ignore_permissions = True
 			doc.save()

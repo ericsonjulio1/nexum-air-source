@@ -25,7 +25,7 @@ import frappe
 
 _WS = "Online Store"
 _STOREFRONT = "/all-products"
-_LOGO = "/assets/my_branding/images/icons/online-store.svg"
+_LOGO = "/assets/my_branding/images/icons/online-store.svg?v=c1"
 _ROUTE = "/app/online-store"
 
 
@@ -167,6 +167,15 @@ def ensure_online_store_workspace():
 		return
 	try:
 		if "webshop" not in frappe.get_installed_apps():
+			return
+		# Core-focus 2026-08-24: webshop is non-core and hidden on every site. Creating
+		# or self-healing its surfaces (the self-heal asserts hidden=0) would fight
+		# core_focus.reconcile_core_focus — most visibly via the demo nightly reset,
+		# which runs this function explicitly AFTER migrate's reconcilers. No-op while
+		# hidden; if webshop ever returns to a plan, drop it from NON_CORE_APPS.
+		from my_branding.core_focus import hidden_apps
+
+		if "webshop" in hidden_apps():
 			return
 		_ensure_workspace()
 		_ensure_sidebar()

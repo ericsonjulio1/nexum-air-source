@@ -1,8 +1,8 @@
 {
-  "generated": "2026-08-22T10:27:32Z",
+  "generated": "2026-10-09T15:00:00Z",
   "apps": [
-    {"url": "https://github.com/frappe/frappe", "branch": "version-16", "commit": "6a329d068416768ec47ccd3326b9cc95a8d7bf99"}
-    , {"url": "https://github.com/frappe/erpnext", "branch": "version-16", "commit": "11e0ba0a1c45f217e2e73e885f699102d06da325"}
+    {"url": "https://github.com/frappe/frappe", "branch": "version-16", "commit": "97a5dd93ca5883bcc9c4ef9834120c5cba397b67"}
+    , {"url": "https://github.com/frappe/erpnext", "branch": "version-16", "commit": "af63cde4941570ec7b9e12422c68302762cfcf91"}
     , {"url": "https://github.com/frappe/hrms", "branch": "version-16", "commit": "f281e8b172ac8836ad89c59df65a922101103097"}
     , {"url": "https://github.com/frappe/payments", "branch": "version-16", "commit": "cca07d9f9392e2ea0e521c5975151db9e4b6c321"}
     , {"url": "https://github.com/frappe/print_designer", "branch": "main", "commit": "9d62227e20d13c52fb4be13d05d71f544228af1d"}

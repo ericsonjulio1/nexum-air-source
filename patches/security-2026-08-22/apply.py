@@ -16,6 +16,7 @@ Closes (all pure py / server-side jinja, NO asset build):
   frappe  GHSA-2c6h-wv85-fxvj  MEDIUM set_value mass assignment (develop-only) 2a04fae935
   erpnext GHSA-4j82 / m5xh / 48wc (+plant floor) / q8wq  MEDIUM perm checks   7a606ab91c
                                                c7cf9d868b 99f249b1a0 7bc04752fc (+custom guard)
+  hrms    GHSA-jfmr-9jv9-mrw4  HIGH   SQLi in get_salary_component search    f176a319dd  (added 2026-10-09)
 Deferred (need `bench build`): erpnext GHSA-8pr6-r75h-h8xx (XSS in JS bundle),
 GHSA-mvr5-2j8r-53p4 (banking React UI).
 

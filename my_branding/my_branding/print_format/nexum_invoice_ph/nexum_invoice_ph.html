@@ -1,0 +1,131 @@
+{#- Nexum Invoice (PH) — self-contained Jinja print format (no Letter Head).
+    Reads Company (+ its default Address) for the header and the BIR qualifiers. -#}
+{%- set company = frappe.get_doc("Company", doc.company) -%}
+{%- set addr_name = frappe.db.get_value("Dynamic Link", {"link_doctype": "Company", "link_name": doc.company, "parenttype": "Address"}, "parent") -%}
+{%- set caddr = frappe.get_doc("Address", addr_name) if addr_name else None -%}
+{%- set taxreg = (company.get("nx_tax_registration") or "").strip() -%}
+{%- set tin_label = ("NON-VAT Reg. TIN" if taxreg == "Non-VAT" else ("VAT Reg. TIN" if taxreg == "VAT" else "TIN")) -%}
+{%- set is_return = doc.get("is_return") -%}
+{%- set title = ("CREDIT NOTE" if is_return else ("DEBIT NOTE" if doc.get("is_debit_note") else "INVOICE")) -%}
+{%- set cur = doc.currency -%}
+{%- macro money(v) -%}{{ frappe.utils.fmt_money(v, currency=cur) }}{%- endmacro -%}
+{%- set logo = company.company_logo -%}
+{%- set trade = company.company_name -%}
+{%- set regname = (company.get("nx_registered_name") or "").strip() -%}
+<div class="nxi">
+  {%- if doc.docstatus == 0 %}<div class="nxi-draft">DRAFT</div>{% endif -%}
+  {%- if doc.docstatus == 2 %}<div class="nxi-draft">CANCELLED</div>{% endif -%}
+
+  <table class="nxi-head"><tr>
+    <td class="nxi-brand">
+      <table><tr>
+        {%- if logo %}<td class="nxi-logo"><img src="{{ logo }}" alt=""></td>{% endif -%}
+        <td>
+          <div class="nxi-trade">{{ trade }}</div>
+          {%- if regname and regname.upper() != trade.upper() %}<div class="nxi-reg">{{ regname }}</div>{% endif -%}
+          {%- if caddr %}
+          <div class="nxi-addr">{{ caddr.address_line1 }}{% if caddr.address_line2 %}, {{ caddr.address_line2 }}{% endif %}{% if caddr.city %}, {{ caddr.city }}{% endif %}{% if caddr.state %}, {{ caddr.state }}{% endif %}{% if caddr.pincode %} {{ caddr.pincode }}{% endif %}</div>
+          {%- endif %}
+          {%- if company.tax_id %}<div class="nxi-tin">{{ tin_label }} {{ company.tax_id }}</div>{% endif -%}
+          <div class="nxi-contact">
+            {%- if company.phone_no %}<span>{{ company.phone_no }}</span>{% endif -%}
+            {%- if company.phone_no and company.email %}&nbsp;&nbsp;·&nbsp;&nbsp;{% endif -%}
+            {%- if company.email %}<span>{{ company.email }}</span>{% endif -%}
+            {%- if company.website %}<br>{{ company.website }}{% endif -%}
+          </div>
+        </td>
+      </tr></table>
+    </td>
+    <td class="nxi-meta">
+      <div class="nxi-title">{{ title }}</div>
+      {%- if doc.docstatus == 1 and not is_return and doc.get("outstanding_amount") is not none and doc.outstanding_amount <= 0 and (doc.grand_total or 0) > 0 %}<div class="nxi-paid">PAID</div>{% endif -%}
+      <table class="nxi-kv">
+        <tr><td>Invoice No.</td><td>{{ doc.name }}</td></tr>
+        <tr><td>Date</td><td>{{ frappe.utils.formatdate(doc.posting_date, "dd MMM yyyy") }}</td></tr>
+        {%- if doc.due_date and not is_return %}<tr><td>Due Date</td><td>{{ frappe.utils.formatdate(doc.due_date, "dd MMM yyyy") }}</td></tr>{% endif -%}
+        {%- if doc.get("po_no") %}<tr><td>Your Ref / PO</td><td>{{ doc.po_no }}</td></tr>{% endif -%}
+        {%- if doc.get("return_against") %}<tr><td>Against</td><td>{{ doc.return_against }}</td></tr>{% endif -%}
+        {%- if doc.get("payment_terms_template") %}<tr><td>Terms</td><td>{{ doc.payment_terms_template }}</td></tr>{% endif -%}
+      </table>
+    </td>
+  </tr></table>
+
+  <table class="nxi-parties"><tr>
+    <td class="nxi-party">
+      <div class="nxi-label">Billed to</div>
+      <div class="nxi-party-name">{{ doc.customer_name }}</div>
+      {%- if doc.get("address_display") %}<div class="nxi-party-addr">{{ doc.address_display }}</div>{% endif -%}
+      {%- if doc.get("tax_id") %}<div class="nxi-party-line">TIN {{ doc.tax_id }}</div>{% endif -%}
+      {%- if doc.get("contact_display") and (doc.contact_display or "").strip().lower() != (doc.customer_name or "").strip().lower() %}<div class="nxi-party-line">Attn: {{ doc.contact_display }}</div>{% endif -%}
+    </td>
+    {%- if doc.get("shipping_address") and doc.shipping_address != doc.get("address_display") %}
+    <td class="nxi-party">
+      <div class="nxi-label">Ship to</div>
+      <div class="nxi-party-addr">{{ doc.shipping_address }}</div>
+    </td>
+    {%- endif %}
+    {%- if doc.get("project") or doc.get("cost_center") %}
+    <td class="nxi-party nxi-party-right">
+      {%- if doc.get("project") %}<div class="nxi-label">Project</div><div class="nxi-party-line">{{ doc.project }}</div>{% endif -%}
+    </td>
+    {%- endif %}
+  </tr></table>
+
+  <table class="nxi-items">
+    <thead><tr>
+      <th class="c-no">#</th>
+      <th class="c-desc">Description</th>
+      <th class="c-qty">Qty</th>
+      <th class="c-uom">Unit</th>
+      <th class="c-rate">Unit Price</th>
+      <th class="c-amt">Amount</th>
+    </tr></thead>
+    <tbody>
+    {%- for row in doc.items %}
+      <tr>
+        <td class="c-no">{{ loop.index }}</td>
+        <td class="c-desc">
+          <div class="nxi-item-name">{{ row.item_name }}</div>
+          {%- if row.description and row.description != row.item_name %}<div class="nxi-item-desc">{{ row.description }}</div>{% endif -%}
+        </td>
+        <td class="c-qty">{{ row.get_formatted("qty") }}</td>
+        <td class="c-uom">{{ row.uom or row.stock_uom or "" }}</td>
+        <td class="c-rate">{{ money(row.rate) }}</td>
+        <td class="c-amt">{{ money(row.amount) }}</td>
+      </tr>
+    {%- endfor %}
+    </tbody>
+  </table>
+
+  <table class="nxi-foot"><tr>
+    <td class="nxi-words">
+      <div class="nxi-label">Amount in words</div>
+      <div class="nxi-words-text">{{ doc.in_words }}</div>
+      {%- if taxreg == "Non-VAT" %}<div class="nxi-legend">THIS DOCUMENT IS NOT VALID FOR CLAIM OF INPUT TAX</div>{% endif -%}
+      {%- if doc.get("terms") %}<div class="nxi-label" style="margin-top:10px">Notes</div><div class="nxi-terms">{{ doc.terms }}</div>{% endif -%}
+    </td>
+    <td class="nxi-totals">
+      <table class="nxi-sum">
+        <tr><td>Subtotal</td><td>{{ money(doc.total) }}</td></tr>
+        {%- if doc.get("discount_amount") %}<tr><td>Discount{% if doc.get("additional_discount_percentage") %} ({{ doc.additional_discount_percentage }}%){% endif %}</td><td>- {{ money(doc.discount_amount) }}</td></tr>{% endif -%}
+        {%- for t in doc.taxes %}{% if t.tax_amount %}
+        <tr><td>{{ t.description }}</td><td>{{ money(t.tax_amount) }}</td></tr>
+        {%- endif %}{% endfor %}
+        {%- if doc.get("rounding_adjustment") and not doc.get("disable_rounded_total") %}<tr><td>Rounding</td><td>{{ money(doc.rounding_adjustment) }}</td></tr>{% endif -%}
+        <tr class="nxi-grand"><td>Total {% if cur != company.default_currency %}({{ cur }}){% endif %}</td><td>{{ money(doc.rounded_total if (doc.get("rounded_total") and not doc.get("disable_rounded_total")) else doc.grand_total) }}</td></tr>
+        {%- if doc.docstatus == 1 and doc.get("outstanding_amount") is not none and doc.outstanding_amount != (doc.rounded_total or doc.grand_total) and not is_return %}
+        <tr><td>Paid</td><td>{{ money((doc.rounded_total or doc.grand_total) - doc.outstanding_amount) }}</td></tr>
+        <tr class="nxi-due"><td>Amount Due</td><td>{{ money(doc.outstanding_amount) }}</td></tr>
+        {%- endif %}
+      </table>
+    </td>
+  </tr></table>
+
+  <table class="nxi-sign"><tr>
+    <td><div class="nxi-sig-line"></div><div class="nxi-sig-cap">Prepared by</div></td>
+    <td><div class="nxi-sig-line"></div><div class="nxi-sig-cap">Received by / Date</div></td>
+  </tr></table>
+
+  {%- if company.get("nx_invoice_footer") %}<div class="nxi-permit">{{ company.nx_invoice_footer | replace("\n", "<br>") }}</div>{% endif -%}
+  <div class="nxi-thanks">Thank you for your business.</div>
+</div>

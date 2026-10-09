@@ -111,22 +111,22 @@ ion-tab-button.tab-selected * {
  * logo as <img src=...>. brand.css can't reach inside the SPA, so swap those
  * stock logos to the teal Nexum Air icons here. Keyed on the full logo src. */
 img[src$="/assets/erpnext/images/erpnext-logo.svg"],
-img[src$="/assets/builder/images/desk.png"]            { content: url("/assets/my_branding/images/icons/erpnext_app.svg") !important; }
-img[src$="/assets/hrms/images/frappe-hr-logo.svg"]      { content: url("/assets/my_branding/images/icons/hrms_app.svg") !important; }
-img[src$="/assets/crm/images/logo.svg"]                 { content: url("/assets/my_branding/images/icons/crm_app2.svg") !important; }
-img[src$="/assets/gameplan/manifest/favicon-196.png"]   { content: url("/assets/my_branding/images/icons/gameplan_app2.svg") !important; }
-img[src$="/assets/helpdesk/desk/favicon.svg"]           { content: url("/assets/my_branding/images/icons/helpdesk_app.svg") !important; }
-img[src$="/assets/lms/frontend/learning.svg"]           { content: url("/assets/my_branding/images/icons/lms_app2.svg") !important; }
-img[src$="/assets/drive/frontend/favicon-310x310.png"]  { content: url("/assets/my_branding/images/icons/drive_app.svg") !important; }
-img[src$="/assets/slides/frontend/slides-logo.svg"]     { content: url("/assets/my_branding/images/icons/slides_app.svg") !important; }
+img[src$="/assets/builder/images/desk.png"]            { content: url("/assets/my_branding/images/icons/erpnext_app.svg?v=c1") !important; }
+img[src$="/assets/hrms/images/frappe-hr-logo.svg"]      { content: url("/assets/my_branding/images/icons/hrms_app.svg?v=c1") !important; }
+img[src$="/assets/crm/images/logo.svg"]                 { content: url("/assets/my_branding/images/icons/crm_app2.svg?v=c1") !important; }
+img[src$="/assets/gameplan/manifest/favicon-196.png"]   { content: url("/assets/my_branding/images/icons/gameplan_app2.svg?v=c1") !important; }
+img[src$="/assets/helpdesk/desk/favicon.svg"]           { content: url("/assets/my_branding/images/icons/helpdesk_app.svg?v=c1") !important; }
+img[src$="/assets/lms/frontend/learning.svg"]           { content: url("/assets/my_branding/images/icons/lms_app2.svg?v=c1") !important; }
+img[src$="/assets/drive/frontend/favicon-310x310.png"]  { content: url("/assets/my_branding/images/icons/drive_app.svg?v=c1") !important; }
+img[src$="/assets/slides/frontend/slides-logo.svg"]     { content: url("/assets/my_branding/images/icons/slides_app.svg?v=c1") !important; }
 /* frappe-ui hard-codes a "Desk" entry in the in-SPA apps dropdown whose logo is the
  * native Frappe cube. The asset path VARIES per SPA — observed: helpdesk
  * /assets/helpdesk/desk/desk.png, lms /assets/lms/images/desk.png, crm+drive
  * /assets/frappe/images/framework.png — so match BOTH filename tails to cover every
  * SPA; swap to the on-brand squircle. */
 img[src$="desk.png"],
-img[src$="framework.png"]                               { content: url("/assets/my_branding/images/icons/_default_app.svg") !important; }
+img[src$="framework.png"]                               { content: url("/assets/my_branding/images/icons/_default_app.svg?v=c1") !important; }
 /* Insights switched its logo (v2.2) from the old inlined base64 PNG (hidden above)
  * to a hashed SVG `insights-logo-new-<hash>.svg`; the hash changes per build, so
  * match the stable stem with *= and swap to the teal Nexum Air icon. */
-img[src*="insights-logo-new"]                           { content: url("/assets/my_branding/images/icons/insights_app.svg") !important; }
+img[src*="insights-logo-new"]                           { content: url("/assets/my_branding/images/icons/insights_app.svg?v=c1") !important; }

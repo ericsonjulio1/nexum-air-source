@@ -20,7 +20,7 @@ APP_TITLES = app_titles()
 # `logo` from get_apps DIRECTLY and never loads brand.css — so the CSS icon-swaps
 # don't reach it. Rewriting `logo` here rebrands those icons at the source, which
 # also covers the /apps switcher + navbar dropdown.
-ICON = "/assets/my_branding/images/icons/%s"
+ICON = "/assets/my_branding/images/icons/%s?v=c1"
 APP_LOGOS = {
 	"erpnext": ICON % "erpnext_app.svg",
 	"hrms": ICON % "hrms_app.svg",
@@ -67,6 +67,14 @@ def get_apps():
 
 	apps = _get_apps()
 	try:
+		# Core-focus 2026-08-24: apps hidden on this site (all non-core on tenants;
+		# non-core minus the internal tools on hq) never appear in the /apps
+		# switcher, navbar dropdown, or SPA "Apps" dropdowns — even while still
+		# installed (uninstalls are Phase 3). Fail-open: an error keeps the list.
+		from my_branding.core_focus import hidden_apps
+
+		hide = hidden_apps()
+		apps = [a for a in apps if a.get("name") not in hide]
 		for app in apps:
 			new_title = APP_TITLES.get(app.get("name"))
 			if new_title:
@@ -82,13 +90,14 @@ def get_apps():
 		# blank page, so a user who can't open it must not see the tile.
 		if (
 			"insights" in frappe.get_installed_apps()
+			and "insights" not in hide
 			and can_access_insights()
 			and not any(a.get("name") == "insights" for a in apps)
 		):
 			apps.append(
 				{
 					"name": "insights",
-					"logo": "/assets/my_branding/images/icons/insights_app.svg",
+					"logo": "/assets/my_branding/images/icons/insights_app.svg?v=c1",
 					"title": APP_TITLES.get("insights") or "Insights",
 					"route": "/insights",
 				}

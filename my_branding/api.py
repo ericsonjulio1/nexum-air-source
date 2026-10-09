@@ -24,6 +24,7 @@ site_config covers them):
 import json
 import os
 import re
+from datetime import datetime, timedelta
 from html import escape
 
 import frappe
@@ -302,9 +303,11 @@ def _stage_free_lead(lead, cap, email, subdomain, plan, ts, subdomain_locked=Tru
 
 	lead.insert(ignore_permissions=True)
 	frappe.db.commit()
-	if waitlist:
-		return _accepted()
-	return {"ok": True, "lead": lead.name, "auto": auto}
+	# ALWAYS the uniform shape (batch-183, sweep C31): returning {ok, lead, auto} for
+	# a new lead while duplicates got a bare {ok} let a guest distinguish known from
+	# unknown emails — the exact oracle _accepted() exists to close. Nothing
+	# client-side reads lead/auto.
+	return _accepted()
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -380,6 +383,16 @@ def signup():
 			got_subdomain_lock = True
 		except Exception:
 			got_subdomain_lock = False
+	# FRESH SNAPSHOT (batch-183, sweep C29): the pre-lock dedup read established this
+	# transaction's REPEATABLE READ snapshot, so the insert-boundary re-checks below —
+	# though they run under the locks — would replay that stale snapshot and miss a
+	# racer's committed insert (the racer commits before releasing its lock). Ending
+	# the transaction here starts a fresh read view; nothing meaningful has been
+	# written yet in this guest request.
+	try:
+		frappe.db.commit()
+	except Exception:
+		pass
 	try:
 		# cap free-text lengths so a bot can't stuff megabytes into a lead
 		company = " ".join((d.get("company") or "").split())[:140]
@@ -420,6 +433,14 @@ def signup():
 			except Exception:
 				got_lock = False
 			try:
+				# fresh snapshot under the free-cap lock (sweep C29): the capacity
+				# count + dedup re-check must see inserts committed by the previous
+				# lock holder, not this transaction's pre-lock read view
+				if got_lock:
+					try:
+						frappe.db.commit()
+					except Exception:
+						pass
 				return _stage_free_lead(
 					lead, cap, email, subdomain, plan, ts,
 					subdomain_locked=got_subdomain_lock,
@@ -580,7 +601,8 @@ def capture_partial():
 				message=frappe.get_traceback(),
 			)
 
-	return {"ok": True, "lead": lead.name, "captured": 1}
+	# uniform guest shape (sweep C31) — the landing page only reads .ok
+	return _accepted()
 
 
 OVERFLOW_MAX_BYTES = 1_000_000  # ~4k entries; a sustained bot flood hits this lid, not the disk
@@ -593,12 +615,32 @@ def _spill_overflow(d, email):
 	``private/`` is never web-served and lives on the sites volume, so entries
 	survive deploys. signup-funnel.py folds them into the daily digest (escaped
 	there — every field here is attacker-controlled) and archives the file.
-	Returns ok only once the line is actually on disk; a write failure reports
-	the truthful throttled error so the landing page keeps its retry path open."""
+
+	EVERY guest outcome returns the uniform _accepted() shape (Codex gate round 2):
+	a truthful "throttled" error on the full-file/write-failure paths let an
+	attacker fill the file and then enumerate CRM emails — a known email short-
+	circuits at the dedup with {ok} while an unknown one reached the error. The
+	failure is still loud server-side (Error Log + the file itself in the daily
+	digest); the beacon is best-effort by nature and the lead was lost either way."""
 	try:
 		path = frappe.get_site_path("private", "capture-overflow.jsonl")
 		if os.path.exists(path) and os.path.getsize(path) > OVERFLOW_MAX_BYTES:
-			return {"ok": False, "error": "throttled"}
+			# ONE alert per hour (Codex gate round 3): unthrottled, an attacker who
+			# filled the bounded file could then mint unlimited Error Log rows —
+			# trading a disk cap for a database flood. frappe.cache get/set_value
+			# go through make_key, so the latch is site-scoped.
+			try:
+				if not frappe.cache().get_value("nx_overflow_full_alerted"):
+					frappe.cache().set_value("nx_overflow_full_alerted", 1,
+					                         expires_in_sec=3600)
+					frappe.log_error(
+						title="capture overflow file full",
+						message="capture-overflow.jsonl over %d bytes — beacons are "
+						        "being dropped (latest: %s). Archive the file via the "
+						        "funnel digest to resume capture." % (OVERFLOW_MAX_BYTES, email))
+			except Exception:
+				pass  # alerting must never break the uniform guest response
+			return _accepted()
 		entry = {
 			"ts": str(frappe.utils.now_datetime()),
 			"email": email,
@@ -609,10 +651,12 @@ def _spill_overflow(d, email):
 		}
 		with open(path, "a") as fh:
 			fh.write(json.dumps(entry) + "\n")
-		return {"ok": True, "overflow": 1}
+		# uniform guest shape (Codex gate, finding 8): {"ok", "overflow"} vs bare
+		# {"ok"} for known emails was the last remaining enumeration oracle
+		return _accepted()
 	except Exception:
 		frappe.log_error(title="capture overflow spill failed", message=frappe.get_traceback())
-		return {"ok": False, "error": "throttled"}
+		return _accepted()
 
 
 @frappe.whitelist(allow_guest=True)
@@ -642,3 +686,325 @@ def check_subdomain(subdomain=None):
 		return {"available": False, "reason": "taken"}
 
 	return {"available": True}
+
+
+# ------------------------------------------------------------------ billing ---
+# XENDIT-SPEC section 3: the webhook inbox. Xendit POSTs every event here with a
+# static shared secret in the x-callback-token header (their scheme — no HMAC).
+# The endpoint is DEAD everywhere until ``xendit_webhook_token`` is set in
+# site_config, which only ever happens on hq (the Turnstile/is_signup_host
+# precedent) — my_branding is installed on every tenant, so an unguarded guest
+# endpoint would otherwise listen on every customer subdomain.
+#
+# In-request work is verification + one Billing Event insert + fast 200. All
+# money/lifecycle action happens in the host billing worker (saas/
+# billing-worker.py) consuming unprocessed rows — Xendit's own docs recommend
+# exactly this queue-then-process split, and it keeps a webhook storm from
+# doing anything worse than inserting rows.
+
+# Event types the pipeline understands. Anything else is acknowledged (200 —
+# a non-2xx would make Xendit retry an event we will never handle, 6 times)
+# but recorded with processed=1 + a note, so it is visible without being work.
+XENDIT_EVENT_TYPES = frozenset({
+	"payment_session.completed",
+	"payment_token.activation",
+	# Xendit's dashboard test delivery sends "recurring.plan.activated" (dots,
+	# api-version v1, verified live 2026-08-30); docs also show the underscore
+	# form — accept both so an API-version drift can't shelve activations.
+	"recurring_plan.activated",
+	"recurring.plan.activated",
+	"recurring.plan.inactivated",
+	"recurring.cycle.created",
+	"recurring.cycle.succeeded",
+	"recurring.cycle.retrying",
+	"recurring.cycle.failed",
+	"payment.succeeded",
+	"payment.failure",
+	"payment.capture",
+})
+
+
+def _xendit_event_identity(body):
+	"""Stable dedupe key for one Xendit event. Prefer the delivery/event id when
+	present; otherwise derive from (event, data.id, data.updated) — Xendit
+	re-deliveries carry the same triple, while distinct lifecycle events on the
+	same object differ in event or updated."""
+	data = body.get("data") or {}
+	event_id = body.get("id") or body.get("event_id")
+	if event_id:
+		return str(event_id)
+	return "{0}:{1}:{2}".format(
+		body.get("event") or "unknown",
+		data.get("id") or "no-object",
+		data.get("updated") or body.get("created") or "no-ts",
+	)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def xendit_webhook():
+	"""Xendit webhook receiver (hq-only, config-gated). Verify token, dedupe,
+	whitelist, insert Billing Event, return fast. NEVER act on money here."""
+	import hmac
+
+	configured = frappe.conf.get("xendit_webhook_token")
+	if not configured:
+		raise frappe.PermissionError("This endpoint is not available on this site.")
+	presented = frappe.get_request_header("x-callback-token") or ""
+	if not hmac.compare_digest(str(presented), str(configured)):
+		frappe.throw("Invalid webhook token.", frappe.PermissionError)
+
+	try:
+		body = json.loads(frappe.request.get_data(as_text=True) or "{}")
+	except Exception:
+		frappe.throw("Malformed payload.", frappe.ValidationError)
+	if not isinstance(body, dict):
+		frappe.throw("Malformed payload.", frappe.ValidationError)
+
+	event_type = str(body.get("event") or "unknown")[:140]
+	event_id = _xendit_event_identity(body)[:140]
+	data = body.get("data") or {}
+	known = event_type in XENDIT_EVENT_TYPES
+
+	if frappe.db.exists("Billing Event", {"event_id": event_id}):
+		return {"ok": True, "duplicate": True}
+
+	doc = frappe.get_doc({
+		"doctype": "Billing Event",
+		"event_id": event_id,
+		"event_type": event_type,
+		"reference_id": str(data.get("plan_id") or data.get("reference_id")
+			or data.get("id") or "")[:140],
+		"payload": json.dumps(body, ensure_ascii=False)[:100000],
+		# unknown types are stored pre-processed so the worker never sees them
+		"processed": 0 if known else 1,
+		"processing_error": None if known else "event type not in pipeline whitelist",
+	})
+	try:
+		doc.insert(ignore_permissions=True)
+	except frappe.DuplicateEntryError:
+		# two concurrent deliveries of the same event raced past the exists()
+		# check — the unique event_id index is the authority; ack the loser so
+		# Xendit does not retry a stored event
+		return {"ok": True, "duplicate": True}
+	return {"ok": True}
+
+
+# ---------------------------------------------------------- billing: checkout ---
+# XENDIT-SPEC sections 3-4 (F1): the pricing page's Subscribe button posts here;
+# we create a Xendit SUBSCRIPTION payment session server-side (the secret key
+# never reaches the browser) and hand back the hosted checkout URL. Config-gated
+# like the webhook: requires BOTH is_signup_host and xendit_secret_key in
+# site_config, so the endpoint exists only on hq and only once billing is wired.
+
+XENDIT_API_BASE = "https://api.xendit.co"
+
+# Peso price points per XENDIT-SPEC section 2 — PENDING OWNER/ACCOUNTANT
+# CONFIRMATION (flat, VAT stance undecided). One edit point.
+XENDIT_PLAN_PRICES_PHP = {
+	"Essentials": 2790,
+	"Business": 8490,
+	"Enterprise": 22740,
+}
+
+
+def _xendit_api(method, path, payload=None):
+	"""Minimal Xendit REST call (Basic auth, secret as username). Raises on
+	transport errors; returns (status_code, parsed_json)."""
+	import requests
+
+	secret = frappe.conf.get("xendit_secret_key")
+	resp = requests.request(
+		method, XENDIT_API_BASE + path, auth=(secret, ""),
+		json=payload, timeout=15,
+	)
+	try:
+		body = resp.json()
+	except ValueError:
+		body = {}
+	return resp.status_code, body
+
+
+def _xendit_customer_id(subdomain, email):
+	"""Create-or-fetch the Xendit customer for a tenant. reference_id is the
+	stable identity ``tenant-<subdomain>`` — Xendit rejects reuse on create, so
+	a resubscribing tenant is fetched instead (probe-verified 2026-08-30)."""
+	ref = "tenant-" + subdomain
+	status, body = _xendit_api("POST", "/customers", {
+		"reference_id": ref,
+		"type": "INDIVIDUAL",
+		"email": email,
+		"individual_detail": {"given_names": subdomain, "surname": "Nexum Air"},
+	})
+	if status < 300 and body.get("id"):
+		return body["id"]
+	# duplicate (or races): fetch by reference
+	status, body = _xendit_api("GET", "/customers?reference_id=" + ref)
+	rows = body.get("data") or []
+	if rows and rows[0].get("id"):
+		return rows[0]["id"]
+	frappe.throw("Could not establish billing customer.", frappe.ValidationError)
+
+
+def _next_anchor_date():
+	"""First renewal date: one month out, day capped at 28 (Xendit schedule
+	limit) — with immediate_payment=true the first charge happens at checkout
+	and cycles then run monthly from the anchor."""
+	from datetime import date, timedelta
+
+	today = date.today()
+	month = today.month % 12 + 1
+	year = today.year + (1 if month == 1 else 0)
+	return date(year, month, min(today.day, 28)).isoformat() + "T00:00:00Z"
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def xendit_checkout():
+	"""Create a hosted SUBSCRIPTION checkout for a LIVE tenant and return its
+	payment_link_url. Guest-facing (the trial-warning email button / pricing
+	page has no session), so: signup-host + secret-key gates, rate limit,
+	strict input validation, and the only thing it leaks is a checkout URL."""
+	_require_signup_host()
+	if not frappe.conf.get("xendit_secret_key"):
+		raise frappe.PermissionError("Billing is not enabled on this site.")
+
+	# checkout sessions create real Xendit objects — cap the rate hard
+	if _bump_window("nexum_checkout", "%Y%m%d%H", 3700) > 120:
+		frappe.throw("Busy — please try again shortly.", frappe.ValidationError)
+
+	d = frappe.form_dict
+	sub, sub_ok = _clean_subdomain(d.get("subdomain") or "")
+	plan = (d.get("plan") or "").strip().title()
+	email = (d.get("email") or "").strip()[:140]
+	if not sub or not sub_ok:
+		frappe.throw("Invalid subdomain.", frappe.ValidationError)
+	if plan not in XENDIT_PLAN_PRICES_PHP:
+		frappe.throw("Unknown plan.", frappe.ValidationError)
+	if "@" not in email or len(email) < 6:
+		frappe.throw("A billing email is required.", frappe.ValidationError)
+	# only an already-provisioned, live tenant can subscribe (F1 trial->paid);
+	# pay-at-signup (F6) intentionally comes later
+	if not _subdomain_taken(sub, include_pipeline=False):
+		frappe.throw("Unknown tenant.", frappe.ValidationError)
+
+	# One checkout at a time per tenant, and reuse an unexpired session for the
+	# same plan (double-click / two-tab guard): every extra session is another
+	# completable payment link at Xendit. Guest checkout also must NEVER touch
+	# the live billing mapping (plan/xendit_plan_id/status) — it writes only
+	# pending_* fields, and the worker promotes them when Xendit confirms the
+	# plan activated. Otherwise anyone who knows a public subdomain could
+	# re-point a paying tenant's mapping at an unpaid pending plan and strand
+	# its real renewal webhooks.
+	from frappe.utils.synchronization import filelock
+
+	with filelock("nexum_checkout:" + sub, timeout=15):
+		# banked lock recipe (batch-183): commit right after acquiring so this
+		# transaction's snapshot SEES the previous lock holder's committed
+		# pending fields, and commit again before release so the next holder
+		# sees ours — without this the filelock guards nothing (frappe commits
+		# at request end, after the lock is gone)
+		frappe.db.commit()
+		if frappe.db.exists("Nexum Subscription", sub):
+			row = frappe.db.get_value(
+				"Nexum Subscription", sub,
+				["status", "xendit_plan_id", "pending_plan", "checkout_url",
+				 "checkout_expires_on"],
+				as_dict=True) or frappe._dict()
+			# an already-billing tenant must not be able to open a SECOND
+			# recurring plan from the public pricing page — Xendit would
+			# happily charge both. Plan changes are a support flow until a
+			# real switchover (deactivate-old) UX exists.
+			if (row.get("xendit_plan_id")
+					and row.get("status") in ("Active", "Retrying")):
+				frappe.throw("This tenant already has an active subscription — "
+				             "contact support to change plans.",
+				             frappe.ValidationError)
+			expires = _as_naive_dt(row.get("checkout_expires_on"))
+			if (row.get("pending_plan") == plan and row.get("checkout_url")
+					and expires and expires > datetime.now()):
+				return {"ok": True, "checkout_url": row.checkout_url}
+		result = _create_checkout_session(sub, plan, email)
+		frappe.db.commit()
+		return result
+
+
+def _as_naive_dt(v):
+	"""Datetime column value (datetime from the ORM, string from REST) → naive
+	datetime, same server clock the writer used. None when absent/unparsable."""
+	if not v:
+		return None
+	if isinstance(v, datetime):
+		return v
+	try:
+		return datetime.fromisoformat(str(v)[:19])
+	except ValueError:
+		return None
+
+
+def _create_checkout_session(sub, plan, email):
+	"""Create the Xendit session + persist the pending-checkout mirror fields.
+	Caller holds the per-subdomain checkout filelock."""
+	customer_id = _xendit_customer_id(sub, email)
+	status, session = _xendit_api("POST", "/sessions", {
+		"reference_id": "nexum-{0}-{1}".format(sub, frappe.generate_hash(length=8)),
+		"session_type": "SUBSCRIPTION",
+		"mode": "PAYMENT_LINK",
+		"amount": XENDIT_PLAN_PRICES_PHP[plan],
+		"currency": "PHP",
+		"country": "PH",
+		"customer_id": customer_id,
+		"subscription": {
+			"schedule": {
+				"interval": "MONTH",
+				"interval_count": 1,
+				"anchor_date": _next_anchor_date(),
+				"total_retry": 3,
+				"retry_interval": "DAY",
+				"retry_interval_count": 1,
+			},
+			"failed_cycle_action": "RESUME",
+			"immediate_payment": True,
+		},
+		"success_return_url": "https://{0}.{1}?subscribed=1".format(sub, BASE_DOMAIN),
+		"cancel_return_url": "https://{0}/pricing".format(BASE_DOMAIN),
+	})
+	if status >= 300 or not session.get("payment_link_url"):
+		frappe.log_error(title="my_branding xendit_checkout session failed",
+		                 message=json.dumps(session)[:2000])
+		frappe.throw("Could not start checkout — please try again.",
+		             frappe.ValidationError)
+
+	# mirror the plan->tenant mapping NOW (the session response already carries
+	# recurring_plan_id) — but only into the pending_* fields. The live mapping
+	# (plan/xendit_plan_id/status) is promoted by the billing worker when the
+	# recurring plan actually ACTIVATES, so an unpaid checkout can never
+	# displace a paying tenant's mapping (review-gate findings 2/6).
+	plan_id = session.get("recurring_plan_id") or ""
+	# durable attempt record: the worker resolves EVERY webhook through
+	# plan_id -> (tenant, priced tier) here, so an overwritten pending slot,
+	# an early paid event, or a superseded plan can always be attributed to
+	# the right tenant AND the tier that was actually priced (review-gate
+	# round-3 findings 1-3)
+	if plan_id and not frappe.db.exists("Billing Checkout Attempt", plan_id):
+		frappe.get_doc({
+			"doctype": "Billing Checkout Attempt", "plan_id": plan_id,
+			"subdomain": sub, "tier": plan,
+			"session_id": session.get("payment_session_id") or "",
+			"state": "Pending",
+		}).insert(ignore_permissions=True)
+	pending = {
+		"pending_plan": plan,
+		"pending_plan_id": plan_id,
+		"checkout_session_id": session.get("payment_session_id") or "",
+		"checkout_url": session["payment_link_url"],
+		# Xendit sessions live ~30 min; refuse to reuse ours a little earlier
+		"checkout_expires_on": datetime.now() + timedelta(minutes=25),
+		"xendit_customer_id": customer_id,
+	}
+	if frappe.db.exists("Nexum Subscription", sub):
+		frappe.db.set_value("Nexum Subscription", sub, pending)
+	else:
+		frappe.get_doc(dict(pending, doctype="Nexum Subscription",
+		                    subdomain=sub, status="Pending",
+		                    )).insert(ignore_permissions=True)
+
+	return {"ok": True, "checkout_url": session["payment_link_url"]}

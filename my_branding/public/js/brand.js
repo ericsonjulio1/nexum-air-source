@@ -277,16 +277,33 @@
 //      property setter on `frappe.Chart` that wraps the class the instant
 //      frappe-charts assigns it, before any chart is constructed.
 (function () {
-	// Ordered for ADJACENT contrast: warm (gold/terracotta) interleaved early so
-	// neighbouring series never sit as two near-identical blues (the teal/slate
-	// pair was hard to tell apart). All on-brand, none pink.
-	var PALETTE = ["#2E5562", "#E0A24B", "#C2603E", "#4FA88B", "#557E94", "#9DBEC8"];
+	// 2026-08-29 professional restyle (owner: charts read "elementary" — wants a
+	// restrained, monotone-leaning look). Slate-teal leads and slot 2 stays in the
+	// blue family, so the 1-2-series charts that dominate the desk read monotone;
+	// warm accents only appear from slot 3 (donuts / multi-series). Both lists are
+	// VALIDATED with the dataviz six-checks script (OKLCH lightness band, chroma
+	// floor >= 0.10, adjacent-pair CVD + normal-vision separation, contrast) — the
+	// old #2E5562 brand slate FAILS the chroma floor (C 0.049 reads gray), which
+	// is why slot 1 is a chroma-corrected slate-teal, not the raw brand hex. Dark
+	// is its own selected list (dark band L 0.48-0.67), not a flip. Change these
+	// only with a re-run of the validator.
+	var PALETTE_LIGHT = ["#007096", "#67b5e1", "#bf9840", "#20947d", "#375998", "#af6340"];
+	var PALETTE_DARK = ["#006f96", "#4b9ad0", "#af892e", "#20947d", "#4567a8", "#af6340"];
+	function palette() {
+		var dark = false;
+		try {
+			dark = document.documentElement.getAttribute("data-theme") === "dark";
+		} catch (e) {
+			/* never block a chart from rendering */
+		}
+		return (dark ? PALETTE_DARK : PALETTE_LIGHT).slice();
+	}
 	function wrap(Orig) {
 		if (typeof Orig !== "function" || Orig.__nexumPatched) return Orig;
 		function NexumChart(element, options) {
 			try {
 				if (options && options.type !== "heatmap") {
-					options.colors = PALETTE.slice();
+					options.colors = palette();
 				}
 			} catch (e) {
 				/* never block a chart from rendering */
@@ -360,7 +377,53 @@
 // because these bundles load lazily (report bundle only on first report route).
 // Respect an explicit author choice: if any column is already marked sticky we
 // leave the table alone.
+//
+// The same prototype patch also re-fits the table body on container WIDTH changes
+// (v16-prod-199). frappe-datatable binds its own window-resize handler only for
+// layout:'fluid' (style.js bindResizeWindow) and every desk report is
+// layout:'fixed', so a table rendered on the MacBook screen and then dragged to a
+// wider external display kept its .dt-scrollable at the old pixel width: the
+// header and the newly exposed month columns filled the extra space while the
+// body — and its vertical scrollbar — stopped mid-page until a reload (owner
+// screenshot, P&L Monthly, 2026-09-16). A ResizeObserver on the wrapper catches
+// display moves, sidebar toggles and full-width toggles alike. It reacts to width
+// only (setBodyStyle itself changes the wrapper's HEIGHT, which must not re-fire
+// it) and never runs while the page is hidden (a display:none wrapper measures 0
+// and would pin the body to 0px). Hooked at setDimensions, which runs at the end
+// of the constructor and on every refresh(), so late-constructed tables get it.
 (function () {
+	function observeWidth(inst) {
+		if (inst.__nxWidthObs || !inst.style || !inst.datatableWrapper) return;
+		if (inst.options && inst.options.layout === "fluid") return; // library handles fluid
+		var el = inst.datatableWrapper;
+		var lastWidth = el.clientWidth;
+		var timer = null;
+		var obs = new ResizeObserver(function () {
+			var w = el.clientWidth;
+			if (!w || w === lastWidth) return;
+			lastWidth = w;
+			clearTimeout(timer);
+			timer = setTimeout(function () {
+				try {
+					if (!el.isConnected || !el.clientWidth) return;
+					inst.style.setBodyStyle();
+				} catch (e) {
+					/* a failed re-fit must never break the table */
+				}
+			}, 120);
+		});
+		obs.observe(el);
+		inst.__nxWidthObs = obs;
+		var destroy = inst.destroy;
+		if (typeof destroy === "function") {
+			inst.destroy = function () {
+				try {
+					obs.disconnect();
+				} catch (e) {}
+				return destroy.apply(this, arguments);
+			};
+		}
+	}
 	function markSticky(columns) {
 		if (!Array.isArray(columns) || columns.length < 2) return;
 		for (var i = 0; i < columns.length; i++) {
@@ -396,6 +459,16 @@
 					if (!this.options || this.options.layout !== "fluid") markSticky(columns);
 				} catch (e) {}
 				return refresh.apply(this, arguments);
+			};
+		}
+		var setDimensions = Cls.prototype.setDimensions;
+		if (setDimensions && typeof ResizeObserver === "function") {
+			Cls.prototype.setDimensions = function () {
+				var r = setDimensions.apply(this, arguments);
+				try {
+					observeWidth(this);
+				} catch (e) {}
+				return r;
 			};
 		}
 		Cls.__nxStickyPatched = true;
@@ -492,15 +565,43 @@
 		if (!a) return;
 		e.preventDefault();
 		e.stopPropagation();
-		// v136+: home goes to the BRANDED LAUNCHER, deterministically. The previous
-		// behavior (restore localStorage.current_page via the Workspaces page —
-		// v117/v118) could resurrect a workspace the user last touched weeks ago:
-		// owner video 2026-07-24 showed home landing on a stale HR "Expense Claims"
-		// workspace under a "Setup" sidebar — chaos for tenants. When v117 shipped,
-		// the alternative was the ugly legacy grid; since the v128-131 sectioned
-		// launcher, the grid IS the product's curated home, so send home there.
-		// The empty route resolves through bootinfo.home_page ("desktop") -> the
-		// launcher grid, same as every other back-to-apps affordance.
+		// v184 (owner videos 2026-08-25 + 2026-08-26): INSIDE the Maintenance
+		// workspace world, home = Maintenance home, not the launcher — a
+		// technician working the CMMS expects the house to stay in the CMMS
+		// (report pages carry no workspace crumb, so the house was their only
+		// way "up" and it ejected them to the app grid). Detection is the
+		// CURRENT sidebar title — live context at click time, deliberately NOT
+		// the stale localStorage memory that v136 removed (owner video
+		// 2026-07-24: home resurrected a weeks-old HR workspace). Already ON
+		// the Maintenance home, the house stays the escape hatch to the
+		// launcher.
+		try {
+			var sidebarTitle = (frappe.app && frappe.app.sidebar
+				&& frappe.app.sidebar.sidebar_title) || "";
+			var onMaintenanceHome = /^\/desk\/maintenance\/?$/.test(
+				window.location.pathname);
+			if (/^maintenance$/i.test(String(sidebarTitle).trim()) && !onMaintenanceHome) {
+				if (frappe.router && frappe.router.push_state) {
+					frappe.router.push_state("/desk/maintenance");
+				} else {
+					window.location.assign("/desk/maintenance");
+				}
+				return;
+			}
+		} catch (err) {
+			/* fall through to the launcher on any detection failure */
+		}
+		// v136+: everywhere else, home goes to the BRANDED LAUNCHER,
+		// deterministically. The previous behavior (restore
+		// localStorage.current_page via the Workspaces page — v117/v118) could
+		// resurrect a workspace the user last touched weeks ago: owner video
+		// 2026-07-24 showed home landing on a stale HR "Expense Claims"
+		// workspace under a "Setup" sidebar — chaos for tenants. When v117
+		// shipped, the alternative was the ugly legacy grid; since the
+		// v128-131 sectioned launcher, the grid IS the product's curated home,
+		// so send home there. The empty route resolves through
+		// bootinfo.home_page ("desktop") -> the launcher grid, same as every
+		// other back-to-apps affordance.
 		frappe.set_route("");
 	}
 	// Delegated on document (breadcrumbs.clear() empties + re-appends the anchor
@@ -684,26 +785,6 @@
 			c.setAttribute("data-original-title", "Learning Admin");
 		}
 	}
-	// The custom EAM app (meter-based preventive maintenance + spare parts, the
-	// product differentiator) lives under the "Assets" workspace/tile. Its Desktop
-	// Icon label must stay "Assets" — it's the ordering/linkage key read by
-	// DESKTOP_ICON_ORDER in branding.py and by Frappe's own launcher-tile render
-	// gating — so we relabel ONLY its visible caption here to "Assets &
-	// Maintenance", same pattern as the Learning Admin tile above. Re-applied
-	// each sync so it survives the grid's re-renders.
-	function relabelAssetsTile() {
-		var el = document.querySelector('.desktop-container .desktop-icon[data-id="Assets"]');
-		if (!el) return;
-		// Same .icon-caption > .icon-title targeting as relabelLearningAdminTile
-		// above — never write textContent on the outer wrapper.
-		var caption = el.querySelector(".icon-caption");
-		var c = caption && caption.querySelector(".icon-title");
-		if (!c) return;
-		if (c.textContent.trim() !== "Assets & Maintenance") {
-			c.textContent = "Assets & Maintenance";
-			c.setAttribute("data-original-title", "Assets & Maintenance");
-		}
-	}
 	// Section headers above the ratified 5-group launcher layout (Sales & Money,
 	// Operations, Customers & Team, Files & Office, Administration). The backend
 	// publishes the groupings as frappe.boot.nexumair_launcher_sections — an
@@ -846,7 +927,6 @@
 			document.body.classList.add("nx-desk-home");
 			ensureGreeting(grid);
 			relabelLearningAdminTile();
-			relabelAssetsTile();
 			applyLauncherSectionHeaders();
 		} else {
 			document.body.classList.remove("nx-desk-home");
@@ -944,6 +1024,60 @@
 		}
 	}
 
+	// 2026-08-29 professional mark treatment (rides the same settled-frame pass as
+	// the label fix): translucent fills with a solid same-hue edge on bars, a 2px
+	// surface gap between donut/pie slices, 2px line weight, whisper-light area
+	// fills. Style/attribute writes ONLY — the shared MutationObserver watches
+	// childList, so these mutations can never re-trigger it (no loop). Heatmaps
+	// keep their gradient (untouched: their cells are rect.day, not rect.bar).
+	// Charts with only 1-3 categories (e.g. an annual roll-up) get slab-wide bars
+	// from frappe-charts' fill-the-space sizing — owner: "very unprofessional".
+	// Cap the mark width and re-center it in its slot; the slot center is what
+	// tooltips key on, so hover is unaffected. Idempotent: a capped bar is under
+	// the cap on the next pass and is left alone.
+	var MAX_BAR_WIDTH = 56;
+	function restyleMarks(container) {
+		try {
+			var i, el, fill, w;
+			var bars = container.querySelectorAll("svg rect.bar");
+			for (i = 0; i < bars.length; i++) {
+				el = bars[i];
+				fill = el.style.fill || el.getAttribute("fill");
+				if (!fill || fill === "none") continue;
+				el.style.fillOpacity = "0.55";
+				el.style.stroke = fill;
+				el.style.strokeWidth = "1.25px";
+				el.setAttribute("rx", "2");
+				w = parseFloat(el.getAttribute("width"));
+				if (w > MAX_BAR_WIDTH) {
+					el.setAttribute("x", String(
+						parseFloat(el.getAttribute("x") || "0") + (w - MAX_BAR_WIDTH) / 2));
+					el.setAttribute("width", String(MAX_BAR_WIDTH));
+				}
+			}
+			var pies = container.querySelectorAll(
+				"svg path[class*='pie'], svg .dataset-pies path");
+			for (i = 0; i < pies.length; i++) {
+				el = pies[i];
+				fill = el.style.fill || el.getAttribute("fill");
+				if (!fill || fill === "none") continue;
+				el.style.fillOpacity = "0.8";
+				el.style.stroke = "var(--card-bg, var(--bg-color, #ffffff))";
+				el.style.strokeWidth = "2px";
+			}
+			var lines = container.querySelectorAll("svg path.line-graph-path");
+			for (i = 0; i < lines.length; i++) {
+				lines[i].style.strokeWidth = "2px";
+			}
+			var regions = container.querySelectorAll("svg .region-fill");
+			for (i = 0; i < regions.length; i++) {
+				regions[i].style.fillOpacity = "0.12";
+			}
+		} catch (e) {
+			/* never block a chart from rendering */
+		}
+	}
+
 	function attachLabelFix(chart) {
 		var observer;
 		var schedule;
@@ -980,6 +1114,7 @@
 						return;
 					}
 					fixLabels(container);
+					restyleMarks(container);
 				} catch (e) {
 					/* never block a chart from rendering */
 				}
@@ -1351,15 +1486,29 @@
 		var hide = el.querySelector(".nx-ck-hide");
 		hide && hide.addEventListener("click", function () {
 			frappe.xcall("my_branding.home.hide_checklist", { name: data.name }).then(function () {
+				var boot = frappe.boot && frappe.boot.nx_checklists;
+				if (boot && Array.isArray(boot.hidden) && boot.hidden.indexOf(data.name) < 0) boot.hidden.push(data.name);
 				render(el, { hidden: 1 });
 			});
 		});
+	}
+
+	// Boot already knows when the server could only answer "hidden" (no panel role,
+	// mature Enterprise site, or hidden by this user): skip that round trip.
+	function hiddenAtBoot(name) {
+		var boot = frappe.boot && frappe.boot.nx_checklists;
+		if (!boot) return false;
+		return !!boot.off || (Array.isArray(boot.hidden) && boot.hidden.indexOf(name) >= 0);
 	}
 
 	function mount(el) {
 		if (!el || !window.frappe || !frappe.xcall) return;
 		var name = el.getAttribute("data-checklist");
 		if (!name) return;
+		if (hiddenAtBoot(name)) {
+			render(el, { hidden: 1, name: name });
+			return;
+		}
 		frappe
 			.xcall("my_branding.home.get_checklist", { name: name })
 			.then(function (data) { render(el, data); })

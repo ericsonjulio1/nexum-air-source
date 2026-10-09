@@ -1,0 +1,21 @@
+{
+ "app": "my_branding",
+ "creation": "2026-08-23 10:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "home",
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Home",
+ "link_to": "Home",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-08-23 21:23:18.705175",
+ "modified_by": "Administrator",
+ "name": "Home",
+ "owner": "Administrator",
+ "parent_icon": "ERPNext",
+ "restrict_removal": 0,
+ "roles": [],
+ "standard": 1
+}

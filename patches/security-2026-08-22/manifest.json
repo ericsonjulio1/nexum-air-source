@@ -227,6 +227,20 @@
    ],
    "upstream_status_2026-08-22": "frappe v16.31.0: STILL UNPATCHED upstream (version-16 has only type-hint commit 5b76cd03c9 after the 2026-04-24 revert e197a37acc) -> re-vetted file = v16.31.0 client.py + develop hunk 2a04fae935 (diff-verified identical hunk)",
    "pin_note": "v16.31.0 6a329d068416 only; the v16.25.0 pin e6d0e5a90aa2 was dropped on purpose (its vetted bytes 1080d33fe928 stay in patched_sha256 so an old-base bench still verifies, but the v16.31.0-based vetted file must never be copied onto a v16.25.0 bench)"
+  },
+  {
+   "app": "hrms",
+   "path": "hrms/payroll/doctype/salary_structure/salary_structure.py",
+   "advisory": "GHSA-jfmr-9jv9-mrw4 (HIGH 7.7 SQLi in get_salary_component search) hrms f176a319dd (cherry-pick of 50e9e14e21; fixed upstream in 16.18.0)",
+   "pin_sha256": "7b5ad6f85261ec75db5fe51e8af3d1f0f45f4fe707f729fed2edabf5145b5f49",
+   "patched_sha256": "579d8bc671fab89da25c32a04007b91ff709e7f7351f6b89a90f222d495a5718",
+   "markers": [
+    "@frappe.validate_and_sanitize_search_inputs\ndef get_salary_component("
+   ],
+   "absent": [
+    "@frappe.whitelist()\ndef get_salary_component("
+   ],
+   "upstream_status_2026-10-09": "added 2026-10-09 for v16-prod-202; we pin hrms v16.16.0 (vetted = v16.16.0 file + the one-line upstream hunk); hrms >= 16.18.0 carries the fix (markers -> noop)"
   }
  ],
  "rebased": "2026-08-22 for frappe v16.31.0 / erpnext v16.32.3 (pre-screen: 15/16 upstream-fixed, client.py re-vetted)"

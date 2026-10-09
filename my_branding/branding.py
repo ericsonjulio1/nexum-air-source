@@ -126,13 +126,59 @@ def reconcile_navbar():
 		names = frappe.get_all(
 			"Navbar Item", filters={"item_label": "Frappe Support"}, pluck="name"
 		)
+		# /helpdesk only exists where the helpdesk app is installed (batch-183, sweep
+		# C30): free/starter tenants got a dead 404 Support link — point them at
+		# support mail instead.
+		route = (
+			SUPPORT_ROUTE
+			if "helpdesk" in frappe.get_installed_apps()
+			else "mailto:admin@nexumair.com"
+		)
 		for name in names:
 			frappe.db.set_value(
-				"Navbar Item", name, "route", SUPPORT_ROUTE, update_modified=False
+				"Navbar Item", name, "route", route, update_modified=False
 			)
 	except Exception:
 		frappe.log_error(
 			title="my_branding reconcile_navbar failed", message=frappe.get_traceback()
+		)
+
+
+def ensure_letter_heads():
+	"""after_migrate: INSERT-ONLY letterhead seeding (batch-183, sweep C37) — replaces
+	the unfiltered Letter Head fixture, which re-saved both shipped letterheads on
+	every migrate: a tenant's content edit was silently reverted and re-saving the
+	Grey one with is_default=1 stole the default back from the tenant's own choice.
+	Reads the seed/letter_head.json data file; creates a letterhead only
+	when a doc of that name does not exist, and claims is_default only when the
+	site has no default letterhead at all. Never updates an existing doc."""
+	import json
+	import os
+
+	if not frappe.db.table_exists("Letter Head"):
+		return
+	try:
+		# Seed data lives in seed/, NOT fixtures/: frappe's sync_fixtures force-imports
+		# every *.json under fixtures/ on each migrate regardless of hooks.fixtures
+		# (delete + re-insert), which reverted tenant letterhead edits and re-claimed the
+		# default on every deploy even after C37 moved this to an insert-only reconciler.
+		path = frappe.get_app_path("my_branding", "seed", "letter_head.json")
+		if not os.path.exists(path):
+			return
+		with open(path) as f:
+			seeds = json.load(f)
+		for seed in seeds:
+			name = seed.get("name") or seed.get("letter_head_name")
+			if not name or frappe.db.exists("Letter Head", name):
+				continue
+			doc = frappe.get_doc(dict(seed, doctype="Letter Head"))
+			if doc.get("is_default") and frappe.db.exists("Letter Head", {"is_default": 1}):
+				doc.is_default = 0  # never steal an existing default
+			doc.flags.ignore_permissions = True
+			doc.insert(ignore_if_duplicate=True)
+	except Exception:
+		frappe.log_error(
+			title="my_branding ensure_letter_heads failed", message=frappe.get_traceback()
 		)
 
 
@@ -174,7 +220,7 @@ def reconcile_workspaces():
 INSIGHTS_ICON = {
 	"label": "Insights",
 	"app": "insights",
-	"logo_url": "/assets/my_branding/images/icons/insights_app.svg",
+	"logo_url": "/assets/my_branding/images/icons/insights_app.svg?v=c1",
 	"link": "/insights",
 	"link_type": "External",
 	"icon_type": "App",
@@ -212,6 +258,34 @@ def ensure_insights_desktop_icon():
 		frappe.log_error(
 			title="my_branding ensure_insights_desktop_icon failed", message=frappe.get_traceback()
 		)
+
+
+def ensure_maintenance_desktop_icon():
+	"""after_migrate: surface the Maintenance launcher tile (owner decision
+	2026-08-26 — Maintenance becomes a peer of Assets in Operations). The eam app
+	ships its Desktop Icon HIDDEN (standalone-safe default: the breadcrumb works,
+	no tile); this hook is the Nexum Air presentation layer that unhides it and
+	points it at the Direction-C tile SVG. Idempotent + hardened."""
+	if not frappe.db.table_exists("Desktop Icon"):
+		return
+	try:
+		if "eam" not in frappe.get_installed_apps():
+			return
+		name = frappe.db.get_value("Desktop Icon", {"label": "Maintenance", "app": "eam"})
+		if not name:
+			return  # eam's fixture not synced yet — next migrate picks it up
+		updates = {
+			"hidden": 0,
+			"logo_url": "/assets/my_branding/images/icons/maintenance.svg?v=c1",
+		}
+		current = frappe.db.get_value(
+			"Desktop Icon", name, ["hidden", "logo_url"], as_dict=True)
+		if current and (current.hidden != 0 or current.logo_url != updates["logo_url"]):
+			frappe.db.set_value("Desktop Icon", name, updates, update_modified=False)
+	except Exception:
+		frappe.log_error(
+			title="my_branding ensure_maintenance_desktop_icon failed",
+			message=frappe.get_traceback())
 
 
 def ensure_settings_desktop_icon():
@@ -263,15 +337,20 @@ def ensure_home_desktop_icon():
 	with no parent app, so the grid never shows it and an owner landing on the launcher
 	never sees the owner-first Home (Get-set-up panel + Receivables/Payables/Cash row).
 	Unhide it and group it under the ERPNext app icon (same parent as Selling/Stock) so
-	it renders as the first tile of "Sales & Money" (see LAUNCHER_SECTIONS). Idempotent +
-	hardened. Runs BEFORE the visibility/order reconcilers (hooks order)."""
+	it renders as the first tile of the launcher (see LAUNCHER_SECTIONS). Idempotent +
+	hardened. Runs BEFORE the visibility/order reconcilers (hooks order).
+	⚠️ my_branding also SHIPS the record as `my_branding/desktop_icon/home.json` (app=
+	my_branding, hidden=0, parent ERPNext): migrate's orphan removal deletes any standard
+	Desktop Icon whose `app` has no `<app>/desktop_icon/<name>.json` — erpnext ships its own
+	(hidden=1) file, and pointing `app` at my_branding without our file got the icon
+	deleted on the next migrate. This function is the belt-and-suspenders over that file."""
 	if not frappe.db.table_exists("Desktop Icon"):
 		return
 	try:
 		if not frappe.db.exists("Desktop Icon", "Home") or not frappe.db.exists("Workspace", "Home"):
 			return
 		parent = frappe.db.get_value("Desktop Icon", {"icon_type": "App", "app": "erpnext"}, "name")
-		row = frappe.db.get_value("Desktop Icon", "Home", ["hidden", "parent_icon", "standard"], as_dict=True)
+		row = frappe.db.get_value("Desktop Icon", "Home", ["hidden", "parent_icon", "standard", "app"], as_dict=True)
 		vals = {}
 		if row.hidden:
 			vals["hidden"] = 0
@@ -279,6 +358,14 @@ def ensure_home_desktop_icon():
 			vals["parent_icon"] = parent
 		if not row.standard:
 			vals["standard"] = 1
+		# The launcher draws a tile's <img> from assets/<icon.app>/icons/desktop_icons/solid/
+		# <scrub(label)>.svg (frappe.utils.get_desktop_icon); erpnext ships no home.svg, so
+		# the tile fell back to the grey letter avatar (the brand.css background-image paint
+		# only helps once the new CSS is loaded — the desktop app showed an "H" meanwhile).
+		# my_branding ships public/icons/desktop_icons/{solid,subtle}/home.svg -> point the
+		# icon's app at my_branding so it renders a real <img> like every other tile.
+		if row.app != "my_branding":
+			vals["app"] = "my_branding"
 		if vals:
 			frappe.db.set_value("Desktop Icon", "Home", vals, update_modified=False)
 			frappe.cache.delete_key("desktop_icons")
@@ -496,12 +583,15 @@ def _is_frappe_leak_block(text):
 	low = (text or "").lower()
 	if "frappe.io" not in low:
 		return False
+	# NO bare-URL disjunct (batch-183, sweep C36): "https://frappe.io/..." matches
+	# essentially every real citation a tenant could paste, which silently deleted
+	# their own paragraph on every migrate — exactly what this guard promises not to
+	# do. The known leak blocks all carry deprecation phrasing or a docs link.
 	return (
 		"deprecated" in low
 		or "use frappe" in low
 		or "switch to frappe" in low
 		or "docs.frappe.io" in low
-		or "https://frappe.io/" in low
 	)
 
 
@@ -637,10 +727,15 @@ def reconcile_workspace_order():
 # stay grouped under their visible parent.
 LAUNCHER_SECTIONS = [
 	{
+		# Dedicated first section for the owner-first Home workspace (Get-set-up panel +
+		# KPI row) — one click from the launcher grid, NOT mixed into Sales & Money
+		# (owner feedback 2026-08-23).
+		"title": "Overview",
+		"labels": ["Home"],
+	},
+	{
 		"title": "Sales & Money",
-		# "Home" first: the owner-first Home workspace (Get-set-up panel + KPI row) must be
-		# one click from the launcher grid (2026-08-23 UX plan follow-up).
-		"labels": ["Home", "Accounting", "Selling", "Online Store", "Buying", "Stock", "Lending"],
+		"labels": ["Accounting", "Selling", "Online Store", "Buying", "Stock", "Lending"],
 	},
 	{
 		"title": "Operations",
@@ -648,6 +743,7 @@ LAUNCHER_SECTIONS = [
 			"Manufacturing",
 			"Subcontracting",
 			"Assets",
+			"Maintenance",
 			"Projects",
 			"Quality",
 			"Organization",
@@ -658,23 +754,63 @@ LAUNCHER_SECTIONS = [
 		"labels": ["Frappe CRM", "Frappe HR", "Helpdesk", "Insights"],
 	},
 	{
+		# Core-focus 2026-08-24: the office/collab tiles here are non-core and hidden
+		# per site (core_focus.hidden_labels); Website moved to Administration so this
+		# section simply disappears once its tiles are stripped.
 		"title": "Files & Office",
 		"labels": [
 			"Frappe Drive",
 			"Slides",
 			"Teams",
 			"Frappe Builder",
-			# Default site-building/content placement; may move after adjudication.
-			"Website",
 			"Frappe Learning",
 			"Learning",
 		],
 	},
-	{"title": "Administration", "labels": ["Settings", "My Workspaces", "Framework"]},
+	{"title": "Administration", "labels": ["Website", "Settings", "My Workspaces", "Framework"]},
 ]
-DESKTOP_ICON_ORDER = [
-	label for section in LAUNCHER_SECTIONS for label in section["labels"]
-]
+
+
+def launcher_sections():
+	"""Per-SITE launcher sections (core-focus 2026-08-24). Strips the labels of
+	apps hidden on this site (core_focus.hidden_labels) from the ratified base
+	layout above, drops any section that empties, and on internal sites
+	(nx_internal_tools, i.e. hq) appends the trailing "Internal Tools" footer
+	section holding the internal-tool tiles. Consumed by boot.boot_session
+	(brand.js renders the section headers from bootinfo) and by
+	reconcile_desktop_icon_order. Hardened: on any error fall back to the full
+	base layout — a wrongly-ordered launcher beats a broken boot."""
+	try:
+		from my_branding.core_focus import INTERNAL_SECTION, hidden_labels, internal_tools_site
+
+		hidden = hidden_labels()
+		internal = internal_tools_site()
+		internal_set = set(INTERNAL_SECTION["labels"]) if internal else set()
+		out = []
+		for section in LAUNCHER_SECTIONS:
+			labels = [
+				label
+				for label in section["labels"]
+				if label not in hidden and label not in internal_set
+			]
+			if labels:
+				out.append({"title": section["title"], "labels": labels})
+		if internal:
+			out.append(
+				{"title": INTERNAL_SECTION["title"], "labels": list(INTERNAL_SECTION["labels"])}
+			)
+		return out
+	except Exception:
+		frappe.log_error(title="my_branding launcher_sections failed", message=frappe.get_traceback())
+		return [
+			{"title": section["title"], "labels": list(section["labels"])}
+			for section in LAUNCHER_SECTIONS
+		]
+
+
+def desktop_icon_order():
+	"""Flat per-site tile order derived from launcher_sections()."""
+	return [label for section in launcher_sections() for label in section["labels"]]
 
 
 def reconcile_desktop_icon_order():
@@ -690,7 +826,8 @@ def reconcile_desktop_icon_order():
 	if not frappe.db.table_exists("Desktop Icon"):
 		return
 	try:
-		for i, label in enumerate(DESKTOP_ICON_ORDER, start=1):
+		order = desktop_icon_order()
+		for i, label in enumerate(order, start=1):
 			idx = i * 10
 			for name in frappe.get_all("Desktop Icon", filters={"label": label}, pluck="name"):
 				if frappe.db.get_value("Desktop Icon", name, "idx") != idx:
@@ -705,7 +842,7 @@ def reconcile_desktop_icon_order():
 			order_by="idx asc, name asc",
 		)
 		visible_labels = {row.label for row in rows if row.hidden != 1}
-		curated_labels = set(DESKTOP_ICON_ORDER)
+		curated_labels = set(order)
 		trailing = [
 			row
 			for row in rows
@@ -713,7 +850,7 @@ def reconcile_desktop_icon_order():
 			and row.label not in curated_labels
 			and (not row.parent_icon or row.parent_icon not in visible_labels)
 		]
-		for i, row in enumerate(trailing, start=len(DESKTOP_ICON_ORDER) + 1):
+		for i, row in enumerate(trailing, start=len(order) + 1):
 			idx = i * 10
 			if row.idx != idx:
 				frappe.db.set_value(
@@ -740,7 +877,7 @@ def reconcile_framework_desktop_icon_visibility():
 	Hiding Framework alone therefore orphans its visible children and promotes them
 	into the top-level launcher grid. Hide every current/future Framework child too,
 	except Website: Website is an intentional content-management tile whose visibility
-	and curated position are governed by DESKTOP_ICON_ORDER. Idempotent + hardened so
+	and curated position are governed by desktop_icon_order(). Idempotent + hardened so
 	it can never abort a migrate.
 	"""
 	if not frappe.db.table_exists("Desktop Icon"):

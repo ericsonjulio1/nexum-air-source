@@ -88,7 +88,10 @@ def _sales_tax_template_done(company):
 
 # --------------------------------------------------------------------------- checklists
 def _checklists(company):
-	"""Step specs per checklist. route = desk route list (frappe.set_route)."""
+	"""Step specs per checklist. route = desk route list (frappe.set_route).
+
+	`done` is a thunk: get_checklist evaluates only the requested checklist's steps,
+	not the 14-18 existence queries behind all four (perf sweep 2026-10-02)."""
 	return {
 		"home": {
 			"title": _("Get set up"),
@@ -100,7 +103,7 @@ def _checklists(company):
 					"help": _("Name, TIN, address and logo go on every invoice."),
 					"route": ["Form", "Company", company] if company else ["List", "Company"],
 					"kind": "exists",
-					"done": _company_details_done(company),
+					"done": lambda: _company_details_done(company),
 				},
 				{
 					"key": "customer_item",
@@ -112,7 +115,7 @@ def _checklists(company):
 						{"label": _("New Item"), "route": ["Form", "Item", "new"]},
 					],
 					"kind": "exists",
-					"done": _exists("Customer") and _exists("Item", {"has_variants": 0}),
+					"done": lambda: _exists("Customer") and _exists("Item", {"has_variants": 0}),
 				},
 				{
 					"key": "invoice",
@@ -120,7 +123,7 @@ def _checklists(company):
 					"help": _("Pick the customer, add the item, Save and Submit."),
 					"route": ["Form", "Sales Invoice", "new"],
 					"kind": "exists",
-					"done": _exists("Sales Invoice", {"docstatus": 1}),
+					"done": lambda: _exists("Sales Invoice", {"docstatus": 1}),
 				},
 			],
 		},
@@ -134,21 +137,21 @@ def _checklists(company):
 					"label": _("Set up your sales tax (VAT) template"),
 					"route": ["List", "Sales Taxes and Charges Template"],
 					"kind": "exists",
-					"done": _sales_tax_template_done(company),
+					"done": lambda: _sales_tax_template_done(company),
 				},
 				{
 					"key": "invoice",
 					"label": _("Record your first Sales Invoice"),
 					"route": ["Form", "Sales Invoice", "new"],
 					"kind": "exists",
-					"done": _exists("Sales Invoice", {"docstatus": 1}),
+					"done": lambda: _exists("Sales Invoice", {"docstatus": 1}),
 				},
 				{
 					"key": "payment",
 					"label": _("Record a payment against it"),
 					"route": ["Form", "Payment Entry", "new"],
 					"kind": "exists",
-					"done": _exists("Payment Entry", {"docstatus": 1}),
+					"done": lambda: _exists("Payment Entry", {"docstatus": 1}),
 				},
 				{"key": "bs", "label": _("Open your Balance Sheet"), "route": ["query-report", "Balance Sheet"], "kind": "visit"},
 			],
@@ -157,11 +160,11 @@ def _checklists(company):
 			"title": _("Getting started with Selling"),
 			"subtitle": "",
 			"steps": [
-				{"key": "customer", "label": _("Add a customer"), "route": ["Form", "Customer", "new"], "kind": "exists", "done": _exists("Customer")},
-				{"key": "item", "label": _("Add an item you sell"), "route": ["Form", "Item", "new"], "kind": "exists", "done": _exists("Item", {"is_sales_item": 1, "has_variants": 0})},
-				{"key": "quotation", "label": _("Send a Quotation"), "route": ["Form", "Quotation", "new"], "kind": "exists", "done": _exists("Quotation", {"docstatus": 1})},
-				{"key": "so", "label": _("Confirm a Sales Order"), "route": ["Form", "Sales Order", "new"], "kind": "exists", "done": _exists("Sales Order", {"docstatus": 1})},
-				{"key": "si", "label": _("Invoice it"), "route": ["Form", "Sales Invoice", "new"], "kind": "exists", "done": _exists("Sales Invoice", {"docstatus": 1})},
+				{"key": "customer", "label": _("Add a customer"), "route": ["Form", "Customer", "new"], "kind": "exists", "done": lambda: _exists("Customer")},
+				{"key": "item", "label": _("Add an item you sell"), "route": ["Form", "Item", "new"], "kind": "exists", "done": lambda: _exists("Item", {"is_sales_item": 1, "has_variants": 0})},
+				{"key": "quotation", "label": _("Send a Quotation"), "route": ["Form", "Quotation", "new"], "kind": "exists", "done": lambda: _exists("Quotation", {"docstatus": 1})},
+				{"key": "so", "label": _("Confirm a Sales Order"), "route": ["Form", "Sales Order", "new"], "kind": "exists", "done": lambda: _exists("Sales Order", {"docstatus": 1})},
+				{"key": "si", "label": _("Invoice it"), "route": ["Form", "Sales Invoice", "new"], "kind": "exists", "done": lambda: _exists("Sales Invoice", {"docstatus": 1})},
 				{"key": "analytics", "label": _("Open Sales Analytics"), "route": ["query-report", "Sales Analytics"], "kind": "visit"},
 			],
 		},
@@ -170,7 +173,7 @@ def _checklists(company):
 			"subtitle": "",
 			"steps": [
 				{"key": "warehouse", "label": _("Review your warehouses"), "route": ["Tree", "Warehouse"], "kind": "visit"},
-				{"key": "item", "label": _("Add a stock item"), "route": ["Form", "Item", "new"], "kind": "exists", "done": _exists("Item", {"is_stock_item": 1, "has_variants": 0})},
+				{"key": "item", "label": _("Add a stock item"), "route": ["Form", "Item", "new"], "kind": "exists", "done": lambda: _exists("Item", {"is_stock_item": 1, "has_variants": 0})},
 				{
 					"key": "receipt",
 					"label": _("Receive stock (Purchase Receipt or Stock Entry)"),
@@ -180,9 +183,9 @@ def _checklists(company):
 						{"label": _("Stock Entry"), "route": ["Form", "Stock Entry", "new"]},
 					],
 					"kind": "exists",
-					"done": _exists("Purchase Receipt", {"docstatus": 1}) or _exists("Stock Entry", {"docstatus": 1}),
+					"done": lambda: _exists("Purchase Receipt", {"docstatus": 1}) or _exists("Stock Entry", {"docstatus": 1}),
 				},
-				{"key": "dn", "label": _("Deliver stock (Delivery Note)"), "route": ["Form", "Delivery Note", "new"], "kind": "exists", "done": _exists("Delivery Note", {"docstatus": 1})},
+				{"key": "dn", "label": _("Deliver stock (Delivery Note)"), "route": ["Form", "Delivery Note", "new"], "kind": "exists", "done": lambda: _exists("Delivery Note", {"docstatus": 1})},
 				{"key": "balance", "label": _("Open the Stock Balance report"), "route": ["query-report", "Stock Balance"], "kind": "visit"},
 			],
 		},
@@ -231,7 +234,7 @@ def get_checklist(name):
 		frappe.throw(_("Unknown checklist {0}").format(name))
 	steps = []
 	for s in spec["steps"]:
-		done = bool(s.get("done")) if s["kind"] == "exists" else bool(
+		done = bool(s["done"]()) if s["kind"] == "exists" else bool(
 			frappe.cint(frappe.defaults.get_user_default(_VISIT_KEY.format(name=name, key=s["key"])))
 		)
 		steps.append(
@@ -259,6 +262,24 @@ def get_checklist(name):
 	}
 
 
+CHECKLIST_NAMES = ("home", "accounts", "selling", "stock")
+
+
+def checklist_boot():
+	"""Desk boot flags for brand.js NexumChecklist.mount: when get_checklist could only
+	answer {"hidden": 1} (no panel role, a mature Enterprise site, or the user hid that
+	checklist), the client renders hidden without the round trip — 0.4–1 s per workspace
+	visit from the Philippines. Mirrors get_checklist's first two gates exactly."""
+	if not _can_see_panels() or not panels_enabled_for_site():
+		return {"off": 1, "hidden": list(CHECKLIST_NAMES)}
+	return {
+		"off": 0,
+		"hidden": [
+			n for n in CHECKLIST_NAMES if frappe.cint(frappe.defaults.get_user_default(_HIDE_KEY.format(name=n)))
+		],
+	}
+
+
 @frappe.whitelist()
 def mark_visited(name, key):
 	"""A "visit" step is done once the user clicks through (per user)."""
@@ -280,7 +301,14 @@ def show_checklist(name):
 
 # --------------------------------------------------------------------------- number cards
 def _company_currency(company):
-	return frappe.db.get_value("Company", company, "default_currency") if company else None
+	# tolerate an unconfigured site (Gemini review of batch-183): _company() can be
+	# None before any Company exists — the cards must render 0, not 500
+	if not company:
+		return ""
+	try:
+		return frappe.get_cached_value("Company", company, "default_currency") or ""
+	except Exception:
+		return ""
 
 
 def _card(value, route, route_options=None):
@@ -298,10 +326,17 @@ def _require_read(doctype):
 def receivables(filters=None):
 	_require_read("Sales Invoice")
 	company = _company()
+	# outstanding_amount is stored in the PARTY ACCOUNT currency (batch-183, sweep
+	# C32): multiplying by conversion_rate is right only when that account is in a
+	# foreign currency — for the common company-currency receivable account the old
+	# blanket multiply double-converted (a USD invoice at rate 56 reported 56x).
 	val = frappe.db.sql(
-		"""select coalesce(sum(outstanding_amount * ifnull(conversion_rate, 1)), 0)
-		from `tabSales Invoice` where docstatus = 1 and outstanding_amount > 0 and company = %s""",
-		(company,),
+		"""select coalesce(sum(outstanding_amount *
+			if(ifnull(party_account_currency, '') in ('', %(cur)s), 1,
+			   ifnull(conversion_rate, 1))), 0)
+		from `tabSales Invoice`
+		where docstatus = 1 and outstanding_amount > 0 and company = %(company)s""",
+		{"company": company, "cur": _company_currency(company)},
 	)[0][0]
 	return _card(val, ["query-report", "Accounts Receivable"], {"company": company})
 
@@ -310,10 +345,14 @@ def receivables(filters=None):
 def payables(filters=None):
 	_require_read("Purchase Invoice")
 	company = _company()
+	# same party-account-currency rule as receivables (sweep C32)
 	val = frappe.db.sql(
-		"""select coalesce(sum(outstanding_amount * ifnull(conversion_rate, 1)), 0)
-		from `tabPurchase Invoice` where docstatus = 1 and outstanding_amount > 0 and company = %s""",
-		(company,),
+		"""select coalesce(sum(outstanding_amount *
+			if(ifnull(party_account_currency, '') in ('', %(cur)s), 1,
+			   ifnull(conversion_rate, 1))), 0)
+		from `tabPurchase Invoice`
+		where docstatus = 1 and outstanding_amount > 0 and company = %(company)s""",
+		{"company": company, "cur": _company_currency(company)},
 	)[0][0]
 	return _card(val, ["query-report", "Accounts Payable"], {"company": company})
 
@@ -329,7 +368,10 @@ def cash_and_bank(filters=None):
 		"Account", filters={"company": company, "is_group": 0, "account_type": ["in", ["Cash", "Bank"]], "disabled": 0}, pluck="name"
 	):
 		try:
-			total += float(get_balance_on(acc, company=company) or 0)
+			# company-currency balances (batch-183, sweep C33): the default returns
+			# each account's balance in its OWN currency, silently adding USD to PHP
+			total += float(get_balance_on(acc, company=company,
+			                              in_account_currency=False) or 0)
 		except Exception:
 			pass
 	return _card(total, ["query-report", "Account Balance"], {"company": company, "root_type": "Asset"})
