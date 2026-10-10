@@ -57,11 +57,31 @@ _PANEL_ROLES = {"System Manager", "Accounts Manager", "Sales Manager", "Stock Ma
 
 
 # --------------------------------------------------------------------------- helpers
+def _allowed_companies():
+	"""The companies the user's User Permissions limit them to, or None when there is no
+	Company fence. Judged on User Permissions, not on the role's right to open Company:
+	Auditor and HR User only have `select` on Company, and some card readers have no
+	Company permission at all, yet the cards are about their company all the same."""
+	from frappe.core.doctype.user_permission.user_permission import get_user_permissions
+	from frappe.permissions import get_allowed_docs_for_doctype
+
+	fence = get_user_permissions().get("Company")
+	return get_allowed_docs_for_doctype(fence, "Company") if fence else None
+
+
 def _company():
-	c = frappe.defaults.get_user_default("Company") or frappe.defaults.get_global_default("company")
-	if c and frappe.db.exists("Company", c):
-		return c
-	return frappe.db.get_value("Company", {}, "name", order_by="creation asc")
+	"""The company the Home KPIs and checklists are about, for THIS user: their own
+	default, else the site default, else the oldest company — never one their User
+	Permissions fence them out of (batch205 idx 173). The old last resort was a raw
+	oldest-company lookup, so a user limited to company B was shown company A's
+	receivables and payables."""
+	allowed = _allowed_companies()
+	for c in (frappe.defaults.get_user_default("Company"), frappe.defaults.get_global_default("company")):
+		if c and frappe.db.exists("Company", c) and (allowed is None or c in allowed):
+			return c
+	filters = {"name": ["in", allowed or [""]]} if allowed is not None else None
+	first = frappe.get_all("Company", filters=filters, pluck="name", order_by="creation asc", limit=1)
+	return first[0] if first else None
 
 
 def _exists(doctype, filters=None):
@@ -322,39 +342,68 @@ def _require_read(doctype):
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
+def _open_balance(account_type, company):
+	"""What the Accounts Receivable / Payable report totals for `company` today, in
+	company currency (batch205 idx 92). Summed from the Payment Ledger Entry rows that
+	report reads, with its default filters (the company's accounts of this type, posted up
+	to today, not cancelled, employee advances left out of receivables), so standalone
+	credit notes and unallocated advances net against the invoices as they do there; the
+	old sum of positive invoice outstandings ignored both and overstated what is owed.
+	PLE.amount is already company currency (receivable debit - credit, payable credit -
+	debit), so the v183 currency rule (sweep C32) holds with no conversion step.
+	The user's User Permissions apply as in the report (idx 173): the company is settled
+	by _company(), the party fences here."""
+	from erpnext.accounts.utils import build_qb_match_conditions, get_party_types_from_account_type
+	from frappe.core.doctype.user_permission.user_permission import get_user_permissions
+	from frappe.permissions import get_allowed_docs_for_doctype
+	from frappe.query_builder.functions import Sum
+	from frappe.utils import flt, nowdate
+
+	accounts = frappe.get_all("Account", filters={"company": company, "account_type": account_type}, pluck="name")
+	if not accounts:
+		return 0.0
+	ple = frappe.qb.DocType("Payment Ledger Entry")
+	query = (
+		frappe.qb.from_(ple)
+		.select(Sum(ple.amount))
+		.where(ple.company == company)
+		.where(ple.account.isin(accounts))
+		.where(ple.delinked == 0)
+		.where(ple.posting_date <= nowdate())
+	)
+	if account_type == "Receivable":
+		query = query.where(ple.party_type != "Employee")
+	# party is a dynamic link, so Customer / Supplier User Permissions are applied by hand,
+	# exactly as the report does
+	user_permissions = get_user_permissions()
+	for party_type in get_party_types_from_account_type(account_type):
+		if party_type in user_permissions:
+			allowed = get_allowed_docs_for_doctype(user_permissions[party_type], party_type)
+			query = query.where((ple.party_type != party_type) | ple.party.isin(allowed or [""]))
+	# the report's own User Permission fences (account / cost centre / project), for every
+	# reader: building them needs no read right on the ledger, and the AR/AP reports apply
+	# them to Purchase and Sales users too
+	for condition in build_qb_match_conditions("Payment Ledger Entry"):
+		query = query.where(condition)
+	return flt(query.run()[0][0])
+
+
 @frappe.whitelist()
 def receivables(filters=None):
 	_require_read("Sales Invoice")
 	company = _company()
-	# outstanding_amount is stored in the PARTY ACCOUNT currency (batch-183, sweep
-	# C32): multiplying by conversion_rate is right only when that account is in a
-	# foreign currency — for the common company-currency receivable account the old
-	# blanket multiply double-converted (a USD invoice at rate 56 reported 56x).
-	val = frappe.db.sql(
-		"""select coalesce(sum(outstanding_amount *
-			if(ifnull(party_account_currency, '') in ('', %(cur)s), 1,
-			   ifnull(conversion_rate, 1))), 0)
-		from `tabSales Invoice`
-		where docstatus = 1 and outstanding_amount > 0 and company = %(company)s""",
-		{"company": company, "cur": _company_currency(company)},
-	)[0][0]
-	return _card(val, ["query-report", "Accounts Receivable"], {"company": company})
+	if not company:
+		return _card(0, ["query-report", "Accounts Receivable"])
+	return _card(_open_balance("Receivable", company), ["query-report", "Accounts Receivable"], {"company": company})
 
 
 @frappe.whitelist()
 def payables(filters=None):
 	_require_read("Purchase Invoice")
 	company = _company()
-	# same party-account-currency rule as receivables (sweep C32)
-	val = frappe.db.sql(
-		"""select coalesce(sum(outstanding_amount *
-			if(ifnull(party_account_currency, '') in ('', %(cur)s), 1,
-			   ifnull(conversion_rate, 1))), 0)
-		from `tabPurchase Invoice`
-		where docstatus = 1 and outstanding_amount > 0 and company = %(company)s""",
-		{"company": company, "cur": _company_currency(company)},
-	)[0][0]
-	return _card(val, ["query-report", "Accounts Payable"], {"company": company})
+	if not company:
+		return _card(0, ["query-report", "Accounts Payable"])
+	return _card(_open_balance("Payable", company), ["query-report", "Accounts Payable"], {"company": company})
 
 
 @frappe.whitelist()
@@ -363,8 +412,12 @@ def cash_and_bank(filters=None):
 
 	_require_read("Payment Entry")
 	company = _company()
+	if not company:
+		return _card(0, ["query-report", "Account Balance"])
 	total = 0.0
-	for acc in frappe.get_all(
+	# get_list, not get_all (batch205 idx 173): only the accounts this user may read, so a
+	# fenced user's total is their accounts' — get_balance_on would refuse the others
+	for acc in frappe.get_list(
 		"Account", filters={"company": company, "is_group": 0, "account_type": ["in", ["Cash", "Bank"]], "disabled": 0}, pluck="name"
 	):
 		try:
@@ -372,6 +425,9 @@ def cash_and_bank(filters=None):
 			# each account's balance in its OWN currency, silently adding USD to PHP
 			total += float(get_balance_on(acc, company=company,
 			                              in_account_currency=False) or 0)
+		except frappe.PermissionError:
+			# never again a silent 0 for a permission problem: fail the card visibly
+			raise
 		except Exception:
 			pass
 	return _card(total, ["query-report", "Account Balance"], {"company": company, "root_type": "Asset"})
@@ -504,3 +560,34 @@ def reconcile_home_workspace():
 		frappe.cache.delete_key("bootinfo")
 	except Exception:
 		pass
+
+
+# --------------------------------------------------------------------------- boot
+def _widget_docs():
+	"""(doctype, name) of every workspace widget this module places: the Home KPI cards
+	and the Get-set-up / Getting-started blocks."""
+	docs = [("Number Card", label) for label, _m, _d in NUMBER_CARDS]
+	docs.append(("Custom HTML Block", HOME_BLOCK))
+	docs += [("Custom HTML Block", block) for _c, block in MODULE_BLOCKS.values()]
+	return docs
+
+
+def boot_widget_docs(bootinfo):
+	"""extend_bootinfo: the docs behind those widgets, for brand.js to sync into locals
+	with an empty docinfo. frappe's NumberCardWidget and CustomBlockWidget first call
+	frappe.model.with_doc(), which sends a getdoc request unless the doc AND its docinfo
+	are already loaded, so every KPI value and checklist started loading only one full
+	round trip after the workspace itself (batch205 idx 94: 0.4-1.6 s from the
+	Philippines, on the page owners land on). Only docs this user may read are sent, the
+	check getdoc makes. Like every boot payload here, a failure only drops the key."""
+	try:
+		docs = []
+		for doctype, name in _widget_docs():
+			if not frappe.db.exists(doctype, name):
+				continue
+			doc = frappe.get_cached_doc(doctype, name)
+			if frappe.has_permission(doctype, "read", doc=doc):
+				docs.append(doc.as_dict())
+		bootinfo.nx_widget_docs = docs
+	except Exception:
+		frappe.log_error(title="my_branding widget docs bootinfo failed", message=frappe.get_traceback())

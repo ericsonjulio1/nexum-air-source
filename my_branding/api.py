@@ -70,6 +70,17 @@ AUTO_APPROVE_PLANS = {"free", "essentials", "starter", "business"}
 AUTO_APPROVE_CAP_PER_HOUR = 8
 AUTO_APPROVE_CAP_PER_DAY = 25
 
+# CRM Lead custom_provision_status values that no longer hold an email or a subdomain:
+# Failed (provisioning never completed; the retry email invites a fresh signup) and
+# Deleted (the host lifecycle dropped the tenant's site, saas/trial-lifecycle.py
+# mark_leads_deleted). A lead in either state never de-duplicates a new signup or
+# capture and never keeps its subdomain taken, so a returning customer can sign up again.
+RELEASED_LEAD_STATUSES = ("Failed", "Deleted")
+# statuses that DO hold a subdomain (see _subdomain_taken): the whole in-flight pipeline,
+# and the live/provisioning subset the public availability check uses
+PIPELINE_LEAD_STATUSES = ("Pending", "Approved", "Provisioning", "Active")
+LIVE_LEAD_STATUSES = ("Provisioning", "Active")
+
 
 def _require_signup_host():
 	"""Guard: these guest endpoints (signup / capture_partial / check_subdomain) are
@@ -108,6 +119,18 @@ def _clean_subdomain(raw):
 		return "", True  # blank is allowed (subdomain is optional on a lead)
 	ok = bool(SUBDOMAIN_RE.match(sub)) and sub not in RESERVED_SUBDOMAINS
 	return sub, ok
+
+
+def _lead_holds_email(email):
+	"""True if a CRM Lead still holds ``email``, i.e. has any provision status except the
+	RELEASED_LEAD_STATUSES (Failed, Deleted). The one de-dup rule for every signup and
+	capture path, including the re-checks under the identity lock."""
+	return bool(
+		frappe.db.exists(
+			"CRM Lead",
+			{"email": email, "custom_provision_status": ["not in", RELEASED_LEAD_STATUSES]},
+		)
+	)
 
 
 def _verify_turnstile(token):
@@ -156,11 +179,15 @@ def _subdomain_taken(sub, include_pipeline=True):
 	  actively-provisioning sites (Provisioning/Active). This keeps the as-you-type
 	  checker from leaking not-yet-live signups (Pending/Approved company names =
 	  sales-pipeline intel) to unauthenticated guests; a rare Pending collision is
-	  resolved by the operator at Approve time, not hard-rejected."""
+	  resolved by the operator at Approve time, not hard-rejected.
+
+	A Failed or Deleted lead (RELEASED_LEAD_STATUSES) is in neither set, so it never
+	keeps the name taken; once a deleted tenant's site directory is gone, the name is
+	free again."""
 	site_config = os.path.join(get_bench_path(), "sites", f"{sub}.{BASE_DOMAIN}", "site_config.json")
 	if os.path.exists(site_config):
 		return True
-	statuses = ["Pending", "Approved", "Provisioning", "Active"] if include_pipeline else ["Provisioning", "Active"]
+	statuses = PIPELINE_LEAD_STATUSES if include_pipeline else LIVE_LEAD_STATUSES
 	return bool(
 		frappe.db.exists("DocType", "CRM Lead")
 		and frappe.db.exists(
@@ -288,7 +315,7 @@ def _stage_free_lead(lead, cap, email, subdomain, plan, ts, subdomain_locked=Tru
 	# Re-check identity and subdomain at the insertion boundary while signup() holds
 	# the identity lock. The early checks remain useful fast paths, but are stale by now
 	# if another request inserted while this one was verifying Turnstile.
-	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
+	if _lead_holds_email(email):
 		return _accepted()
 	if subdomain and not subdomain_locked:
 		lead.custom_provision_status = "Pending"
@@ -323,17 +350,19 @@ def signup():
 	if not email or len(email) > 120 or not EMAIL_RE.match(email):
 		return {"ok": False, "error": "valid email required"}
 
-	# Dedup excludes FAILED leads (here and at every re-check): the retry email we
-	# send on a subdomain clash tells the customer to sign up again with another
-	# name — an email-only dedup returned {ok} while silently doing nothing, so the
-	# advertised retry flow never worked. A Failed lead's email may try again.
+	# Dedup excludes RELEASED leads (Failed, Deleted — RELEASED_LEAD_STATUSES), here and
+	# at every re-check: the retry email we send on a subdomain clash tells the customer
+	# to sign up again with another name — an email-only dedup returned {ok} while
+	# silently doing nothing, so the advertised retry flow never worked. A Failed lead's
+	# email may try again, and so may a returning customer whose tenant the host
+	# lifecycle deleted (its lead is then Deleted).
 	# Dedup + flood cap run BEFORE the (up to ~5s, outbound) Turnstile verification.
 	# Otherwise every request OVER the cap still pays a blocking Cloudflare round-trip
 	# before being rejected, so a bot flood pins a gunicorn worker ~5s each — exactly what
 	# the cap exists to prevent. check_subdomain()/capture_partial() already rate-limit
 	# first. Dedup runs first (cheap, indexed on email) so a benign double-submit / browser
 	# retry returns early and does NOT consume the global hourly budget.
-	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
+	if _lead_holds_email(email):
 		return _accepted()
 
 	# rate-limit backstop: signup() trusts Turnstile, but _verify_turnstile is FAIL-OPEN
@@ -463,7 +492,7 @@ def signup():
 
 		# Repeat the early checks at the insertion boundary while the identity lock is
 		# held, closing the check-then-insert window for concurrent same-email signups.
-		if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
+		if _lead_holds_email(email):
 			return _accepted()
 		if subdomain and not got_subdomain_lock:
 			lead.custom_provision_status = "Pending"
@@ -531,12 +560,13 @@ def capture_partial():
 		# past the cap must not vanish (bots eating the first 40 slots used to
 		# silently discard customer #41). Known emails just dedup; new ones spill
 		# to a durable file the daily signup-funnel digest surfaces for follow-up.
-		if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
+		if _lead_holds_email(email):
 			return _accepted()
 		return _spill_overflow(d, email)
 
-	# don't duplicate an existing lead (a completed signup, or an earlier capture)
-	if frappe.db.exists("CRM Lead", {"email": email, "custom_provision_status": ["!=", "Failed"]}):
+	# don't duplicate an existing lead (a completed signup, or an earlier capture);
+	# a Failed or Deleted lead doesn't count, same rule as signup()
+	if _lead_holds_email(email):
 		return _accepted()
 
 	company = " ".join((d.get("company") or "").split())[:140]

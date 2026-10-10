@@ -48,7 +48,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Pending\nActive\nRetrying\nFailed\nInactive\nSuspended",
+   "options": "Pending\nActive\nRetrying\nFailed\nInactive\nSuspended\nCancelled",
    "default": "Pending",
    "in_list_view": 1,
    "in_standard_filter": 1
@@ -147,7 +147,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-08-30 00:00:00.000000",
+ "modified": "2026-10-10 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "My Branding",
  "name": "Nexum Subscription",

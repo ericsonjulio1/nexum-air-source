@@ -16,9 +16,9 @@ app_include_css = [
 	"/assets/my_branding/css/idle_lock.css?v=20261006a",
 ]
 app_include_js = [
-	"/assets/my_branding/js/brand.js?v=20261003a",
+	"/assets/my_branding/js/brand.js?v=20261010a",
 	# idle screen lock: warning, lock in place, unlock (see idle_lock.py)
-	"/assets/my_branding/js/idle_lock.js?v=20261009a",
+	"/assets/my_branding/js/idle_lock.js?v=20261010a",
 ]
 web_include_css = [
 	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
@@ -26,7 +26,7 @@ web_include_css = [
 ]
 # split login page (left industrial animation + right credentials); login.js guards on
 # #page-login so it only acts on /login, never other web pages.
-web_include_js = "/assets/my_branding/js/login.js?v=20261003-loop1"
+web_include_js = "/assets/my_branding/js/login.js?v=20261010a"
 website_theme_scss = "my_branding/public/scss/website"
 
 website_context = {
@@ -36,8 +36,14 @@ website_context = {
 }
 
 fixtures = [
-	{"dt": "Navbar Settings"},
-	{"dt": "Website Settings"},
+	# Website Settings / Navbar Settings moved to branding.ensure_site_brand_settings (M3,
+	# v204): frappe's sync_fixtures force-imports EVERY *.json under fixtures/ on each
+	# migrate (delete + re-insert), so the whole Singles were reset on every deploy and
+	# tenant edits (top bar, footer, GA id, head_html, help items...) were wiped. Their
+	# JSON now lives in seed/ and only the brand-owned keys are re-applied.
+	# Website Theme stays: only themes exported from the brand's own site land in
+	# fixtures/website_theme.json (today an empty list, so the import is a no-op);
+	# tenant-made themes are never in the file and are never touched.
 	{"dt": "Website Theme", "filters": [["custom", "=", 1]]},
 	# Letter Head moved to branding.ensure_letter_heads (insert-only reconciler,
 	# batch-183 sweep C37): the unfiltered fixture re-saved both letterheads on
@@ -74,6 +80,8 @@ after_migrate = [
 	"my_branding.roles.ensure_owner_asset_manager",
 	"my_branding.branding.ensure_email_settings",
 	"my_branding.branding.ensure_app_landing",
+	# brand-owned keys on Website/Navbar Settings (they are no longer fixtures)
+	"my_branding.branding.ensure_site_brand_settings",
 	"my_branding.branding.reconcile_onboarding",
 	"my_branding.branding.reconcile_default_portal_home",
 	"my_branding.branding.reconcile_workspace_visibility",
@@ -94,6 +102,9 @@ after_migrate = [
 	"my_branding.invoice_ph.ensure_company_invoice_fields",
 	# Idle screen lock: System Settings fields, deploy-grace seed, enforcement switch.
 	"my_branding.idle_lock.ensure_setup",
+	# Free -> paid: switch back on the Auto Repeats the Free document cap paused (the
+	# upgrade's change-plan.sh migrate runs this; batch205 idx 159, see doc_caps.py).
+	"my_branding.doc_caps.resume_capped_auto_repeats",
 ]
 
 # "Invoice Design" button on the Sales Invoice form -> Print Designer editor
@@ -105,7 +116,12 @@ doctype_js = {
 }
 
 # Rebrand the "ERPNext" app title shown in the workspace sidebar header.
-extend_bootinfo = "my_branding.boot.boot_session"
+extend_bootinfo = [
+	"my_branding.boot.boot_session",
+	# the docs behind the Home KPI cards / Getting-started blocks, so their widgets skip
+	# the getdoc round trip before loading their data (batch205 idx 94, see home.py)
+	"my_branding.home.boot_widget_docs",
+]
 
 # Paint Nexum Air branding onto the standalone frappe-ui SPAs (Frappe HR, ...),
 # which serve their own HTML and never load brand.css. Post-processes their
@@ -267,12 +283,17 @@ override_whitelisted_methods = {
 doc_events = {
 	"File": {
 		"before_insert": "my_branding.storage.enforce_file_quota",
+		# File.validate copies a client-sent form field file_size over the measured size;
+		# this runs after it and restores the real one, so SUM(file_size) holds (H3).
+		"validate": "my_branding.storage.pin_true_file_size",
 		# deleting a file lowers usage — bust the cached total so freed space is
 		# reflected immediately rather than after the 30s TTL.
 		"on_trash": "my_branding.storage.invalidate_used_cache",
 	},
 	# Drive keeps its own doctype for uploads — same quota, same enforcement
-	# (the handler skips is_group folders and counts both tables).
+	# (the handler skips is_group folders and counts both tables). Drive measures the
+	# size from the uploaded bytes on disk and never reads form_dict.file_size, so it
+	# needs no validate pin.
 	"Drive File": {
 		"before_insert": "my_branding.storage.enforce_file_quota",
 		"on_trash": "my_branding.storage.invalidate_used_cache",

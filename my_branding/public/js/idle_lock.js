@@ -21,6 +21,10 @@
 	var KEY_LOGOUT = "nexum-idle:logout"; // when a tab last ended the session (one tab does it)
 	var WARN_MS = 60 * 1000;
 	var BEAT_MS = 60 * 1000;
+	// Logout and unlock-login are abandoned after these (see deadline()). Login gets more
+	// room: password hashing and session setup on a slow link take a few seconds.
+	var LOGOUT_TIMEOUT_MS = 10 * 1000;
+	var LOGIN_TIMEOUT_MS = 15 * 1000;
 	// Only events a person makes. No "scroll": pages scroll themselves (list refresh,
 	// timelines), and wheel/touch/keys/mouse already cover every human scroll.
 	var EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "wheel"];
@@ -350,6 +354,23 @@
 		return Promise.resolve().then(fn);
 	}
 
+	// A request that never settles (a dead connection reused right after the laptop
+	// wakes) would hold the shared lock above, and with it every tab's Unlock button,
+	// greyed out with no message. Abort it after `ms`; call done() once it has settled.
+	function deadline(ms) {
+		if (typeof AbortController !== "function") return { signal: undefined, done: function () {} };
+		var ctl = new AbortController();
+		var timer = setTimeout(function () {
+			ctl.abort();
+		}, ms);
+		return {
+			signal: ctl.signal,
+			done: function () {
+				clearTimeout(timer);
+			},
+		};
+	}
+
 	function endServerSession() {
 		pendingLogout = withLogoutLock(function () {
 			// Tabs that lock together must not each log out: the first one is enough.
@@ -360,13 +381,20 @@
 			} catch (e) {
 				/* storage blocked: this tab sends its own */
 			}
+			// Abandoning a stalled logout is safe: once aborted, its response is discarded and
+			// can no longer land after the new login, and the server check ends this idle
+			// session on its own.
+			var limit = deadline(LOGOUT_TIMEOUT_MS);
 			return fetch("/api/method/logout", {
 				method: "POST",
 				credentials: "same-origin",
 				headers: { Accept: "application/json", "X-Frappe-CSRF-Token": frappe.csrf_token },
-			}).catch(function () {
-				/* offline: the server check ends the session on its own */
-			});
+				signal: limit.signal,
+			})
+				.catch(function () {
+					/* offline or abandoned: the server check ends the session on its own */
+				})
+				.then(limit.done);
 		}).then(
 			function () {
 				pendingLogout = null;
@@ -456,6 +484,9 @@
 
 	// --- unlock --------------------------------------------------------------------
 	function login(data) {
+		// Runs inside the shared lock, so it gets a deadline too. An abandoned login
+		// rejects into submitUnlock's "Could not reach the server" and the user retries.
+		var limit = deadline(LOGIN_TIMEOUT_MS);
 		return fetch("/api/method/login", {
 			method: "POST",
 			credentials: "same-origin",
@@ -465,16 +496,29 @@
 				"X-Frappe-CSRF-Token": frappe.csrf_token,
 			},
 			body: new URLSearchParams(data).toString(),
-		}).then(function (r) {
-			return r
-				.json()
-				.catch(function () {
-					return {};
-				})
-				.then(function (body) {
-					return { ok: r.ok, status: r.status, body: body };
-				});
-		});
+			signal: limit.signal,
+		})
+			.then(function (r) {
+				return r
+					.json()
+					.catch(function (e) {
+						if (limit.signal && limit.signal.aborted) throw e; // timed out, not a bad body
+						return {};
+					})
+					.then(function (body) {
+						return { ok: r.ok, status: r.status, body: body };
+					});
+			})
+			.then(
+				function (res) {
+					limit.done();
+					return res;
+				},
+				function (err) {
+					limit.done();
+					throw err;
+				}
+			);
 	}
 
 	function plainText(html) {
@@ -580,7 +624,11 @@
 			.then(function (body) {
 				var m = (body && body.message) || {};
 				if (m.user !== user) {
-					// Never unlock one user's page under another user's session.
+					// Never unlock one user's page under another user's session. When the
+					// unlock came from another tab (a second user on a shared PC unlocking
+					// their own), stay locked instead of leaving: this user can still unlock
+					// with their own password and keep the unsaved entries.
+					if (remote) return;
 					window.location.href = "/login";
 					return;
 				}

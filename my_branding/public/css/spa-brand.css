@@ -73,11 +73,14 @@ a.active\:bg-surface-gray-5:active { background-color: #1C2B30 !important; }
 /* Hide each app's native Frappe logo (spa-brand.js drops a Nexum Air <img>
  * beside it): the cube as an inline svg (117 = HR, 118 = Drive/Helpdesk/
  * Gameplan), CRM's 300 svg, and Builder's png. We leave Vue to keep
- * re-rendering it — it just stays hidden, no flash. */
-svg[viewBox="0 0 117 117"],
-svg[viewBox="0 0 118 118"],
-svg[viewBox="0 0 300 300"],
-svg[viewBox="0 0 80 79"],
+ * re-rendering it — it just stays hidden, no flash.
+ * Not on Builder (spa-brand.js sets data-nx-spa in <head>): its editor canvas
+ * shows the user's own SVG blocks in this document, and a 300x300 badge
+ * vanished from the canvas. Builder's logo is the png. */
+html:not([data-nx-spa="builder"]) svg[viewBox="0 0 117 117"],
+html:not([data-nx-spa="builder"]) svg[viewBox="0 0 118 118"],
+html:not([data-nx-spa="builder"]) svg[viewBox="0 0 300 300"],
+html:not([data-nx-spa="builder"]) svg[viewBox="0 0 80 79"],
 img[src$="builder_logo.png"] {
 	display: none !important;
 }

@@ -4,10 +4,16 @@ Each tenant's plan sets ``storage_quota_gb`` in ``site_config.json``
 (0 / unset = unlimited, used for the owner ``hq`` site). When a new File would
 push the site's total stored bytes over that quota, the upload is blocked with a
 friendly "upgrade your plan" message. Wired via ``doc_events`` in hooks.py.
+
+Usage is the SUM of the stored ``file_size`` values, so those values must be the size
+the server measured, never one the client sent (``pin_true_file_size``).
 """
+
+import os
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 
 def _quota_bytes():
@@ -22,6 +28,8 @@ def _quota_bytes():
 
 _USED_CACHE_KEY = "nexum_storage_used_bytes"
 _USED_CACHE_TTL = 30  # seconds — short enough that deletes free space quickly
+# doc.flags key: the size File.before_insert measured, for pin_true_file_size
+_TRUE_SIZE_FLAG = "nx_true_file_size"
 
 
 def _used_bytes(exact=False):
@@ -75,6 +83,13 @@ def _bust_used_cache_on_rollback():
 
 
 def enforce_file_quota(doc, method=None):
+	# Remember the size File.before_insert just measured from the uploaded content
+	# (save_file sets file_size = len(content), then flags.new_file) so the validate pin
+	# below can restore it. Done before the unlimited-site early return: the stored size
+	# must be honest on every site, not only on capped ones (a plan can change later).
+	if doc.doctype == "File" and doc.flags.get("new_file"):
+		doc.flags[_TRUE_SIZE_FLAG] = cint(doc.get("file_size"))
+
 	# Compute the over-quota decision defensively. This runs on EVERY file insert,
 	# so an unexpected internal error (e.g. a transient DB hiccup in the usage sum)
 	# must NOT block a legitimate upload — fail OPEN (log + allow). The quota block
@@ -130,3 +145,39 @@ def enforce_file_quota(doc, method=None):
 			).format(limit_gb),
 			title=_("Storage Full"),
 		)
+
+
+def pin_true_file_size(doc, method=None):
+	"""File ``validate``: store the size the server measured, never the client's (H3, v204).
+
+	Upstream File.validate ends with ``self.file_size = frappe.form_dict.file_size or
+	self.file_size`` (frappe 16.36.1 file.py:190), so any request field named
+	``file_size`` (an extra multipart field on /api/method/upload_file, or a REST PUT on
+	an existing File) overwrote the real size. The quota check saw the true size at
+	before_insert, but the row was stored with the forged one, so SUM(file_size) — the
+	usage figure — undercounted without bound and a Free tenant could fill the shared
+	tenant-files volume. doc_events run after the controller method (Document.hook runs
+	the controller first), so this hook has the last word:
+
+	* new upload: the size File.before_insert measured from the content, stashed by
+	  enforce_file_quota — exactly the figure the quota check used;
+	* any other save of a local file (REST update, private/public toggle, re-optimise,
+	  copied attachment): the size of the blob on disk, which File.validate has just
+	  confirmed exists (validate_file_on_disk).
+
+	Folders and remote URLs store no bytes here and are left alone. If the disk read
+	fails, keep the size already in the database rather than the client's."""
+	if doc.get("is_folder") or doc.is_remote_file:
+		return
+	# consumed here: a later save of the same object in this request (e.g. a re-optimise)
+	# must measure the blob again, not reuse the size from the insert
+	measured = doc.flags.pop(_TRUE_SIZE_FLAG, None)
+	true_size = measured if doc.is_new() else None
+	if true_size is None:
+		try:
+			true_size = os.path.getsize(doc.get_full_path())
+		except Exception:
+			before = doc.get_doc_before_save()
+			true_size = cint(before.file_size) if before else None
+	if true_size is not None and cint(doc.get("file_size")) != true_size:
+		doc.file_size = true_size

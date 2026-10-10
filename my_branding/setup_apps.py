@@ -74,6 +74,22 @@ def _ph_holidays(year):
     return [(d.strftime("%Y-%m-%d"), desc) for d, desc in items]
 
 
+def _new_ph_holiday_list(name, year):
+    """The unsaved "Philippines <year>" Holiday List run() seeds: the named holidays, then
+    every Sunday. weekly_off on its own is only the input to the list's "Add to Holidays"
+    button (get_weekly_off_dates) and validate() never expands it, so the old seed held
+    the named holidays only and HR counted every Sunday as a working day (batch205 idx
+    160). Named holidays go in first: get_weekly_off_dates skips dates already listed, so
+    a holiday that falls on a Sunday keeps its own name."""
+    doc = frappe.get_doc({"doctype": "Holiday List", "holiday_list_name": name,
+                          "from_date": "%d-01-01" % year, "to_date": "%d-12-31" % year,
+                          "weekly_off": "Sunday"})
+    for d, desc in _ph_holidays(year):
+        doc.append("holidays", {"holiday_date": d, "description": desc})
+    doc.get_weekly_off_dates()
+    return doc
+
+
 def _site_admin(explicit=None):
     """The site's own admin: the explicit email if it exists here, else the first
     enabled System Manager that isn't Administrator/Guest. None if none found."""
@@ -203,13 +219,10 @@ def run(admin_user=None):
             hl = "Philippines %d" % year
             if not frappe.db.exists("Holiday List", hl):
                 hol = _ph_holidays(year)
-                doc = frappe.get_doc({"doctype": "Holiday List", "holiday_list_name": hl,
-                                      "from_date": "%d-01-01" % year, "to_date": "%d-12-31" % year,
-                                      "weekly_off": "Sunday"})
-                for d, desc in hol:
-                    doc.append("holidays", {"holiday_date": d, "description": desc})
+                doc = _new_ph_holiday_list(hl, year)
                 doc.insert(ignore_permissions=True)
-                res["holiday_list"] = "created: %s (%d holidays)" % (doc.name, len(hol))
+                res["holiday_list"] = "created: %s (%d holidays + %d Sundays)" % (
+                    doc.name, len(hol), len(doc.holidays) - len(hol))
             else:
                 res["holiday_list"] = "exists"
             # run() is advertised as idempotent/safe to re-run, so it must NOT clobber a
@@ -217,7 +230,11 @@ def run(admin_user=None):
             # empty or still holds a "Philippines <year>" list this script itself created.
             def _owned(v):
                 return not v or (v.startswith("Philippines ") and v[12:].isdigit())
-            if frappe.db.exists("DocType", "HR Settings"):
+            # HRMS 16 dropped HR Settings.default_holiday_list (holidays are assigned through
+            # Holiday List Assignment now); reading it threw, which skipped the Company default
+            # below and reported the whole step as an ERROR
+            if frappe.db.exists("DocType", "HR Settings") and frappe.get_meta("HR Settings").has_field(
+                    "default_holiday_list"):
                 cur = frappe.db.get_single_value("HR Settings", "default_holiday_list")
                 if _owned(cur):
                     frappe.db.set_single_value("HR Settings", "default_holiday_list", hl)

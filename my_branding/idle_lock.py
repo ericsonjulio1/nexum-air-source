@@ -250,12 +250,13 @@ def _end_session(sid, user, path):
 	frappe.local.login_manager.login_as_guest()
 
 
-def seed_existing_sessions():
-	"""Give every active session that has no activity record a two-hour grace period.
-	Tabs opened before the release run the old script and send no heartbeat; failing
-	closed on them would bounce people to /login mid-entry. Sessions that already have
-	a record keep it. Returns the number seeded."""
-	until = int(time.time()) + DEPLOY_GRACE_SECONDS
+def seed_existing_sessions(grace_seconds=DEPLOY_GRACE_SECONDS):
+	"""Give every active session that has no activity record one, stamped
+	`grace_seconds` ahead (default: the two-hour roll-out grace; 0 = now). Tabs opened
+	before the roll-out run the old script and send no heartbeat; failing closed on them
+	would bounce people to /login mid-entry. Sessions that already have a record keep
+	it. Returns the number seeded."""
+	until = int(time.time()) + grace_seconds
 	sids = frappe.db.sql_list(
 		"select sid from `tabSessions` where status='Active' and user not in ('Guest', '')"
 	)
@@ -270,10 +271,21 @@ def seed_existing_sessions():
 def ensure_setup():
 	"""after_migrate — and run directly by the v16-prod-203 release, which skips migrate:
 	create the settings fields, seed existing sessions, then switch enforcement on.
-	Idempotent."""
+	Idempotent.
+
+	Only the first roll-out (ready default not yet set) seeds with the two-hour grace.
+	Every later migrate runs right after deploy.sh's FLUSHALL wiped all the activity
+	records, so re-granting the grace handed every idle or abandoned session (a
+	left-behind or stolen cookie) two more hours after each deploy (batch205 idx 88).
+	Not seeding at all would be worse: enforce() starts a missing record fresh whenever
+	the cookie is next presented, however late. So later runs stamp `now` — the count
+	starts at the deploy. A tab in use loses nothing: its last real activity is older
+	than the stamp, and its next heartbeat refreshes it."""
 	ensure_settings_fields()
-	seed_existing_sessions()
-	if not _ready():
+	if _ready():
+		seed_existing_sessions(grace_seconds=0)
+	else:
+		seed_existing_sessions()
 		frappe.db.set_default(READY_DEFAULT, "1")
 	frappe.db.commit()
 
@@ -307,7 +319,7 @@ def inject_activity_reporter(response, request):
 		inject = (
 			"<!-- %s -->"
 			"<script>window.__NEXUM_IDLE__=%s;</script>"
-			'<script src="/assets/my_branding/js/idle_activity.js?v=20261006a"></script>'
+			'<script src="/assets/my_branding/js/idle_activity.js?v=20261010a"></script>'
 		) % (_REPORTER_MARKER, cfg)
 		response.set_data(html.replace("</head>", inject + "</head>", 1))
 	except Exception:

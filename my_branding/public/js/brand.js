@@ -46,6 +46,40 @@
 	} catch (e) {}
 })();
 
+// --- Home KPI widgets: docs from boot ------------------------------------------
+// NumberCardWidget and CustomBlockWidget call frappe.model.with_doc() once per render,
+// which sends a getdoc unless the doc AND its docinfo are already loaded, so every KPI
+// value and the checklist waited a full round trip after the workspace (batch 205 idx
+// 94). Boot carries the docs this user may read (my_branding.home.boot_widget_docs):
+// a widget's FIRST with_doc for each is answered from them. Only a widget's: the
+// widgets call with_doc with no callback, while the form view always passes one, and
+// no docinfo is faked, so a form opened on a card (even as the first page loaded)
+// fetches as usual. A form must never open on an empty docinfo: its timeline,
+// assignments and @mentions need one.
+(function () {
+	try {
+		var docs = window.frappe && frappe.boot && frappe.boot.nx_widget_docs;
+		if (!docs || !docs.length || !frappe.model || !frappe.model.sync || !frappe.model.with_doc) return;
+		frappe.model.sync(docs);
+		var pending = {};
+		docs.forEach(function (d) {
+			pending[d.doctype + "\u0000" + d.name] = true;
+		});
+		var with_doc = frappe.model.with_doc;
+		frappe.model.with_doc = function (doctype, name, callback) {
+			var key = doctype + "\u0000" + (name || doctype);
+			var route = (frappe.get_route && frappe.get_route()) || [];
+			if (pending[key] && !callback && route[0] !== "Form" && locals[doctype] && locals[doctype][name]) {
+				delete pending[key];
+				return Promise.resolve(frappe.get_doc(doctype, name));
+			}
+			return with_doc.apply(this, arguments);
+		};
+	} catch (e) {
+		/* the widgets fetch their docs themselves, as before */
+	}
+})();
+
 // AGPL source-code offer (§13): a discreet, always-present link to the published
 // Corresponding Source for the AGPL-licensed apps in this stack. See SOURCES.md.
 // Restyle/relocate freely, but keep it reachable from the running app.
@@ -1113,6 +1147,11 @@
 						stop();
 						return;
 					}
+					// On a page Frappe has hidden (display:none) every label measures as a
+					// zero rect, so the pass would only hide them all, once per resize per
+					// hidden chart. Skip it, as frappe-charts skips its own hidden redraws;
+					// its redraw on show re-runs this pass through the observer.
+					if (container.offsetParent === null) return;
 					fixLabels(container);
 					restyleMarks(container);
 				} catch (e) {
@@ -1137,7 +1176,23 @@
 				}
 			};
 
-			observer = new MutationObserver(schedule);
+			// frappe-charts mounts its hover tooltip (.graph-svg-tip) inside this same
+			// container and rewrites it on every mousemove, which re-ran the whole pass
+			// (a forced layout plus every mark) each frame while hovering. Labels and
+			// marks only change when the svg is redrawn: ignore tooltip-only batches.
+			observer = new MutationObserver(function (records) {
+				try {
+					for (var r = 0; r < records.length; r++) {
+						var target = records[r].target;
+						if (!(target && target.closest && target.closest(".graph-svg-tip"))) {
+							schedule();
+							return;
+						}
+					}
+				} catch (e) {
+					schedule();
+				}
+			});
 			observer.observe(container, { childList: true, subtree: true });
 			window.addEventListener("resize", schedule);
 			chart.__nxLabelObserver = observer;
@@ -1524,8 +1579,9 @@
 // year by MONTH, and the power-user filters (Finance Book, Cost Center, Project, Report
 // Template, presentation currency…) sit behind a "More filters" link instead of walling
 // the report. Wraps QueryReport.setup_filters; Business/Enterprise and "Show advanced
-// fields" users get the stock bar. Auto-expands when a hidden filter already has a value
-// (e.g. a drill-down arrived with route_options).
+// fields" users get the stock bar. Auto-expands when a hidden filter has a value,
+// including one a drill-down sets through route_options after the bar is built
+// (QueryReport.set_route_filters is wrapped to look again).
 // -----------------------------------------------------------------------------
 (function () {
 	var PRESET_REPORTS = {
@@ -1579,12 +1635,29 @@
 					});
 				}
 			} catch (e) { /* presets are best-effort */ }
+			me.__nxAdvRecheck = null; // set again by applyMoreFilters for this filter bar
 			var out = orig.apply(this, arguments);
 			try {
 				if (preset) applyMoreFilters(me);
 			} catch (e2) { /* never break a report */ }
 			return out;
 		};
+		// refresh_report runs setup_filters FIRST and set_route_filters after it, so a
+		// drill-down's values (cost_center, project, finance_book, …) land after the row
+		// decided to stay collapsed: applied, yet hidden. Look again once they are set.
+		var origRoute = QR.prototype.set_route_filters;
+		if (typeof origRoute === "function") {
+			QR.prototype.set_route_filters = function () {
+				var me = this;
+				var out = origRoute.apply(this, arguments);
+				try {
+					Promise.resolve(out).then(function () {
+						if (typeof me.__nxAdvRecheck === "function") me.__nxAdvRecheck();
+					}).catch(function () { /* the report handles its own errors */ });
+				} catch (e) { /* never break a report */ }
+				return out;
+			};
+		}
 		QR.prototype.__nxPresets = true;
 		return true;
 	}
@@ -1618,11 +1691,22 @@
 			'color:#2E5562;background:transparent;border:1px dashed #9DBEC8;border-radius:999px;padding:2px 10px;font-weight:600"></button>');
 		function paint() {
 			adv.forEach(function (f) { $(f.wrapper).toggleClass("nx-adv-hidden", !open); });
-			$btn.text(open ? __("Fewer filters") : __("More filters") + " (" + adv.length + ")");
+			// a collapsed row still says when hidden filters are narrowing the report
+			var active = adv.filter(hasValue).length;
+			$btn.text(open ? __("Fewer filters") : __("More filters") + " (" + adv.length + ")" +
+				(active ? " · " + __("{0} active", [active]) : ""));
 		}
 		$btn.on("click", function () { open = !open; paint(); });
 		paint();
 		$form.append($btn);
+		// called after route filters land (see set_route_filters above): open the row
+		// when one of them set a hidden filter; never collapse what the user opened
+		report.__nxAdvRecheck = function () {
+			try {
+				if (!open && adv.some(hasValue)) open = true;
+				paint();
+			} catch (e) { /* never break a report */ }
+		};
 		if (!document.getElementById("nx-adv-filter-css")) {
 			var st = document.createElement("style");
 			st.id = "nx-adv-filter-css";

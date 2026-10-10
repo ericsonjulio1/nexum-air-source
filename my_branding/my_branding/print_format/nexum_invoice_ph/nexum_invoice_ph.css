@@ -47,6 +47,8 @@
 .nxi .nxi-sum td:first-child{color:#5C7079}
 .nxi .nxi-sum .nxi-grand td{background:#EAF1F3;font-size:12pt;font-weight:800;color:#2E5562;border-bottom:2px solid #2E5562;padding:7px 8px !important}
 .nxi .nxi-sum .nxi-due td{font-weight:800;color:#1C2B30}
+/* a tax already inside the prices ("incl. VAT 12%"): informational, not part of the sum */
+.nxi .nxi-sum .nxi-incl td{font-size:9pt;font-weight:400;color:#5C7079}
 .nxi-sign{margin:10px 0 18px}
 .nxi .nxi-sign td{width:50%;padding:0 40px 0 0 !important}
 .nxi-sig-line{border-bottom:1px solid #1C2B30;height:34px;width:78%}

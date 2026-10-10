@@ -14,7 +14,7 @@ upstream commit we run, and our modifications.
 
 ## How to obtain the Corresponding Source
 
-- **Upstream apps** (the 17 Frappe/ERPNext apps below): the exact source we run is
+- **Upstream apps** (the 11 Frappe/ERPNext apps below): the exact source we run is
   the upstream repository at the pinned commit listed in the table. These are
   public.
 - **Our modifications** — the `my_branding` application (this repository) and the
@@ -27,23 +27,17 @@ upstream commit we run, and our modifications.
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
-| frappe (framework) | MIT | https://github.com/frappe/frappe | `567c05b6b7b7` |
-| erpnext | GPLv3 | https://github.com/frappe/erpnext | `054b20a2ae1b` |
-| hrms | GPLv3 | https://github.com/frappe/hrms | `576d99135cd0` |
+| frappe (framework) | MIT | https://github.com/frappe/frappe | `97a5dd93ca58` |
+| erpnext | GPLv3 | https://github.com/frappe/erpnext | `af63cde49415` |
+| hrms | GPLv3 | https://github.com/frappe/hrms | `f281e8b172ac` |
 | payments | MIT | https://github.com/frappe/payments | `cca07d9f9392` |
-| lending | GPLv3 | https://github.com/frappe/lending | `6c6d4988c79f` |
-| webshop | GPLv3 | https://github.com/frappe/webshop | `1a5239d44828` |
-| ecommerce_integrations | GPLv3 | https://github.com/frappe/ecommerce_integrations | `ba8ac5055fd6` |
 | **print_designer** | **AGPLv3** | https://github.com/frappe/print_designer | `9d62227e20d1` |
-| **insights** | **AGPLv3** | https://github.com/frappe/insights | `57d1d053b91d` |
-| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `f4cba24df6af` |
-| **crm** | **AGPLv3** | https://github.com/frappe/crm | `9b0aa041d734` |
-| **gameplan** | **AGPLv3** | https://github.com/frappe/gameplan | `6af88020e7cf` |
-| **lms** | **AGPLv3** | https://github.com/frappe/lms | `cea72f8b668a` |
-| **drive** | **AGPLv3** | https://github.com/frappe/drive | `6355907291bc` |
-| **builder** | **AGPLv3** | https://github.com/frappe/builder | `54e2561f7846` |
-| **slides** | **AGPLv3** | https://github.com/frappe/slides | `162973a4acc9` |
-| **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `58d32184e44b` |
+| **insights** | **AGPLv3** | https://github.com/frappe/insights | `c9af45de73b3` |
+| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `480486287b2b` |
+| **crm** | **AGPLv3** | https://github.com/frappe/crm | `49d98d61e7d4` |
+| **gameplan** | **AGPLv3** | https://github.com/frappe/gameplan | `30d4f16f9f2c` |
+| **drive** | **AGPLv3** | https://github.com/frappe/drive | `0bd11d8f4124` |
+| **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `039cf39f245d` |
 | my_branding | MIT* | https://github.com/ericsonjulio1/nexum-air-source | main |
 
 \* `my_branding` files are MIT-licensed, but because the application links to and
@@ -59,39 +53,38 @@ of the Corresponding Source:
    get_modules_from_all_apps_for_user` import that was removed in Frappe v16, so
    the uncaught `ImportError` no longer 500s the desk launcher. Falls through to
    the existing role check.
-2. **Branding / runtime relabeling** — the `my_branding` app relabels app titles,
+2. **Branding / runtime relabeling** — the `my_branding` application relabels app titles,
    workspace labels, icons, and post-processes the served HTML of the standalone
-   frappe-ui SPAs (CRM, Helpdesk, Insights, Drive, Builder, Gameplan, LMS) to
-   apply Nexum Air branding. It also overrides `builder.api.get_apps`. No business
-   logic of the AGPL apps is changed.
-3. **Static asset overrides** — Nexum Air logos replace `lending`'s logo file and
-   Frappe's `framework.png` (these two are GPLv3/MIT respectively).
-4. **Service-worker neutralizer** — `my_branding` unregisters the Slides
-   root-scope service worker on the desk/SPAs (a stale-asset fix); it does not
-   alter Slides' own functionality.
+   frappe-ui SPAs (CRM, Helpdesk, Insights, Drive, Gameplan) to apply Nexum Air
+   branding. No business logic of the AGPL apps is changed.
+3. **Static asset override** — a Nexum Air image replaces Frappe's `framework.png` (MIT).
+4. **Service-worker neutralizer** — `my_branding` unregisters any root-scope service
+   worker left in a browser (Slides, bundled until August 2026, registered one) on the
+   desk/SPAs; a stale-asset fix.
 5. **insights** (AGPLv3) — `insights/.../sources/frappe_db.py`: drop the
    hardcoded `ssl_verify_cert=True` (SiteDB) / make it follow `use_ssl` (external
    FrappeDB), so connecting to the trusted local MariaDB over the private Docker
    network no longer fails cert verification against our self-signed cert.
-6. **erpnext** (GPLv3) — `erpnext/.../financial_report_template/financial_report_engine.py`:
-   segment-aware Growth-view lookup so columnar / multi-segment financial reports
-   (e.g. "Horizontal Balance Sheet (Columnar)") stop raising `KeyError` in the
-   Growth view. See `patches/erpnext-financial-report-growth-columnar.md`.
-7. **frappe** (MIT) — `frappe/core/doctype/package_import/package_import.py`:
-   backport the upstream TarSlip fix (frappe ≥ 16.23.0) so Package Import rejects
-   path-traversal / symlink tar members instead of shelling out to `tar` without
-   validation (GHSA-58w2-4cjg-hvp6 / CVE-2026-55852). See
-   `patches/frappe-package-import-tarslip.md`.
-8. **frappe** (MIT) + **erpnext** (GPLv3) — security backports 2026-08-22 (first
-   shipped as `v16-prod-151`): `restrict_globals=True` on user-editable jinja
-   templates (erpnext GHSA-qq49-v74j-hjh7, GHSA-6w83-8777-v93q), OAuth2 consent
-   hardening (frappe GHSA-2ph8-x773-8p2x), login-gated workflow e-mail approval
-   (frappe GHSA-cgwf-xgph-hxgm), `set_value` standard-field guard (frappe
-   GHSA-2c6h-wv85-fxvj) and permission checks on item / variant / valuation /
-   payment-request endpoints (erpnext GHSA-4j82, m5xh, 48wc, q8wq). Each file is
-   the pinned upstream file plus exactly the upstream security hunks (one custom
-   read-permission guard). See `patches/security-2026-08-22.md` and
-   `patches/security-2026-08-22/`.
+   See `patches/insights_ssl_patch.py`.
+6. **frappe** (MIT) — `frappe/cache_manager.py` and
+   `frappe/desk/doctype/workspace_sidebar/workspace_sidebar.py`: two upstream bugs hid
+   every DocType/Page link in the workspace sidebars from non-Administrator users
+   (untagged doctypes missing from the domain cache; a missing `return`). See
+   `patches/frappe_sidebar_visibility.py`.
+7. **Security backports** — upstream security fixes applied to the pinned versions
+   before a release that includes them:
+   - **frappe** (MIT) `frappe/client.py`: the `set_value` standard-field guard
+     (GHSA-2c6h-wv85-fxvj).
+   - **hrms** (GPLv3) `hrms/payroll/doctype/salary_structure/salary_structure.py`: the
+     sanitised salary-component search (GHSA-jfmr-9jv9-mrw4).
+
+   Each patched file is the pinned upstream file plus exactly the upstream security
+   hunks. See `patches/security-2026-08-22.md` and `patches/security-2026-08-22/`.
+
+Earlier modifications that are now part of the pinned upstream versions (the patch
+scripts in `patches/` detect this and change nothing): the erpnext Growth-view fix for
+columnar financial reports, the frappe Package Import TarSlip fix (GHSA-58w2-4cjg-hvp6),
+and the other 2026-08-22 frappe/erpnext security backports.
 
 ## Reproducing the build
 

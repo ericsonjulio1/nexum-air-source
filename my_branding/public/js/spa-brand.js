@@ -104,10 +104,18 @@
 		insights: "insights_app.svg",
 		hr: "hrms_app.svg",
 	};
+	var SEG = "";
+	try {
+		SEG = (location.pathname.split("/")[1] || "").toLowerCase();
+		// Lets spa-brand.css scope rules per app. Set here, in <head>, before the app
+		// renders anything, so no rule ever applies to the wrong app.
+		document.documentElement.setAttribute("data-nx-spa", SEG);
+	} catch (e) {
+		/* never break the host app */
+	}
 	var APP_MARK = (function () {
 		try {
-			var seg = (location.pathname.split("/")[1] || "").toLowerCase();
-			if (APP_ICONS[seg]) return "/assets/my_branding/images/icons/" + APP_ICONS[seg];
+			if (APP_ICONS[SEG]) return "/assets/my_branding/images/icons/" + APP_ICONS[SEG];
 		} catch (e) {
 			/* fall back to the generic mark */
 		}
@@ -158,9 +166,16 @@
 	//   svg 300     = Frappe CRM's logo
 	//   svg 80 79   = Frappe LMS (Learning) book logo
 	//   builder_logo.png = Builder
+	// Builder renders the user's own HTML/SVG blocks on its editor canvas in this same
+	// document, so a pasted 300x300 badge matched the CRM fingerprint: hidden, with a
+	// Nexum Air icon put inside the user's block. Builder's logo is the png and none
+	// of its chrome uses these viewBoxes, so Builder skips the svg fingerprints here
+	// and in spa-brand.css (html[data-nx-spa="builder"]).
 	var LOGO_SELECTOR =
-		'svg[viewBox="0 0 117 117"],svg[viewBox="0 0 118 118"],svg[viewBox="0 0 300 300"],' +
-		'svg[viewBox="0 0 80 79"],' +
+		(SEG === "builder"
+			? ""
+			: 'svg[viewBox="0 0 117 117"],svg[viewBox="0 0 118 118"],svg[viewBox="0 0 300 300"],' +
+				'svg[viewBox="0 0 80 79"],') +
 		'img[src$="builder_logo.png"]';
 
 	function ensureLogos() {
@@ -236,16 +251,31 @@
 		}
 	}
 
+	// Text the user writes or owns is never rebranded. Rich-text editors (frappe-ui's
+	// TextEditor = TipTap/ProseMirror: CRM notes and emails, Helpdesk replies, Builder
+	// text blocks) read any outside change to their DOM back as typing, so a pasted
+	// "Frappe CRM" was SAVED as "Nexum Air CRM". Read-only ProseMirror views show user
+	// content too, a textarea's text is its value, and Builder canvas blocks
+	// ([data-block-id]) are the tenant's own page. data-nx-no-brand opts out.
+	var USER_TEXT =
+		'[contenteditable]:not([contenteditable="false"]),.ProseMirror,textarea,[data-block-id],[data-nx-no-brand]';
+	function inUserText(el) {
+		return !!(el && el.nodeType === 1 && el.closest && el.closest(USER_TEXT));
+	}
+
 	// Rewrite the visible "Frappe X" wordmark to "Nexum Air X" within `root`.
 	// Text-nodes only — never attributes or <script>/<style> — so we can't corrupt
 	// code or data. PERF: scoped to a subtree (the initial pass, then only the
 	// nodes each mutation ADDS) instead of re-walking the whole document.body every
 	// tick — which on a busy page (live lists, virtual scroll) was the one hot spot.
+	// The user-text check runs only for the rare node that holds a swap.
 	function brandSubtree(root) {
 		if ((!SWAPS.length && !EXACT_SWAPS.length) || !root) return;
 		if (root.nodeType === 3) {
 			// a text node was added directly
-			if (hasSwap(root.nodeValue)) root.nodeValue = applySwaps(root.nodeValue);
+			if (hasSwap(root.nodeValue) && !inUserText(root.parentNode)) {
+				root.nodeValue = applySwaps(root.nodeValue);
+			}
 			return;
 		}
 		if (root.nodeType !== 1) return; // only elements have a text subtree
@@ -256,7 +286,7 @@
 				if (p && (p.nodeName === "SCRIPT" || p.nodeName === "STYLE")) {
 					return NodeFilter.FILTER_REJECT;
 				}
-				return hasSwap(node.nodeValue)
+				return hasSwap(node.nodeValue) && !inUserText(p)
 					? NodeFilter.FILTER_ACCEPT
 					: NodeFilter.FILTER_SKIP;
 			},

@@ -69,10 +69,15 @@
 			return;
 		}
 		if (!sourcesLoaded) {
-			["webm", "mp4"].forEach(function (format) {
+			["webm", "mp4"].forEach(function (format, i, all) {
 				var source = document.createElement("source");
 				source.src = asset + "." + format;
 				source.type = "video/" + format;
+				// A failed candidate fires "error" at its <source>, never at the <video>
+				// (HTML media spec, children mode), and the next one is tried; an error on
+				// the LAST one means every format failed. Without this the toggle stayed,
+				// offering a "Play motion" that could never play.
+				if (i === all.length - 1) source.addEventListener("error", fail);
 				video.appendChild(source);
 			});
 			sourcesLoaded = true;
@@ -95,10 +100,11 @@
 		toggle.textContent = "Pause motion";
 		toggle.hidden = false;
 	});
-	video.addEventListener("error", function () {
+	function fail() {
 		failed = true;
 		update();
-	});
+	}
+	video.addEventListener("error", fail); // a failure after a source was chosen
 	toggle.addEventListener("click", function () {
 		userPaused = !userPaused;
 		update();

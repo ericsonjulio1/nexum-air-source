@@ -182,6 +182,58 @@ def ensure_letter_heads():
 		)
 
 
+# Website Settings and Navbar Settings are tenant-editable Singles; the brand owns only
+# these keys on them (M3, v204). Both used to be fixtures, and frappe's sync_fixtures
+# force-imports every *.json under fixtures/ on each migrate (delete + re-insert of the
+# whole Single), so every deploy wiped the tenant's top bar and footer items, Google
+# Analytics id, head_html, route redirects, website theme, help items and announcement.
+# The shipped values now live in seed/ and only these keys are re-applied. app_name
+# always follows brand_config.BRAND, so a rebrand needs no stamped data. home_page belongs
+# to ensure_app_landing and title_prefix to ensure_web_title_prefix.
+_SITE_BRAND_KEYS = {
+	"Website Settings": ("app_name", "app_logo", "disable_signup"),
+	"Navbar Settings": ("app_logo",),
+}
+_SITE_BRAND_SEEDS = {
+	"Website Settings": "website_settings.json",
+	"Navbar Settings": "navbar_settings.json",
+}
+
+
+def site_brand_settings():
+	"""``{doctype: {fieldname: value}}`` the brand owns on Website/Navbar Settings."""
+	import json
+
+	out = {}
+	for doctype, keys in _SITE_BRAND_KEYS.items():
+		with open(frappe.get_app_path("my_branding", "seed", _SITE_BRAND_SEEDS[doctype])) as f:
+			seed = json.load(f)[0]
+		out[doctype] = {key: seed[key] for key in keys if key in seed}
+	out["Website Settings"]["app_name"] = brand_config.BRAND
+	return out
+
+
+def ensure_site_brand_settings():
+	"""after_migrate: re-assert ONLY the brand-owned keys on Website Settings and Navbar
+	Settings, each only when it differs (idempotent). Writes single values in place, with
+	no document save, so every other field and every child table (top bar, footer,
+	redirects, help and settings dropdowns) stays as the tenant left it.
+
+	The standard help-dropdown items need no seeding here: frappe adds them at install
+	(utils/install.py add_standard_navbar_items) and re-syncs them on every migrate, before
+	after_migrate runs (migrate.py sync_standard_items); reconcile_navbar repoints "Frappe
+	Support". Hardened so it can never abort a migrate."""
+	try:
+		for doctype, values in site_brand_settings().items():
+			for fieldname, value in values.items():
+				if frappe.db.get_single_value(doctype, fieldname, cache=False) != value:
+					frappe.db.set_single_value(doctype, fieldname, value)
+	except Exception:
+		frappe.log_error(
+			title="my_branding ensure_site_brand_settings failed", message=frappe.get_traceback()
+		)
+
+
 def reconcile_workspaces():
 	"""after_migrate: keep the Settings workspace + derived docs branded Nexum Air.
 
@@ -481,10 +533,13 @@ def ensure_app_landing():
 	on its own domain — they'd use a custom home page instead.
 	"""
 	LANDING = "login"
-	if not frappe.db.table_exists("Website Settings"):
+	# NOT frappe.db.table_exists(): a Single has no `tab` table, so that guard was always
+	# False and this hook never ran. home_page only came from the Website Settings fixture,
+	# and without the fixture (M3, v204) new tenants would have lost the landing.
+	if not frappe.db.exists("DocType", "Website Settings"):
 		return
 	try:
-		if frappe.db.get_single_value("Website Settings", "home_page") != LANDING:
+		if frappe.db.get_single_value("Website Settings", "home_page", cache=False) != LANDING:
 			frappe.db.set_single_value("Website Settings", "home_page", LANDING)
 		# home page is cached (per-user) under the "home_page" key — drop it so the
 		# change shows without a restart, matching the other reconcile hooks.

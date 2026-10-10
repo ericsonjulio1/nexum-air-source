@@ -79,11 +79,13 @@ def _fix_company(company):
 			else None
 		)
 		_repoint_tax_templates(company, vin, vout, generic)
-		# park the generic catch-all VAT leaf once nothing routes to it
+		# park the generic catch-all VAT leaf once nothing routes to it: no GL posted to it,
+		# and no live transaction still carrying it (batch205 idx 93)
 		if (
 			generic
 			and not frappe.db.get_value("Account", generic, "disabled")
 			and not frappe.db.count("GL Entry", {"account": generic})
+			and not _carried_by_transactions(generic)
 		):
 			frappe.db.set_value("Account", generic, "disabled", 1)
 
@@ -95,6 +97,27 @@ def _fix_company(company):
 	) or _leaf(company, "1532 - Inventory in Transit")
 	if transit and frappe.db.get_value("Account", transit, "account_type") == "Stock Adjustment":
 		frappe.db.set_value("Account", transit, "account_type", "Stock")
+
+
+def _carried_by_transactions(generic):
+	"""True while a non-cancelled transaction (not a template) has a tax row on `generic`.
+	Quotations, Sales / Purchase Orders and drafts post no GL, so the GL count misses them,
+	yet an invoice made from one copies its tax rows unchanged, and submitting it against
+	the disabled account fails ("Cannot create accounting entries against disabled
+	accounts"). Their rows are never rewritten here (a submitted document has no version
+	trail for it): the account simply stays enabled. The templates no longer route new
+	documents to it, but VAT billed off those older documents still lands on it, as it
+	did before this guard existed — a books review should reclass that, if any. The
+	guard re-checks on every migrate."""
+	for child_dt, template_dt in (
+		("Sales Taxes and Charges", "Sales Taxes and Charges Template"),
+		("Purchase Taxes and Charges", "Purchase Taxes and Charges Template"),
+	):
+		if frappe.db.exists(
+			child_dt, {"account_head": generic, "parenttype": ["!=", template_dt], "docstatus": ["<", 2]}
+		):
+			return True
+	return False
 
 
 def _repoint_tax_templates(company, vin, vout, generic):
