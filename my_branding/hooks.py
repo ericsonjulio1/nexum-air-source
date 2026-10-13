@@ -16,7 +16,8 @@ app_include_css = [
 	"/assets/my_branding/css/idle_lock.css?v=20261006a",
 ]
 app_include_js = [
-	"/assets/my_branding/js/brand.js?v=20261010a",
+	"/assets/my_branding/js/brand.js?v=20261013a",
+	"/assets/my_branding/js/navigation.js?v=20261013a",
 	# idle screen lock: warning, lock in place, unlock (see idle_lock.py)
 	"/assets/my_branding/js/idle_lock.js?v=20261010a",
 ]

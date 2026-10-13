@@ -27,14 +27,14 @@ upstream commit we run, and our modifications.
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
-| frappe (framework) | MIT | https://github.com/frappe/frappe | `97a5dd93ca58` |
-| erpnext | GPLv3 | https://github.com/frappe/erpnext | `af63cde49415` |
-| hrms | GPLv3 | https://github.com/frappe/hrms | `f281e8b172ac` |
+| frappe (framework) | MIT | https://github.com/frappe/frappe | `2871914b69b6` |
+| erpnext | GPLv3 | https://github.com/frappe/erpnext | `7474d9e78627` |
+| hrms | GPLv3 | https://github.com/frappe/hrms | `7c037698ce57` |
 | payments | MIT | https://github.com/frappe/payments | `cca07d9f9392` |
-| **print_designer** | **AGPLv3** | https://github.com/frappe/print_designer | `9d62227e20d1` |
-| **insights** | **AGPLv3** | https://github.com/frappe/insights | `c9af45de73b3` |
-| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `480486287b2b` |
-| **crm** | **AGPLv3** | https://github.com/frappe/crm | `49d98d61e7d4` |
+| **print_designer** | **AGPLv3** | https://github.com/frappe/print_designer | `7beaad298dd6` |
+| **insights** | **AGPLv3** | https://github.com/frappe/insights | `5447f1621c0e` |
+| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `78722c2b3643` |
+| **crm** | **AGPLv3** | https://github.com/frappe/crm | `0d3910b456ef` |
 | **gameplan** | **AGPLv3** | https://github.com/frappe/gameplan | `30d4f16f9f2c` |
 | **drive** | **AGPLv3** | https://github.com/frappe/drive | `0bd11d8f4124` |
 | **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `039cf39f245d` |
@@ -44,10 +44,29 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
+## Current release: v16-prod-206
+
+The exact incremental build recipe and immutable source manifest are in
+[`build/releases/v16-prod-206`](build/releases/v16-prod-206/README.txt) in the public
+source mirror. It updates Framework to 16.51.1, ERPNext and HRMS to 16.50.0, CRM to 1.87.0,
+Helpdesk to 1.30.2, Insights to 3.14.2, and Print Designer to the pinned v16-compatible
+main commit. Insights preserves its v2 interface and existing queries alongside v3.
+
+That recipe retains Payments, Telephony, Drive and Gameplan from the immutable205
+base image. Drive-to-Suite is a separate product/data migration and is not included.
+The release compatibility scripts cover the new Sidebar model, archived sidebars
+for absent apps, authorized Web Form attachments, Gameplan's structured SQL aggregates,
+and concurrent service startup. The Framework standard-field and domain-cache
+protections remain; the old Workspace Sidebar return patch and Insights SSL patch
+are superseded by the new upstream implementations. HRMS's security fix is native.
+
+EAM is a separately maintained custom application, pinned in the release manifest.
+Its private repository is not copied into this public mirror.
+
 ## Modifications we make to bundled apps
 
-These are applied at image-build time (see `saas/image/Containerfile`) and are part
-of the Corresponding Source:
+The following describes the205 base modifications. The206 recipe above identifies
+retained and superseded patches; both sets of build scripts are included:
 
 1. **gameplan** (AGPLv3) — `gameplan/api.py`: guard a `from frappe.config import
    get_modules_from_all_apps_for_user` import that was removed in Frappe v16, so

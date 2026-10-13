@@ -611,7 +611,7 @@
 		// launcher.
 		try {
 			var sidebarTitle = (frappe.app && frappe.app.sidebar
-				&& frappe.app.sidebar.sidebar_title) || "";
+				&& (frappe.app.sidebar.current_module || frappe.app.sidebar.sidebar_title)) || "";
 			var onMaintenanceHome = /^\/desk\/maintenance\/?$/.test(
 				window.location.pathname);
 			if (/^maintenance$/i.test(String(sidebarTitle).trim()) && !onMaintenanceHome) {
@@ -663,9 +663,9 @@
 			var want = r && r.length === 1 && PAGE_SIDEBARS[r[0]];
 			if (!want) return;
 			var sb = frappe.app && frappe.app.sidebar;
-			if (!sb || sb.sidebar_title === want) return;
+			if (!sb || (sb.current_module || sb.sidebar_title) === want) return;
 			// only when that sidebar actually exists in this site's boot payload
-			if (!frappe.boot.workspace_sidebar_item || !frappe.boot.workspace_sidebar_item[want.toLowerCase()]) return;
+			if (!(frappe.boot.module_sidebars?.[want] || frappe.boot.workspace_sidebar_item?.[want.toLowerCase()])) return;
 			sb.setup(want);
 		} catch (e) {
 			/* cosmetic — never break navigation */
@@ -695,9 +695,11 @@
 	var pending = null;
 	function syncCrumb() {
 		pending = null;
+		// Modern Framework owns a separate trail per page; navigation.js decorates it.
+		if (frappe.boot?.module_sidebars) return;
 		try {
 			var sb = frappe.app && frappe.app.sidebar;
-			var title = sb && sb.sidebar_title;
+			var title = sb && (sb.current_module || sb.sidebar_title);
 			if (!title) return;
 			// The workspace crumb is built by DIFFERENT code paths per view type:
 			// list/form views tag it `worksapce-breadcrumb` (upstream typo), but

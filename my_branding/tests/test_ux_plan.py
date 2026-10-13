@@ -131,8 +131,11 @@ class TestHomeWorkspace(unittest.TestCase):
 		ws = frappe.get_doc("Workspace", "Home")
 		self.assertIn(home.HOME_BLOCK, [r.custom_block_name for r in ws.custom_blocks])
 		self.assertEqual(len([r for r in ws.number_cards if r.number_card_name in cards]), 3)
-		# the rest of the stock Home survived
-		self.assertTrue(any(b["type"] == "shortcut" for b in content))
+		# Every current upstream Home block survives (v16.50 moved shortcuts to Sidebar).
+		from pathlib import Path
+		stock = json.loads(Path(frappe.get_app_path("erpnext", "setup", "workspace", "home", "home.json")).read_text())
+		for block in json.loads(stock["content"]):
+			self.assertIn(block, content)
 
 	def test_module_workspaces_start_with_panel(self):
 		for key, (_c, block) in home.MODULE_BLOCKS.items():
@@ -270,8 +273,12 @@ class TestHomeTileAndLanding(unittest.TestCase):
 		self.assertTrue(os.path.exists(os.path.join(frappe.get_app_path("my_branding"), "public", "icons", "desktop_icons", "solid", "home.svg")))
 		self.assertEqual(row.parent_icon, frappe.db.get_value("Desktop Icon", {"icon_type": "App", "app": "erpnext"}, "name"))
 		self.assertEqual(branding.LAUNCHER_SECTIONS[0]["labels"], ["Home"])
-		first = frappe.get_all("Workspace Sidebar Item", filters={"parent": "Home", "parenttype": "Workspace Sidebar"}, fields=["link_type", "link_to"], order_by="idx asc", limit=1)
-		self.assertEqual((first[0].link_type, first[0].link_to), ("Workspace", "Home"))
+		if frappe.db.exists("DocType", "Sidebar"):
+			from frappe.desk.doctype.sidebar.sidebar import resolve_sidebar
+			first = resolve_sidebar("Setup", "Administrator").items[:1]
+		else:
+			first = frappe.get_all("Workspace Sidebar Item", filters={"parent": "Home", "parenttype": "Workspace Sidebar"}, fields=["link_type", "link_to"], order_by="idx asc", limit=1)
+		self.assertEqual((first[0]["link_type"], first[0]["link_to"]), ("Workspace", "Home"))
 
 	def test_owner_landing_sets_default_workspace_once(self):
 		from my_branding import branding

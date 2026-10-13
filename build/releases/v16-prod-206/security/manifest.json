@@ -1,0 +1,247 @@
+{
+ "id": "security-2026-08-22",
+ "base_pins": {
+  "frappe": [
+   "v16.25.0 9a8daf343db69a0127f470bad8be0af192cd80c8",
+   "v16.31.0 6a329d068416768ec47ccd3326b9cc95a8d7bf99"
+  ],
+  "erpnext": [
+   "v16.26.2 d1d3b241ae7bc21d18cf830a4bacd568e21a2a19",
+   "v16.32.3 11e0ba0a1c45f217e2e73e885f699102d06da325"
+  ]
+ },
+ "first_shipped": "v16-prod-151 (2026-08-22)",
+ "files": [
+  {
+   "app": "erpnext",
+   "path": "erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts.py",
+   "advisory": "GHSA-qq49-v74j-hjh7 (CRITICAL SSTI) erpnext 5f6952b15c",
+   "pin_sha256": "b85d62245abf3acbecc80d103e1eb2fea916578834acb2cb91908d48670ee654",
+   "patched_sha256": "d67c32bd8c7a9f0c4e1af169ccc710e0031a806176a0aca0750d7b0c9164aba4",
+   "markers": [
+    "validate_template(self.subject, restrict_globals=True)",
+    "frappe.render_template(doc.body, context, restrict_globals=True)"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/buying/doctype/request_for_quotation/request_for_quotation.py",
+   "advisory": "GHSA-6w83-8777-v93q (CRITICAL SSTI) erpnext 6b45002abc",
+   "pin_sha256": "5b4579b0a5a14555dafb51d56437b7249ed38cdc962b0baf647956850df810aa",
+   "patched_sha256": "c51b817b3b32cdede31dc1de07ec9dbac1b43f920f6e0d8767fdbd986a866554",
+   "markers": [
+    "frappe.render_template(message_template, doc_args, restrict_globals=True)",
+    "frappe.render_template(subject_source, doc_args, restrict_globals=True)"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/crm/doctype/contract_template/contract_template.py",
+   "advisory": "GHSA-6w83-8777-v93q (CRITICAL SSTI) erpnext 6b45002abc",
+   "pin_sha256": "ac2a35e8c395f38217e1a4b38d45f85f99e9b68dc771ac43ce21e0b9cccdcddb",
+   "patched_sha256": "3659512e830b42958731c0be13128f70e28fb8fb375912ed639ee7f782b856fb",
+   "markers": [
+    "validate_template(self.contract_terms, restrict_globals=True)",
+    "frappe.render_template(contract_template.contract_terms, doc, restrict_globals=True)"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/crm/doctype/email_campaign/email_campaign.py",
+   "advisory": "GHSA-6w83-8777-v93q (CRITICAL SSTI) erpnext 6b45002abc",
+   "pin_sha256": "7f16e69ce56b06c4f08a0945250771ea081dcf2dc868412ce7ac27525e241e71",
+   "patched_sha256": "8b88ba021341f20644680cb48d6b7e79050d3efb56fea593d4979bf0bce63d34",
+   "markers": [
+    "frappe.render_template(email_template.response_, context, restrict_globals=True)"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/stock/doctype/delivery_trip/delivery_trip.py",
+   "advisory": "GHSA-6w83-8777-v93q (CRITICAL SSTI) erpnext 6b45002abc",
+   "pin_sha256": "72fec34288bf3fcfbeb53c496749deb7fc6b9c7669ebaf118b4296145b6b84a9",
+   "patched_sha256": "17a45d9c525de654903b975f9773dee843351aeebb5724d9f97b3726cf5124da",
+   "markers": [
+    "frappe.render_template(dispatch_template.response, context, restrict_globals=True)"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/accounts/doctype/payment_request/payment_request.py",
+   "advisory": "GHSA-6w83-8777-v93q (CRITICAL SSTI) hunk of 6b45002abc + GHSA-q8wq-q35q-gj8h read-perm guard (NexumAir custom, upstream fcbbb251cf reworked the endpoint); 2026-08-22: added absent-string for the unguarded module-level resend (upstream fcbbb251cf removed it; doc-method version is status-checked + read-perm via run_doc_method)",
+   "pin_sha256": "d53a8c7138e9fbfc1313bb1538ac5bad37454672e1305b8e11ee7fc71e4ebc71",
+   "patched_sha256": "d33e3ee0b3b1f907d0573c17e9ea8c985d6dc226d7667dfd71e376de78bbe733",
+   "markers": [
+    "frappe.render_template(self.message, context, restrict_globals=True)"
+   ],
+   "absent": [
+    "frappe.render_template(self.message, context)\n",
+    "return frappe.get_doc(\"Payment Request\", docname).send_email()"
+   ],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: marker-fixed (restrict_globals present; module-level resend_payment_email removed by fcbbb251cf -> doc method, POST-only, docstatus/status-checked, read-perm via run_doc_method)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/accounts/custom/address.py",
+   "advisory": "GHSA-6w83-8777-v93q (CRITICAL SSTI) hunk of 6b45002abc",
+   "pin_sha256": "7013ec600fb01a363ffc46dc5e664ae95ac7aaec5da000ded2f4f87a8b60defa",
+   "patched_sha256": "f777d64bf0d0d47e12d54eaf0bcae48756ae2b0e310585942b374cc499f617f7",
+   "markers": [
+    "address_template, address_as_dict, restrict_globals=True"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: marker-fixed (restrict_globals present; unrelated .get() refactor)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/stock/get_item_details.py",
+   "advisory": "GHSA-4j82-w8f7-hqqp (MEDIUM) erpnext 7a606ab91c",
+   "pin_sha256": "a256038ad3382f6b4ca1a62d8fc134c3a9766c5f01d7a4b5d08fd78fa60d9809",
+   "patched_sha256": "9b2743263169a3e8de8343b1f29aa74c3475f2caccb8e70ee74005486ffce17a",
+   "markers": [
+    "item = frappe.get_cached_doc(\"Item\", ctx.item_code)\n\titem.check_permission()"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: marker-fixed (item.check_permission() present; unrelated maintain-same-rate refactor)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/controllers/item_variant.py",
+   "advisory": "GHSA-m5xh-ghvj-xjrv (MEDIUM) erpnext c7cf9d868b",
+   "pin_sha256": "7ada4bcfa2db1af444c79e90832ef967467b7affa867b90ec061c5ca87703644",
+   "patched_sha256": "544c6489d6b42c660294406b838923342eb5a8e35a096602fe4c4aab2aeda149",
+   "markers": [
+    "def enqueue_multiple_variant_creation(item, args, use_template_image=False):\n\tfrappe.has_permission(\"Item\", ptype=\"create\", throw=True)"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: marker-fixed (has_permission create guard present; unrelated abbr-rename helpers added)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/assets/doctype/asset_capitalization/asset_capitalization.py",
+   "advisory": "GHSA-48wc-j2qh-rcgw (MEDIUM) erpnext 99f249b1a0",
+   "pin_sha256": "324596213a8f319651fb1dba17adc6a8fdd93b1a57d0b999376c4b4e2b4e7f2a",
+   "patched_sha256": "abd9e8caa428f7a709e55fdfd56038f4a0ffe7c4d1a175543c2dcf091708ee05",
+   "markers": [
+    "def get_consumed_stock_item_details(ctx: ItemDetailsCtx):\n\tfrappe.has_permission(\"Stock Ledger Entry\", throw=True)",
+    "frappe.has_permission(\"Warehouse\", doc=args.warehouse, throw=True)"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "erpnext",
+   "path": "erpnext/manufacturing/doctype/plant_floor/plant_floor.py",
+   "advisory": "GHSA-48wc-j2qh-rcgw sibling (MEDIUM) erpnext 7bc04752fc",
+   "pin_sha256": "fed06df3933173d5617d96fa7e5503ae517184d92e465fc4b93f9865425ed5a3",
+   "patched_sha256": "ab170c7e14ab520ccfb77266f263f0fd4cd2579a59f29f92ab51c4b5b2eb02b3",
+   "markers": [
+    "def get_stock_summary(warehouse, start=0, item_code=None, item_group=None):\n\tfrappe.has_permission(\"Warehouse\", doc=warehouse, throw=True)"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "erpnext v16.32.3: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "frappe",
+   "path": "frappe/integrations/oauth2.py",
+   "advisory": "GHSA-2ph8-x773-8p2x (HIGH OAuth2 consent) frappe eb9c1446ca + a0b53599cc (file @ v16.31.0)",
+   "pin_sha256": "cbacc125287266f7b8fde25da9e66c14fbcb46e20935ca7449ecc1cb30eb238b",
+   "patched_sha256": "01626d5a8aedda205e9a3340cf1156091f7863cc64b71652e1b3cc291a5d8560",
+   "markers": [
+    "from frappe.sessions import get_csrf_token",
+    "\"csrf_token\": get_csrf_token()",
+    "@frappe.whitelist(methods=[\"POST\"])\ndef approve("
+   ],
+   "absent": [
+    "@frappe.whitelist()\ndef approve("
+   ],
+   "upstream_status_2026-08-22": "frappe v16.31.0: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "frappe",
+   "path": "frappe/templates/includes/oauth_confirmation.html",
+   "advisory": "GHSA-2ph8-x773-8p2x (HIGH OAuth2 consent) frappe eb9c1446ca (file @ v16.31.0)",
+   "pin_sha256": "1baa548ef60d6f26b4983460e78101ba226838c73e939efda7c1dd963adf45d4",
+   "patched_sha256": "f59250b40212e35d28ffbf2c1599c67c342beff19868058f6a6f786f92e8e2af",
+   "markers": [
+    "<input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token }}\">"
+   ],
+   "absent": [
+    "window.location.replace"
+   ],
+   "upstream_status_2026-08-22": "frappe v16.31.0: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "frappe",
+   "path": "frappe/workflow/doctype/workflow_action/workflow_action.py",
+   "advisory": "GHSA-cgwf-xgph-hxgm (LOW unauthenticated workflow approval) frappe 5bf8597781",
+   "pin_sha256": "d5b1d4b4a0aa2ccbcd3292b62ecbccb54c7baf9ccc5dae2ef0504aa62f69cce9",
+   "patched_sha256": "2ff99f266f66a2f8df1e925178dc0461197a580740691ff2549f94754447face",
+   "markers": [
+    "@frappe.whitelist()\ndef confirm_action("
+   ],
+   "absent": [
+    "@frappe.whitelist(allow_guest=True)\ndef confirm_action(",
+    "frappe.set_user(user)"
+   ],
+   "upstream_status_2026-08-22": "frappe v16.31.0: marker-fixed (confirm_action no allow_guest, no set_user; unrelated type-hint/open-status changes)"
+  },
+  {
+   "app": "frappe",
+   "path": "frappe/www/confirm_workflow_action.html",
+   "advisory": "GHSA-cgwf-xgph-hxgm (LOW) frappe 5bf8597781",
+   "pin_sha256": "94d37ad8c283f3b528627c174735ed64d12749ae177efd4f6668be96a9970656",
+   "patched_sha256": "b64ccfc723cd105fd13d486f154a340322c86f7a9318a2c42e53320931149463",
+   "markers": [
+    "{% if is_guest %}"
+   ],
+   "absent": [],
+   "upstream_status_2026-08-22": "frappe v16.31.0: byte-identical to vetted file (already patched)"
+  },
+  {
+   "app": "frappe",
+   "path": "frappe/client.py",
+   "advisory": "GHSA-2c6h-wv85-fxvj (MEDIUM mass assignment via set_value) frappe develop 2a04fae935 (unpatched on version-16 as of v16.31.0); vetted file rebased onto v16.31.0 2026-08-22",
+   "pin_sha256": [
+    "642a8b465d1fde2ccb5b4483a73965ffbeba7439619060732ff413fc7ab00a80"
+   ],
+   "patched_sha256": [
+    "3880ec123cdfad209dddf2822ce674d6012780b368aae5ef6d832be09fc35e09",
+    "1080d33fe928cbbecd696e799564e7663a787f8d4c7a98fd6c1a2319e6266b6d"
+   ],
+   "markers": [
+    "forbidden = set(frappe.model.default_fields + frappe.model.child_table_fields)"
+   ],
+   "absent": [
+    "if fieldname in (frappe.model.default_fields + frappe.model.child_table_fields):"
+   ],
+   "upstream_status_2026-08-22": "frappe v16.31.0: STILL UNPATCHED upstream (version-16 has only type-hint commit 5b76cd03c9 after the 2026-04-24 revert e197a37acc) -> re-vetted file = v16.31.0 client.py + develop hunk 2a04fae935 (diff-verified identical hunk)",
+   "pin_note": "v16.31.0 6a329d068416 only; the v16.25.0 pin e6d0e5a90aa2 was dropped on purpose (its vetted bytes 1080d33fe928 stay in patched_sha256 so an old-base bench still verifies, but the v16.31.0-based vetted file must never be copied onto a v16.25.0 bench)"
+  },
+  {
+   "app": "hrms",
+   "path": "hrms/payroll/doctype/salary_structure/salary_structure.py",
+   "advisory": "GHSA-jfmr-9jv9-mrw4 (HIGH 7.7 SQLi in get_salary_component search) hrms f176a319dd (cherry-pick of 50e9e14e21; fixed upstream in 16.18.0)",
+   "pin_sha256": "7b5ad6f85261ec75db5fe51e8af3d1f0f45f4fe707f729fed2edabf5145b5f49",
+   "patched_sha256": "579d8bc671fab89da25c32a04007b91ff709e7f7351f6b89a90f222d495a5718",
+   "markers": [
+    "@frappe.validate_and_sanitize_search_inputs\ndef get_salary_component("
+   ],
+   "absent": [
+    "@frappe.whitelist()\ndef get_salary_component("
+   ],
+   "upstream_status_2026-10-09": "added 2026-10-09 for v16-prod-202; we pin hrms v16.16.0 (vetted = v16.16.0 file + the one-line upstream hunk); hrms >= 16.18.0 carries the fix (markers -> noop)"
+  }
+ ],
+ "rebased": "2026-08-22 for frappe v16.31.0 / erpnext v16.32.3 (pre-screen: 15/16 upstream-fixed, client.py re-vetted)"
+}

@@ -1,0 +1,58 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-206",
+  "base_image": "ericsonjulio/erpnext@sha256:c604df209f8e40f44c13e92dae9a12754aa18034ede6c693bbb3df9e22ed0d73",
+  "apps": {
+    "frappe": {
+      "repository": "https://github.com/frappe/frappe",
+      "ref": "v16.51.1",
+      "commit": "2871914b69b6e14a4b023d9b7cc52dc3e269cc1b",
+      "archive_sha256": "56c4b5a699ab5c4e01509c3910f316996a5cd41183f1079676dbcadff9269523"
+    },
+    "erpnext": {
+      "repository": "https://github.com/frappe/erpnext",
+      "ref": "v16.50.0",
+      "commit": "7474d9e786277383de1242ab882f16856d17a9c9",
+      "archive_sha256": "95e31dd5d1f07841bb97fc238a5c9d8f56c2c8307b913b3b3e037dc089a20c8b"
+    },
+    "hrms": {
+      "repository": "https://github.com/frappe/hrms",
+      "ref": "v16.50.0",
+      "commit": "7c037698ce57d1492f05a8b4a586a7578f722879",
+      "archive_sha256": "7f703602f7355f3ef6d185c9587223e560052fb461d6e758de9837121fd624fe"
+    },
+    "crm": {
+      "repository": "https://github.com/frappe/crm",
+      "ref": "v1.87.0",
+      "commit": "0d3910b456ef4fb913e77b29db011b3debc4f778",
+      "archive_sha256": "3ffb5c2017f7619d8aa0bc1ef977b33533cb4a15c9e9bcdcdc2ebb4de8c70ee6"
+    },
+    "helpdesk": {
+      "repository": "https://github.com/frappe/helpdesk",
+      "ref": "v1.30.2",
+      "commit": "78722c2b364309569d4bbc0ef875e34c3654b709",
+      "archive_sha256": "de98a733680e385ede484636d927baa5849b82e771e7cecc849d084b66669d3d"
+    },
+    "print_designer": {
+      "repository": "https://github.com/frappe/print_designer",
+      "ref": "main",
+      "commit": "7beaad298dd60467223c9a2b0360dd8c216a2b91",
+      "archive_sha256": "eb60ef6b2a317751c6e987a6474d967acda1ab46a447f99b83ec9b1e412122dd"
+    },
+    "insights": {
+      "repository": "https://github.com/frappe/insights",
+      "ref": "v3.14.2",
+      "commit": "5447f1621c0e6593994286807fe2521e03f1b0b4",
+      "archive_sha256": "f684ce4f2d6a4013cf93655cab58b0f672a2ace7177ccfd2d7bc711c2f492b24"
+    }
+  },
+  "custom_apps": {
+    "my_branding": {
+      "repository": "https://github.com/ericsonjulio1/Nexum-Air.git",
+      "commit": "3e4449ee9608542d96372cc05bb8e6eb8a9abe4c"
+    },
+    "eam": {
+      "repository": "https://github.com/ericsonjulio1/eam.git",
+      "commit": "d902e4ef5d4bd6037987f1379313b1d1dc3a8b8f"
+    }
+  }
+}
