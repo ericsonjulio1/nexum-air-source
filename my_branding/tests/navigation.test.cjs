@@ -10,7 +10,7 @@ function setup(modern = true) {
 	let current = new Page();
 	const events = {}, tasks = [];
 	const frappe = { boot: modern ? { module_sidebars: { Maintenance: { label: 'Maintenance' }, Accounts: { label: 'Accounts' } } } : {},
-		ui: { Page }, app: { sidebar: { current_module: 'Maintenance' } }, get_current_page: () => current,
+		ui: { Page, sidebar_item: { get_route: (item, edit, shell) => `${shell}:${item.link_to}:${edit}` } }, app: { sidebar: { current_module: 'Maintenance' } }, get_current_page: () => current,
 		router: { on: (name, fn) => { events[name] = fn; } } };
 	const context = { frappe, document: {}, __: x => x, queueMicrotask: fn => tasks.push(fn),
 		$: () => ({ on: (name, fn) => { events[name] = fn; } }) };
@@ -54,4 +54,15 @@ test('Maintenance uses stable shell identity with a translated workspace label',
     assert.equal(s.page.rendered[1].label, 'Wartung');
     s.page.breadcrumbs = [{ label: 'Wartung' }]; s.page.render_breadcrumbs();
     assert.equal(s.page.rendered.length, 2);
+});
+
+test('Assets Maintenance doorway switches shell without changing other sidebar links or editor routes', () => {
+	const s = setup();
+	const link = { type: 'Link', link_type: 'Workspace', link_to: 'Maintenance' };
+	assert.equal(s.frappe.ui.sidebar_item.get_route(link, false, 'Assets'), '/desk/maintenance');
+	assert.equal(s.frappe.ui.sidebar_item.get_route(link, true, 'Assets'), 'Assets:Maintenance:true');
+	assert.equal(s.frappe.ui.sidebar_item.get_route(link, false, 'Maintenance'), 'Maintenance:Maintenance:false');
+	assert.equal(s.frappe.ui.sidebar_item.get_route({ ...link, link_to: 'Asset' }, false, 'Assets'), 'Assets:Asset:false');
+	vm.runInNewContext(source, s.context);
+	assert.equal(s.frappe.ui.sidebar_item.get_route(link, false, 'Assets'), '/desk/maintenance');
 });

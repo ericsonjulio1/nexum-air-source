@@ -478,6 +478,20 @@
 		for (var i = 0; i < links.length; i++) links[i].setAttribute("href", "/app");
 	}
 
+	// Helpdesk 1.30 renders its switcher as menuitem buttons with Vue callbacks,
+	// not hrefs. Its hard-coded Desk callback opens /desk/helpdesk. Match that
+	// specific menu icon (never a ticket's text) and handle pointer/keyboard clicks
+	// before Vue's callback. Other app entries keep their own destinations.
+	if (SEG === "helpdesk") {
+		document.addEventListener("click", function (event) {
+			var item = event.target.closest && event.target.closest('[role="menuitem"]');
+			if (!item || !item.querySelector('img[src$="/helpdesk/desk/desk.png"]')) return;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			window.location.assign("/desk");
+		}, true);
+	}
+
 	function start() {
 		// one full initial pass
 		try {

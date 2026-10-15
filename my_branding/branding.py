@@ -313,11 +313,10 @@ def ensure_insights_desktop_icon():
 
 
 def ensure_maintenance_desktop_icon():
-	"""after_migrate: surface the Maintenance launcher tile (owner decision
-	2026-08-26 — Maintenance becomes a peer of Assets in Operations). The eam app
-	ships its Desktop Icon HIDDEN (standalone-safe default: the breadcrumb works,
-	no tile); this hook is the Nexum Air presentation layer that unhides it and
-	points it at the Direction-C tile SVG. Idempotent + hardened."""
+	"""Keep the legacy breadcrumb icon, with Maintenance entered through Assets.
+	Owner decision 2026-10-15 supersedes the separate Operations tile. The EAM
+	workspace reconciler adds the Assets card and sidebar entry in both modes.
+	"""
 	if not frappe.db.table_exists("Desktop Icon"):
 		return
 	try:
@@ -327,12 +326,12 @@ def ensure_maintenance_desktop_icon():
 		if not name:
 			return  # eam's fixture not synced yet — next migrate picks it up
 		updates = {
-			"hidden": 0,
+			"hidden": 1,
 			"logo_url": "/assets/my_branding/images/icons/maintenance.svg?v=c1",
 		}
 		current = frappe.db.get_value(
 			"Desktop Icon", name, ["hidden", "logo_url"], as_dict=True)
-		if current and (current.hidden != 0 or current.logo_url != updates["logo_url"]):
+		if current and (current.hidden != 1 or current.logo_url != updates["logo_url"]):
 			frappe.db.set_value("Desktop Icon", name, updates, update_modified=False)
 	except Exception:
 		frappe.log_error(

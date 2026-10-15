@@ -3,7 +3,7 @@ import frappe
 # Shared white-label name map (one source of truth — see naming.py). Rebrands the
 # app titles shown in the desk (sidebar header + app-launcher group heading); the
 # same map relabels the /apps switcher via the get_apps override.
-from my_branding.naming import APP_TITLES, can_access_insights
+from my_branding.naming import APP_LOGOS, APP_TITLES, can_access_insights
 
 
 def boot_session(bootinfo):
@@ -33,6 +33,11 @@ def boot_session(bootinfo):
 				new_title = APP_TITLES.get(app.get("app_name"))
 				if new_title:
 					app["app_title"] = new_title
+				# Apps mode and the dock read app_data directly, bypassing get_apps
+				# and the legacy Desktop Icon fixtures. Reuse the same brand assets.
+				logo = APP_LOGOS.get(app.get("app_name"))
+				if logo:
+					app["app_logo_url"] = logo
 				# Insights ships no `add_to_apps_screen` hook and has no desk
 				# workspace, so boot leaves its app_route empty and the launcher
 				# skips the tile. Give it a route + teal logo so it shows like the

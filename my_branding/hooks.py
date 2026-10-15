@@ -10,14 +10,14 @@ app_license = "mit"
 app_logo_url = "/assets/my_branding/images/nexum-mark.png"
 brand_html = '<span style="font-weight:700;color:#fff;letter-spacing:0.3px;">Nexum Air</span>'
 
-_BRAND_CSS_VER = "20260906a"
+_BRAND_CSS_VER = "20261015a"
 app_include_css = [
 	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
 	"/assets/my_branding/css/idle_lock.css?v=20261006a",
 ]
 app_include_js = [
 	"/assets/my_branding/js/brand.js?v=20261013a",
-	"/assets/my_branding/js/navigation.js?v=20261013a",
+	"/assets/my_branding/js/navigation.js?v=20261015a",
 	# idle screen lock: warning, lock in place, unlock (see idle_lock.py)
 	"/assets/my_branding/js/idle_lock.js?v=20261010a",
 ]

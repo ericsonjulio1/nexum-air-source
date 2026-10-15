@@ -21,7 +21,7 @@ SPA_BRAND = brand_config.spa_brand()
 
 # Bump when editing spa-brand.css / spa-brand.js (the SPA service worker + HTTP
 # layer cache them aggressively).
-_VER = "20261010a"  # batch 205: spa-brand.js wordmark/Builder fixes + spa-brand.css svg rules
+_VER = "20261015a"  # Helpdesk's button-based Desk shortcut returns to the suite launcher
 
 _FAVICON = "/assets/my_branding/images/favicon.png"
 # Swap the href of any <link rel="icon"|"shortcut icon"> to the Nexum Air favicon.

@@ -61,8 +61,9 @@ def get_apps():
 	"""override_whitelisted_methods for frappe.apps.get_apps — relabel the apps
 	screen to the Nexum Air names + teal icons. Calls the real implementation (the
 	function object, not the whitelisted path, so there's no recursion) and
-	rewrites the display `title` and `logo`; `name`/`route` are untouched so
-	routing is unaffected. Hardened: on any error fall back to the original list."""
+	rewrites the display `title` and `logo`. Nexum Air in a SPA's switcher returns
+	to the suite launcher; the ERP tile's own landing remains in boot.app_data.
+	Hardened: on any error fall back to the original list."""
 	from frappe.apps import get_apps as _get_apps
 
 	apps = _get_apps()
@@ -82,6 +83,8 @@ def get_apps():
 			# custom icon if we have one, else the generic on-brand squircle so
 			# any new/unmapped app auto-rebrands (never raw Frappe colours).
 			app["logo"] = APP_LOGOS.get(app.get("name")) or DEFAULT_LOGO
+			if app.get("name") == "erpnext":
+				app["route"] = "/desk"
 
 		# Insights ships no `add_to_apps_screen` hook, so the stock apps screen
 		# never lists it. Add it here (teal icon + branded title) when installed

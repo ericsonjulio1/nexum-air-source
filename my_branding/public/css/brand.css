@@ -280,12 +280,48 @@ a:hover {
   }
 }
 
+/* Electron 25 / Chromium 114 (the installed Mac wrapper) cannot resolve
+   light-dark(). The new module sprites use it in their fill/stroke fallbacks,
+   leaving only disconnected pale fragments. Supply both inherited tones on
+   their real surfaces; keep native hover/active tones and theme changes.
+   !important wins over the sprite's embedded stylesheet, loaded after ours. */
+@supports not (color: light-dark(white, black)) {
+  .dock-item--duotone,
+  .shell-header .header-logo {
+    --duotone-light: var(--ink-gray-3) !important;
+    --duotone-dark: var(--ink-gray-5) !important;
+  }
+  .dock-item--duotone.active {
+    --duotone-light: var(--ink-gray-4) !important;
+    --duotone-dark: var(--ink-gray-6) !important;
+  }
+  [data-theme="dark"] .dock-item--duotone,
+  [data-theme="dark"] .shell-header .header-logo {
+    --duotone-dark: var(--ink-gray-6) !important;
+  }
+  [data-theme="dark"] .dock-item--duotone.active {
+    --duotone-dark: var(--ink-gray-7) !important;
+  }
+  [data-theme="dark"] .shell-header:hover .header-logo,
+  [data-theme="dark"] .shell-header.hover .header-logo {
+    --duotone-light: var(--ink-gray-4) !important;
+  }
+  /* The calculator screen is the one shape with light-dark() outside var(). */
+  #icon-calculator-duotone > rect[rx="0.4"] {
+    fill: var(--duotone-light, var(--ink-gray-3)) !important;
+  }
+  [data-theme="dark"] #icon-calculator-duotone > rect[rx="0.4"] {
+    fill: transparent !important;
+  }
+}
+
 /* ---- Custom Nexum Air module tiles (Material Symbols filled, Apache-2.0,
    recoloured white on the brand teal->cyan squircle) replacing ERPNext's
    stock module icons. Keyed off the original <img> src so a single rule
    covers the icon wherever it appears (launcher grid AND module sub-tiles).
    filter:none cancels the global hue-rotate (our SVGs are already on-brand). */
 img[src*="/desktop_icons/solid/"],
+img[src*="/assets/my_branding/images/icons/"],
 img[src*="online-store.svg"],
 img[src*="icons/maintenance.svg"],
 img[src$="frappe-framework-logo.svg"] { filter: none !important; }
