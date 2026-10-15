@@ -791,6 +791,7 @@ function loadChartPass() {
 			this.list.appendChild(h('li', {}, String(i)));
 		}
 		labels() { return this.container.querySelectorAll('.x.axis > g > text'); }
+		destroy(...args) { this.destroyArgs = args; return 'native-destroy-result'; }
 	}
 	const frappe = { Chart };
 	const ctx = {
@@ -836,6 +837,23 @@ test('idx 84: a chart on a hidden page is not measured on resize, so its labels 
 	t.chart.drawSvg(); // frappe-charts' ResizeObserver redraws it when shown
 	await t.settle();
 	assert.ok(t.chart.labels()[0].rectReads > 0, 'measured again once visible');
+});
+
+test('chart destroy releases branding listeners and ignores an already queued label pass', async () => {
+	const t = loadChartPass();
+	await t.settle();
+	const before = t.reads();
+	t.ctx.dispatch('resize'); // one frame is queued before the widget replaces the chart
+	assert.equal(t.chart.destroy('replacement'), 'native-destroy-result');
+	assert.deepEqual(t.chart.destroyArgs, ['replacement'], 'native cleanup keeps its arguments and context');
+	assert.equal(t.ctx.listeners.resize.length, 0, 'resize callback is released immediately');
+	await t.settle();
+	assert.equal(t.reads(), before, 'queued work cannot measure a destroyed chart');
+	t.chart.drawSvg();
+	await t.settle();
+	assert.equal(t.chart.labels()[0].rectReads, 0, 'mutation observer is disconnected');
+	t.chart.destroy();
+	assert.equal(t.ctx.listeners.resize.length, 0, 'cleanup is safe to repeat');
 });
 
 // =====================================================================================

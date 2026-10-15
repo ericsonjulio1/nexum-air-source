@@ -1104,9 +1104,12 @@
 				} catch (e) {
 					/* never block a chart from rendering */
 				}
+				chart.__nxLabelObserver = null;
+				chart.__nxLabelResizeListener = null;
 			};
 
 			var run = function () {
+				if (stopped) return;
 				try {
 					if (
 						!chart.container ||
@@ -1167,6 +1170,13 @@
 			window.addEventListener("resize", schedule);
 			chart.__nxLabelObserver = observer;
 			chart.__nxLabelResizeListener = schedule;
+			// Widget refresh/replacement calls the native chart lifecycle. Release our
+			// own observers there too, without waiting for a later window resize.
+			var destroy = chart.destroy;
+			chart.destroy = function () {
+				stop();
+				if (typeof destroy === "function") return destroy.apply(this, arguments);
+			};
 			schedule();
 		} catch (e) {
 			try {

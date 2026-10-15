@@ -44,7 +44,16 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-210
+## Current release: v16-prod-211
+
+The [v211 recipe and immutable manifest](build/releases/v16-prod-211/README.txt)
+release Teams resources when their owning components leave, avoid a duplicate
+initial discussion request while preserving tab freshness, and destroy replaced
+dashboard charts and their label observers. Hash-guarded upstream patches and
+lifecycle/browser regression checks are included. Upstream versions, schemas,
+accounting calculations and the v210 navigation remain unchanged.
+
+## Previous release: v16-prod-210
 
 The [v210 recipe and immutable manifest](build/releases/v16-prod-210/README.txt)
 remove Drive's duplicate Desk entry before rendering and add Teams' accessible
