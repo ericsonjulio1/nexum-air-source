@@ -298,46 +298,14 @@
 	}
 })();
 
-// Nexum Air chart palette — frappe-charts ships a default colour sequence with a
-// pink/red, seen on report charts (Balance Sheet / P&L) AND dashboard charts
-// (AR/AP Ageing donuts). Force the brand slate/teal palette on every chart by
-// wrapping the global frappe.Chart (frappe/ui/chart.js does `frappe.Chart = Chart`
-// from frappe-charts). Two subtleties this handles:
-//   1. FORCE (not "when absent") — the dashboard widget passes its own colour
-//      array, so an "only if missing" check would skip it. We overwrite colors
-//      for every chart EXCEPT heatmaps (which need their own gradient).
-//   2. TIMING — dashboard charts render on page load and can beat a polling
-//      patch. So instead of polling, we intercept the assignment: install a
-//      property setter on `frappe.Chart` that wraps the class the instant
-//      frappe-charts assigns it, before any chart is constructed.
+// Shared report palette, installed before the chart bundle assigns its class.
 (function () {
-	// 2026-08-29 professional restyle (owner: charts read "elementary" — wants a
-	// restrained, monotone-leaning look). Slate-teal leads and slot 2 stays in the
-	// blue family, so the 1-2-series charts that dominate the desk read monotone;
-	// warm accents only appear from slot 3 (donuts / multi-series). Both lists are
-	// VALIDATED with the dataviz six-checks script (OKLCH lightness band, chroma
-	// floor >= 0.10, adjacent-pair CVD + normal-vision separation, contrast) — the
-	// old #2E5562 brand slate FAILS the chroma floor (C 0.049 reads gray), which
-	// is why slot 1 is a chroma-corrected slate-teal, not the raw brand hex. Dark
-	// is its own selected list (dark band L 0.48-0.67), not a flip. Change these
-	// only with a re-run of the validator.
-	var PALETTE_LIGHT = ["#007096", "#67b5e1", "#bf9840", "#20947d", "#375998", "#af6340"];
-	var PALETTE_DARK = ["#006f96", "#4b9ad0", "#af892e", "#20947d", "#4567a8", "#af6340"];
-	function palette() {
-		var dark = false;
-		try {
-			dark = document.documentElement.getAttribute("data-theme") === "dark";
-		} catch (e) {
-			/* never block a chart from rendering */
-		}
-		return (dark ? PALETTE_DARK : PALETTE_LIGHT).slice();
-	}
 	function wrap(Orig) {
 		if (typeof Orig !== "function" || Orig.__nexumPatched) return Orig;
 		function NexumChart(element, options) {
 			try {
 				if (options && options.type !== "heatmap") {
-					options.colors = palette();
+					options = window.NexumCharts?.frappeOptions(options) || options;
 				}
 			} catch (e) {
 				/* never block a chart from rendering */
@@ -1061,8 +1029,8 @@
 	}
 
 	// 2026-08-29 professional mark treatment (rides the same settled-frame pass as
-	// the label fix): translucent fills with a solid same-hue edge on bars, a 2px
-	// surface gap between donut/pie slices, 2px line weight, whisper-light area
+	// the label fix): solid report fills with rounded bars, a 2px
+	// surface gap between donut/pie slices, 3px line weight, subtle area
 	// fills. Style/attribute writes ONLY — the shared MutationObserver watches
 	// childList, so these mutations can never re-trigger it (no loop). Heatmaps
 	// keep their gradient (untouched: their cells are rect.day, not rect.bar).
@@ -1080,9 +1048,9 @@
 				el = bars[i];
 				fill = el.style.fill || el.getAttribute("fill");
 				if (!fill || fill === "none") continue;
-				el.style.fillOpacity = "0.55";
+				el.style.fillOpacity = "1";
 				el.style.stroke = fill;
-				el.style.strokeWidth = "1.25px";
+				el.style.strokeWidth = "0px";
 				el.setAttribute("rx", "2");
 				w = parseFloat(el.getAttribute("width"));
 				if (w > MAX_BAR_WIDTH) {
@@ -1097,13 +1065,13 @@
 				el = pies[i];
 				fill = el.style.fill || el.getAttribute("fill");
 				if (!fill || fill === "none") continue;
-				el.style.fillOpacity = "0.8";
+				el.style.fillOpacity = "1";
 				el.style.stroke = "var(--card-bg, var(--bg-color, #ffffff))";
 				el.style.strokeWidth = "2px";
 			}
 			var lines = container.querySelectorAll("svg path.line-graph-path");
 			for (i = 0; i < lines.length; i++) {
-				lines[i].style.strokeWidth = "2px";
+				lines[i].style.strokeWidth = "3px";
 			}
 			var regions = container.querySelectorAll("svg .region-fill");
 			for (i = 0; i < regions.length; i++) {

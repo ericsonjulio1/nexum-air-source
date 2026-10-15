@@ -44,7 +44,16 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-208
+## Current release: v16-prod-209
+
+The [v209 recipe and immutable manifest](build/releases/v16-prod-209/README.txt)
+unify report cards and chart presentation, share the user's Nexum Air theme
+across the suite, remove duplicate Desk entries from CRM and Helpdesk, and add
+Insights' native top-left Apps menu. Financial Overview belongs to Accounts;
+Maintenance retains a dedicated Maintenance Costs entry. Chart types, report
+data and accounting calculations are preserved. Upstream versions are unchanged.
+
+## Previous release: v16-prod-208
 
 The [v208 recipe and immutable manifest](build/releases/v16-prod-208/README.txt)
 place Maintenance beside Asset Reports and Setup and keep the Nexum Air module

@@ -21,7 +21,7 @@ SPA_BRAND = brand_config.spa_brand()
 
 # Bump when editing spa-brand.css / spa-brand.js (the SPA service worker + HTTP
 # layer cache them aggressively).
-_VER = "20261015a"  # Helpdesk's button-based Desk shortcut returns to the suite launcher
+_VER = "20261015c"  # Shared theme, chart presentation and native app switchers
 
 _FAVICON = "/assets/my_branding/images/favicon.png"
 # Swap the href of any <link rel="icon"|"shortcut icon"> to the Nexum Air favicon.
@@ -64,11 +64,21 @@ def inject_brand_assets(response, request):
 		html = _FAVICON_RE.sub(r"\1%s\"" % _FAVICON, html)
 
 		# Per-app brand config for spa-brand.js (which wordmark to swap, etc.).
-		brand = json.dumps({"name": cfg["name"], "old": cfg["old"], "extra": cfg.get("extra") or []})
+		theme, csrf = "Light", None
+		if frappe.session.user != "Guest":
+			theme = frappe.db.get_value("User", frappe.session.user, "desk_theme") or "Light"
+			csrf = frappe.sessions.get_csrf_token()
+		if frappe.conf.get("is_demo_site"):
+			theme, csrf = "Light", None
+		brand = json.dumps({"name": cfg["name"], "old": cfg["old"], "extra": cfg.get("extra") or [],
+			"theme": theme, "theme_csrf": csrf})
 		inject = (
 			'<!-- %s -->'
 			'<link rel="stylesheet" href="/assets/my_branding/css/spa-brand.css?v=%s">'
 			"<script>window.__NEXUM_BRAND__=%s;</script>"
+			'<link rel="stylesheet" href="/assets/my_branding/css/report-theme.css?v=20261015c">'
+			'<script src="/assets/my_branding/js/suite-theme.js?v=20261015c"></script>'
+			'<script src="/assets/my_branding/js/report-theme.js?v=20261015c"></script>'
 			'<script src="/assets/my_branding/js/spa-brand.js?v=%s"></script>'
 		) % (_MARKER, _VER, brand, _VER)
 		if frappe.conf.get("is_demo_site"):

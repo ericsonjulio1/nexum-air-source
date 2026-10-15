@@ -1,0 +1,68 @@
+/* Image 2 is the suite's report style. Keep the Aurora workspace background. */
+:root {
+    --nx-report-accent: #168c83;
+    --nx-report-surface: #fff;
+    --nx-report-ink: #202527;
+    --nx-report-muted: #5b6468;
+    --nx-report-border: #e6e9eb;
+    --nx-report-radius: 14px;
+}
+[data-theme="dark"] {
+    --nx-report-accent: #53c6b7;
+    --nx-report-surface: #20282e;
+    --nx-report-ink: #e5e7eb;
+    --nx-report-muted: #bbc5ca;
+    --nx-report-border: #38444b;
+}
+.nx-report-panel, .widget.dashboard-widget-box, .widget.number-widget-box,
+.chart-wrapper, .report-wrapper .report-summary, .charts-inner-wrapper,
+.eam-finance .fo-panel, .eam-finance .fo-cards section {
+    background: var(--nx-report-surface) !important;
+    border: 1px solid var(--nx-report-border) !important;
+    border-radius: var(--nx-report-radius) !important;
+    box-shadow: none !important;
+    color: var(--nx-report-ink);
+}
+.widget.dashboard-widget-box, .chart-wrapper, .nx-report-panel, .eam-finance .fo-panel { padding: 18px !important; }
+.widget.number-widget-box, .nx-report-kpi, .eam-finance .fo-cards section {
+    border-top: 3px solid var(--nx-report-accent) !important;
+    padding: 18px 20px !important;
+}
+.nx-chart-title, .widget.dashboard-widget-box .widget-title, .chart-container .title,
+.eam-finance .fo-panel h3 {
+    color: var(--nx-report-ink) !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+}
+.widget.number-widget-box .widget-title { color: var(--nx-report-muted) !important; font-size: 12px !important; font-weight: 400 !important; }
+.widget.number-widget-box .number { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-container { font-family: inherit; }
+.chart-container text { font-family: inherit !important; fill: var(--nx-report-muted); font-size: 12px; }
+.chart-container .data-point-value { fill: var(--nx-report-ink); font-variant-numeric: tabular-nums; }
+.chart-container .guide-line, .chart-container .line-vertical, .chart-container .line-horizontal { stroke: var(--nx-report-border); }
+.chart-container .graph-svg-tip { background: var(--nx-report-surface); color: var(--nx-report-ink); border: 1px solid var(--nx-report-border); }
+.eam-finance { --fo-teal: var(--nx-report-accent); }
+.nx-theme-error { position: fixed; top: 16px; right: 16px; z-index: 2147483001; background: #fff; color: #a12622; border: 1px solid #a12622; border-radius: 8px; padding: 12px 16px; }
+/* Override the workspace's more-specific frosted-card rules only for metrics. */
+[data-theme] body.nx-desk .widget:is(.dashboard-widget-box, .number-widget-box):not(.sortable-ghost):not(.new-widget):not(.new-widget-box) {
+    background: var(--nx-report-surface) !important;
+    border: 1px solid var(--nx-report-border) !important;
+    border-radius: var(--nx-report-radius) !important;
+    box-shadow: none !important;
+}
+[data-theme] body.nx-desk .widget.number-widget-box:not(.sortable-ghost):not(.new-widget):not(.new-widget-box) {
+    border-top: 3px solid var(--nx-report-accent) !important;
+}
+[data-nx-spa="helpdesk"] .h-full.w-full.rounded.border.border-outline-gray-1:has(.nx-report-panel) { border: 0; }
+/* Insights' older utility palette predates frappe-ui's semantic theme tokens. */
+[data-nx-spa="insights"][data-theme="dark"] { background: #171e23; color: #e5e7eb; }
+[data-nx-spa="insights"][data-theme="dark"] :is(.bg-white, .bg-gray-50) { background-color: #20282e !important; }
+[data-nx-spa="insights"][data-theme="dark"] :is(.bg-gray-100, .bg-gray-200) { background-color: #29343c !important; }
+[data-nx-spa="insights"][data-theme="dark"] :is(.text-gray-700, .text-gray-800, .text-gray-900, .text-black) { color: #e5e7eb !important; }
+[data-nx-spa="insights"][data-theme="dark"] :is(.text-gray-500, .text-gray-600) { color: #bbc5ca !important; }
+[data-nx-spa="insights"][data-theme="dark"] :is(.border-gray-100, .border-gray-200, .border-gray-300) { border-color: #38444b !important; }
+@media (max-width: 600px) {
+    .widget.dashboard-widget-box, .nx-report-panel, .eam-finance .fo-panel { padding: 14px !important; }
+    .widget.number-widget-box .number { font-size: 22px; }
+}

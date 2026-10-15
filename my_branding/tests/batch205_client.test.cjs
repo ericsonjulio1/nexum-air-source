@@ -820,7 +820,7 @@ test('idx 84: tooltip rewrites on hover do not re-run the label/mark pass; redra
 	t.chart.drawSvg(); // a real redraw (data update, frappe-charts resize redraw)
 	await t.settle();
 	assert.ok(t.chart.labels()[0].rectReads > 0, 'the fresh svg is measured');
-	assert.equal(t.chart.svg.querySelector('rect.bar').style.fillOpacity, '0.55', 'marks restyled');
+	assert.equal(t.chart.svg.querySelector('rect.bar').style.fillOpacity, '1', 'marks restyled');
 });
 
 test('idx 84: a chart on a hidden page is not measured on resize, so its labels are not stripped', async () => {
