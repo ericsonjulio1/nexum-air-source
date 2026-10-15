@@ -44,7 +44,15 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-211
+## Current release: v16-prod-212
+
+The [v212 recipe and immutable manifest](build/releases/v16-prod-212/README.txt)
+extend chart cleanup to empty-state placeholders. The widget releases a previous
+placeholder on redraw, data arrival, refresh and removal. Native chart component
+defaults no longer retain an instance's callback after destruction. The exact
+Framework/dependency patch and unit/browser checks are included. All v211 fixes remain.
+
+## Previous release: v16-prod-211
 
 The [v211 recipe and immutable manifest](build/releases/v16-prod-211/README.txt)
 release Teams resources when their owning components leave, avoid a duplicate
