@@ -21,7 +21,7 @@ SPA_BRAND = brand_config.spa_brand()
 
 # Bump when editing spa-brand.css / spa-brand.js (the SPA service worker + HTTP
 # layer cache them aggressively).
-_VER = "20261015c"  # Shared theme, chart presentation and native app switchers
+_VER = "20261016a"  # Shared theme, chart presentation and native app switchers
 
 _FAVICON = "/assets/my_branding/images/favicon.png"
 # Swap the href of any <link rel="icon"|"shortcut icon"> to the Nexum Air favicon.
@@ -76,9 +76,9 @@ def inject_brand_assets(response, request):
 			'<!-- %s -->'
 			'<link rel="stylesheet" href="/assets/my_branding/css/spa-brand.css?v=%s">'
 			"<script>window.__NEXUM_BRAND__=%s;</script>"
-			'<link rel="stylesheet" href="/assets/my_branding/css/report-theme.css?v=20261015c">'
-			'<script src="/assets/my_branding/js/suite-theme.js?v=20261015c"></script>'
-			'<script src="/assets/my_branding/js/report-theme.js?v=20261015c"></script>'
+			'<link rel="stylesheet" href="/assets/my_branding/css/report-theme.css?v=20261016a">'
+			'<script src="/assets/my_branding/js/suite-theme.js?v=20261016a"></script>'
+			'<script src="/assets/my_branding/js/report-theme.js?v=20261016a"></script>'
 			'<script src="/assets/my_branding/js/spa-brand.js?v=%s"></script>'
 		) % (_MARKER, _VER, brand, _VER)
 		if frappe.conf.get("is_demo_site"):

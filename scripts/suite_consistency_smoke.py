@@ -33,7 +33,7 @@ def main():
         page.goto(BASE+'/desk')
         page.locator('.desktop-icon').first.wait_for()
         expected = page.locator('html').get_attribute('data-theme')
-        for route, label in [('helpdesk','Helpdesk'),('crm','CRM'),('drive','Drive'),('insights/dashboards','Insights')]:
+        for route, label in [('helpdesk','Helpdesk'),('crm','CRM'),('drive','Drive'),('insights/dashboards','Insights'),('g','Teams')]:
             page.goto(BASE+'/'+route)
             ready(page)
             page.get_by_role('button',name=label,exact=False).first.wait_for()
@@ -65,20 +65,20 @@ def main():
         assert page.locator('.fo-tabs a').count() >= 10
         page.screenshot(path=str(OUTPUT/'accounts-financial-overview.png'))
         print('PASS Accounts opens the full Financial Overview in the Accounts sidebar',flush=True)
-        # Clicking the maintenance basis is a meaningful context switch.
         page.locator('.fo-tabs a[data-view="maintenance"]').click()
-        page.wait_for_function("frappe.app.sidebar.current_module === 'Maintenance'")
-        assert page.evaluate('frappe.get_current_page().title')=='Maintenance Costs'
+        page.wait_for_function("frappe.get_route()[1] === 'maintenance' && frappe.app.sidebar.current_module === 'Accounts'")
+        assert page.evaluate('frappe.get_current_page().title')=='Financial Overview'
+        page.goto(BASE+'/desk/maintenance-costs')
+        ready(page)
+        page.wait_for_function("frappe.get_route()[0] === 'financial-overview' && frappe.get_route()[1] === 'maintenance'")
+        assert page.evaluate('frappe.app.sidebar.current_module')=='Accounts'
         page.goto(BASE+'/desk/maintenance')
         ready(page)
-        link=page.locator('.sidebar-items a').filter(has_text='Maintenance Costs')
-        link.wait_for(state='visible')
-        link.click()
-        page.wait_for_function("frappe.get_route()[0] === 'financial-overview' && frappe.get_route()[1] === 'maintenance'")
-        assert page.evaluate('frappe.app.sidebar.current_module')=='Maintenance'
+        assert page.locator('.sidebar-items a').filter(has_text='Maintenance Costs').count()==0
+        assert page.locator('.sidebar-items a').filter(has_text='Financial Overview').count()==0
         assert page.locator('.dock-item:visible').count() >= 10
-        page.screenshot(path=str(OUTPUT/'maintenance-costs.png'))
-        print('PASS Maintenance Costs opens only the maintenance view and keeps the module rail',flush=True)
+        page.screenshot(path=str(OUTPUT/'maintenance-navigation.png'))
+        print('PASS Maintenance has no Financial Overview doorway; all finance views remain in Accounts',flush=True)
 
         page.goto(BASE+'/desk/accounts/accounting')
         ready(page)

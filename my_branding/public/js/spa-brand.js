@@ -297,12 +297,12 @@
 		}
 	}
 
-	// Slides and Gameplan ship no app-switcher, so there is no way
+	// Slides ships no app-switcher, so there is no way
 	// back to the desk launcher. Insights now has a native Apps menu. Inject a floating button that returns
 	// to it. Scoped to those routes (apps like CRM/Builder already have a switcher).
 	// Gameplan serves at /g.
 	function ensureBackButton() {
-		if (!/^\/(slides|g)(\/|$)/.test(location.pathname)) return;
+		if (!/^\/slides(\/|$)/.test(location.pathname)) return;
 		if (document.getElementById("nexum-apps-btn") || !document.body) return;
 		var a = document.createElement("a");
 		a.id = "nexum-apps-btn";

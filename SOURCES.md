@@ -44,7 +44,16 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-209
+## Current release: v16-prod-210
+
+The [v210 recipe and immutable manifest](build/releases/v16-prod-210/README.txt)
+remove Drive's duplicate Desk entry before rendering and add Teams' accessible
+Apps menu to its top-left header. The release also removes Financial Overview
+links from Maintenance and keeps every financial view under Accounts. The full
+Teams component and pinned source adapter are included in the release directory.
+All shared theme and chart changes from v209 remain in place.
+
+## Previous release: v16-prod-209
 
 The [v209 recipe and immutable manifest](build/releases/v16-prod-209/README.txt)
 unify report cards and chart presentation, share the user's Nexum Air theme
