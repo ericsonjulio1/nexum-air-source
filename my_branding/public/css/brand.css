@@ -693,6 +693,19 @@ body.nx-desk .widget:focus-visible {
   outline-offset: 2px;
 }
 
+/* Assets' Maintenance doorway shares the link-card row and its natural height.
+   The workspace grid still stacks it normally on smaller screens. */
+body.nx-desk .ce-block[data-id="eam-maintenance-entry"] .shortcut-widget-box {
+  height: 100%;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: calc(var(--spacing) * 4) calc(var(--spacing) * 2) 0;
+}
+body.nx-desk .ce-block[data-id="eam-maintenance-entry"] .widget-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
 /* Let the aurora show through the CONTENT REGION on every desk page: the
    structural page/layout wrappers carry an opaque light background by default,
    which would hide the z-index:-1 aurora. Make just those wrappers transparent

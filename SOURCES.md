@@ -44,13 +44,14 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-207
+## Current release: v16-prod-208
 
-The [v207 recipe and immutable manifest](build/releases/v16-prod-207/README.txt)
-layer the committed branding and Maintenance navigation changes over v206.
-It restores Apps-mode brand icons, supplies icon colors for the existing Mac
-client, moves Maintenance access under Assets, and routes Helpdesk's Nexum Air
-and Desk shortcuts to the suite launcher. Upstream versions are unchanged.
+The [v208 recipe and immutable manifest](build/releases/v16-prod-208/README.txt)
+place Maintenance beside Asset Reports and Setup and keep the Nexum Air module
+rail visible throughout Maintenance. It uses Framework's native companion-app
+mount and preserves the card row when Framework adds its custom-card placeholders.
+Upstream versions are unchanged. The [v207 release](build/releases/v16-prod-207/README.txt)
+provides the retained Mac icon, app branding and Helpdesk launcher corrections.
 
 ## Base release: v16-prod-206
 

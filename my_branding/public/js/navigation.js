@@ -3,6 +3,26 @@
 (function () {
 	if (frappe.__nexumMaintenanceEntry) return;
 	frappe.__nexumMaintenanceEntry = true;
+	// Framework injects Custom Documents / Reports after the last link card,
+	// including empty placeholders. Keep the Assets doorway beside its two cards
+	// after that injection; retain every custom card and tenant block.
+	const workspace = frappe.views?.Workspace?.prototype;
+	if (workspace?.add_custom_cards_in_content) {
+		const addCustomCards = workspace.add_custom_cards_in_content;
+		workspace.add_custom_cards_in_content = function () {
+			const result = addCustomCards.apply(this, arguments);
+			if (this._page?.name !== "Assets") return result;
+			const index = this.content.findIndex(b => b.id === "eam-maintenance-entry");
+			if (index < 0) return result;
+			const [entry] = this.content.splice(index, 1);
+			let anchor = -1;
+			this.content.forEach((b, i) => {
+				if (b.type === "card" && ["Asset Reports", "Setup"].includes(b.data?.card_name)) anchor = i;
+			});
+			this.content.splice(anchor < 0 ? index : anchor + 1, 0, entry);
+			return result;
+		};
+	}
 	// Native URL shortcuts always open a new window. This internal workspace
 	// doorway follows the same in-place navigation as its sidebar counterpart.
 	if (document.addEventListener) document.addEventListener("click", function (event) {
