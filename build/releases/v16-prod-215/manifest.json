@@ -6,14 +6,14 @@
   "custom_apps": {
     "my_branding": {
       "repository": "https://github.com/ericsonjulio1/Nexum-Air.git",
-      "commit": "068907ca7908074c2416961aa2470ee5939d2922"
+      "commit": "96c6e48fafcb3b8e1fb6f7f51f762c596c138548"
     },
     "eam": {
       "repository": "https://github.com/ericsonjulio1/eam.git",
       "commit": "1006c2dfb9a1e40271d0823a9944598ce105ba84"
     }
   },
-  "digest": "sha256:cd89f5f9a61c0b34019dda09b66e1344f0ccad4a9d721f6ba82f9b410a35b135",
+  "digest": null,
   "inherited_release": "../v16-prod-214/manifest.json",
   "changes_upstream_dependencies": false
 }

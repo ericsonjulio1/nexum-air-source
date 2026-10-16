@@ -29,7 +29,7 @@ web_include_css = [
 ]
 # split login page (left industrial animation + right credentials); login.js guards on
 # #page-login so it only acts on /login, never other web pages.
-web_include_js = "/assets/my_branding/js/login.js?v=20261016-spacious1"
+web_include_js = "/assets/my_branding/js/login.js?v=20261016-spacious2"
 website_theme_scss = "my_branding/public/scss/website"
 
 website_context = {

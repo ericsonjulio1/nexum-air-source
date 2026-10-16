@@ -1,6 +1,6 @@
 # v16-prod-215
 
-This release reduces the animated login figure by approximately 41% while preserving its animation, wordmark and full background. Smaller encoded videos reduce transfer size by 55–59%.
+This release reduces the complete animated login chip and plant by approximately 58% from the original, leaving more space around the assembly while preserving its motion and wordmark. The final framing is another 29% smaller than the initial review candidate. Encoded videos reduce transfer size by approximately 66–67%.
 
 Custom-app fixes cover maintenance cancellation provenance, negative consumption validation, report source permissions, native invoice tax/rounding presentation, zero-rate tax overrides, atomic chart reconciliation, setup completion, Workbench request/query overhead and shared theme synchronization.
 
