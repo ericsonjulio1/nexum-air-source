@@ -13,7 +13,7 @@
       "commit": "1b5076a22a0cc78d1ea9c296a8ec50738161dee7"
     }
   },
-  "digest": null,
+  "digest": "sha256:e6c3d9e015c0333af4b208dda812aef4956386433de34c06c3fb8b2532d8aa6c",
   "inherited_release": "../v16-prod-214/manifest.json",
   "changes_upstream_dependencies": false
 }
