@@ -1,0 +1,26 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-214",
+  "base_image": "ericsonjulio/erpnext@sha256:beb3f9f1c8e8f1f195486ae0036836b8dabc564a84b3742d1e9aa2e017094ddf",
+  "platform": "linux/amd64",
+  "upstream_manifest": "../v16-prod-206/manifest.json",
+  "custom_apps": {
+    "my_branding": {
+      "repository": "https://github.com/ericsonjulio1/Nexum-Air.git",
+      "commit": "e0e132a2f9911b7ed5b2f42b6b67acdb1b501e2c"
+    },
+    "eam": {
+      "repository": "https://github.com/ericsonjulio1/eam.git",
+      "commit": "0daafd8240520f60a6cadf6168f2ede8ca54c5a3"
+    }
+  },
+  "frontend_adapter": "apply_frontend.py",
+  "frontend_sources": [
+    "crm/frontend",
+    "helpdesk/desk",
+    "insights/frontend",
+    "drive/frontend",
+    "gameplan/frontend",
+    "hrms/roster"
+  ],
+  "digest": "sha256:84214cd4f095edf9fc70e037014b6c3d9c8e367cce0ca99b16ae0aff490aeadf"
+}

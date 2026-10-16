@@ -4,3 +4,5 @@ __pycache__/
 node_modules/
 .DS_Store
 *.egg-info/
+build/releases/*/my_branding/
+build/releases/*/eam/
