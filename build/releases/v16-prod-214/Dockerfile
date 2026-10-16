@@ -16,4 +16,4 @@ USER root
 COPY --chown=frappe:frappe my_branding/ /home/frappe/frappe-bench/apps/my_branding/
 COPY --chown=frappe:frappe eam/ /home/frappe/frappe-bench/apps/eam/
 USER frappe
-LABEL com.nexumair.release="v16-prod-214" com.nexumair.branding.commit="e0e132a2f9911b7ed5b2f42b6b67acdb1b501e2c" com.nexumair.eam.commit="0daafd8240520f60a6cadf6168f2ede8ca54c5a3"
+LABEL com.nexumair.release="v16-prod-214" com.nexumair.branding.commit="e0e132a2f9911b7ed5b2f42b6b67acdb1b501e2c" com.nexumair.eam.commit="da0fcc1074044060ca60746aac7718c4150ffb0e"
