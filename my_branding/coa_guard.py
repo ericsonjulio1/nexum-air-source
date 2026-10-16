@@ -13,10 +13,10 @@ sides of VAT while the chart's dedicated 1611 (input, Asset) / 2201 (output,
 Liability) leaves sit unused, and "1532 - Inventory in Transit" is typed
 "Stock Adjustment" (a P&L difference type) instead of "Stock".
 
-Runs after every migrate, self-healing existing sites and any future tenant.
-Each step only acts when the numbered target leaf actually exists, so
-standard-chart sites (demo/smoketest/...) are no-ops. Hardened: a failure in
-one company/step never aborts the migrate.
+Runs after every migrate. Existing accounts are never deleted or disabled:
+absence of GL does not prove that drafts, defaults or custom links do not use
+them. A company's reconciliation is atomic; a failure is logged and later
+companies can still be reconciled.
 """
 
 import frappe
@@ -30,17 +30,23 @@ def _leaf(company, prefix):
 
 def reconcile_ph_coa_defaults():
 	for company in frappe.get_all("Company", pluck="name"):
+		frappe.db.savepoint("nx_coa_company")
 		try:
 			_fix_company(company)
 		except Exception:
-			# message must be the traceback (batch-183, sweep C35): passing a label
-			# as the second positional arg logged the literal string and dropped the
-			# actual exception entirely
+			traceback = frappe.get_traceback()
+			try:
+				frappe.db.rollback(save_point="nx_coa_company")
+			except Exception:
+				# A database deadlock can already have rolled back the whole
+				# transaction, including the savepoint. Prior companies committed
+				# separately, so a full rollback cannot erase their changes.
+				frappe.db.rollback()
 			frappe.log_error(
 				title=f"coa_guard failed for {company}",
-				message=frappe.get_traceback(),
+				message=traceback,
 			)
-	frappe.db.commit()
+		frappe.db.commit()
 
 
 def _fix_company(company):
@@ -50,16 +56,8 @@ def _fix_company(company):
 		if current and "Customer Deposits" in current:
 			frappe.db.set_value("Company", company, "default_payable_account", ap)
 
-	# the chart's baked-in demo account — drop it while it is still unused.
-	# Match account_name EXACTLY (2026-08-29 sweep): the old `like
-	# "%Raw Materials - Demo%"` also caught tenant-created accounts such as
-	# "Raw Materials - Demolition - <abbr>" and force-deleted them on every
-	# migrate — the same lesson the VAT block below already documents (MB-1).
-	leak = frappe.db.get_value(
-		"Account", {"company": company, "account_name": "Raw Materials - Demo"}, "name"
-	)
-	if leak and not frappe.db.count("GL Entry", {"account": leak}):
-		frappe.delete_doc("Account", leak, force=True, ignore_permissions=True)
+	# Keep even the chart's baked-in demo leaf. Drafts, warehouse/item defaults,
+	# budgets and custom Link fields can reference an account before it posts GL.
 
 	vin = _leaf(company, "1611 - VAT Input Tax - Goods")
 	vout = _leaf(company, "2201 - VAT Output Tax")
@@ -79,15 +77,8 @@ def _fix_company(company):
 			else None
 		)
 		_repoint_tax_templates(company, vin, vout, generic)
-		# park the generic catch-all VAT leaf once nothing routes to it: no GL posted to it,
-		# and no live transaction still carrying it (batch205 idx 93)
-		if (
-			generic
-			and not frappe.db.get_value("Account", generic, "disabled")
-			and not frappe.db.count("GL Entry", {"account": generic})
-			and not _carried_by_transactions(generic)
-		):
-			frappe.db.set_value("Account", generic, "disabled", 1)
+		# Do not disable the old leaf: tax tables are not an exhaustive inventory
+		# of references (Journal/Payment drafts, POS settings, custom fields, etc.).
 
 	# upstream renumbered the PH chart (erpnext 5281d538ce / PR #56817, 16.27+): the leaf
 	# is "1542 - Inventory in Transit" on sites created after that, "1532 - ..." before —
@@ -95,29 +86,12 @@ def _fix_company(company):
 	transit = frappe.db.get_value(
 		"Account", {"company": company, "account_name": "Inventory in Transit", "is_group": 0}, "name"
 	) or _leaf(company, "1532 - Inventory in Transit")
-	if transit and frappe.db.get_value("Account", transit, "account_type") == "Stock Adjustment":
-		frappe.db.set_value("Account", transit, "account_type", "Stock")
-
-
-def _carried_by_transactions(generic):
-	"""True while a non-cancelled transaction (not a template) has a tax row on `generic`.
-	Quotations, Sales / Purchase Orders and drafts post no GL, so the GL count misses them,
-	yet an invoice made from one copies its tax rows unchanged, and submitting it against
-	the disabled account fails ("Cannot create accounting entries against disabled
-	accounts"). Their rows are never rewritten here (a submitted document has no version
-	trail for it): the account simply stays enabled. The templates no longer route new
-	documents to it, but VAT billed off those older documents still lands on it, as it
-	did before this guard existed — a books review should reclass that, if any. The
-	guard re-checks on every migrate."""
-	for child_dt, template_dt in (
-		("Sales Taxes and Charges", "Sales Taxes and Charges Template"),
-		("Purchase Taxes and Charges", "Purchase Taxes and Charges Template"),
+	if (
+		transit
+		and frappe.db.get_value("Account", transit, "account_type") == "Stock Adjustment"
+		and frappe.db.get_value("Company", company, "stock_adjustment_account") != transit
 	):
-		if frappe.db.exists(
-			child_dt, {"account_head": generic, "parenttype": ["!=", template_dt], "docstatus": ["<", 2]}
-		):
-			return True
-	return False
+		frappe.db.set_value("Account", transit, "account_type", "Stock")
 
 
 def _repoint_tax_templates(company, vin, vout, generic):
@@ -141,22 +115,23 @@ def _repoint_tax_templates(company, vin, vout, generic):
 	for itt in frappe.get_all("Item Tax Template", filters={"company": company}, pluck="name"):
 		doc = frappe.get_doc("Item Tax Template", itt)
 		changed = False
-		repointed_rates = []
-		for row in doc.taxes:
+		for row in list(doc.taxes):
 			if row.tax_type == generic:
-				row.tax_type = vout
+				# Item overrides are keyed by account. A missing input-VAT key
+				# falls back to the purchase template's rate, so 0% and "not
+				# applicable" must be copied to BOTH new accounts too. Preserve
+				# an explicit input/output override the tenant already chose;
+				# replacing generic with an existing output key creates a
+				# duplicate and prevents the template from saving.
+				for target in (vout, vin):
+					if not any(existing.tax_type == target for existing in doc.taxes):
+						doc.append("taxes", {
+							"tax_type": target,
+							"tax_rate": row.tax_rate or 0,
+							"not_applicable": row.get("not_applicable") or 0,
+						})
+				doc.remove(row)
 				changed = True
-				repointed_rates.append(row.tax_rate or 0)
-		# the appended input-VAT row INHERITS the repointed row's rate (batch-183,
-		# sweep C11): the hardcoded 12.0 silently turned a zero-rated/exempt template
-		# into one that computes 12% input VAT on every purchase. All-zero rates =
-		# a zero-rated template — no input-VAT row belongs on it at all.
-		if changed and not any(r.tax_type == vin for r in doc.taxes) \
-				and any(r for r in repointed_rates):
-			# first NON-ZERO rate (review L4): a mixed template whose first generic
-			# row was 0% would otherwise append a useless 0% input-VAT row
-			doc.append("taxes", {"tax_type": vin,
-			                     "tax_rate": next(r for r in repointed_rates if r)})
 		if changed:
 			doc.flags.ignore_permissions = True
 			doc.save()

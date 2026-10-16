@@ -36,7 +36,8 @@ patcher is a NO-OP ("no patch needed (upstream fixed)"); it still applies the pa
 on the old (v16.26.2) shape and still FAILS LOUDLY on any other shape.
 """
 import sys
-import py_compile
+import ast
+import hashlib
 
 MARKER = "PATCHED (NexumAir): segment-aware growth lookup"
 
@@ -81,8 +82,9 @@ NEW_METHOD = '''\tdef transform(self) -> None:
 \t\t\trow_data.update(transformed_values)
 '''
 
-ANCHOR_START = "\tdef transform(self) -> None:"
-ANCHOR_END = "\n\tdef _calculate_growth"
+# Exact legacy method from ERPNext v16.26.2. Unknown source must be reviewed,
+# even if it has the same function names or still compiles after replacement.
+LEGACY_METHOD_SHA256 = "565774af496fcb900a35e77a3671e96ac09c80a0e67f9b208f36fa9dcf244f0c"
 
 # Upstream's own segment-aware rewrite (erpnext 04e7457cea + 1f5281d3b8, >= v16.32.x).
 # All three must be present inside GrowthViewTransformer for the no-op verdict.
@@ -101,26 +103,39 @@ def main() -> int:
     with open(path, encoding="utf-8") as fh:
         src = fh.read()
 
-    if MARKER in src:
+    tree = ast.parse(src)
+    classes = [node for node in tree.body
+               if isinstance(node, ast.ClassDef) and node.name == "GrowthViewTransformer"]
+    if len(classes) != 1:
+        print("ERROR: expected one GrowthViewTransformer class; source was not changed.")
+        return 1
+    cls = classes[0]
+    methods = [node for node in cls.body
+               if isinstance(node, ast.FunctionDef) and node.name == "transform"]
+    if len(methods) != 1:
+        print("ERROR: expected one GrowthViewTransformer.transform; source was not changed.")
+        return 1
+    method = methods[0]
+    lines = src.splitlines(keepends=True)
+    class_source = "".join(lines[cls.lineno - 1:cls.end_lineno])
+    method_source = "".join(lines[method.lineno - 1:method.end_lineno])
+    if method_source == NEW_METHOD:
         print("already patched, nothing to do:", path)
         return 0
 
-    if "class GrowthViewTransformer" in src and all(m in src for m in UPSTREAM_FIXED_MARKERS):
+    if all(m in class_source for m in UPSTREAM_FIXED_MARKERS):
         print("no patch needed (upstream fixed: segment-aware growth, erpnext 04e7457cea/1f5281d3b8):", path)
         return 0
 
-    try:
-        start = src.index(ANCHOR_START)
-        end = src.index(ANCHOR_END, start) + 1  # keep the newline before _calculate_growth
-    except ValueError:
-        print("ERROR: anchors not found - upstream code shape changed; re-review before applying.")
+    if hashlib.sha256(method_source.encode()).hexdigest() != LEGACY_METHOD_SHA256:
+        print("ERROR: unreviewed GrowthViewTransformer.transform; source was not changed.")
         return 1
 
-    patched = src[:start] + NEW_METHOD + "\n" + src[end:]
+    patched = "".join(lines[:method.lineno - 1]) + NEW_METHOD + "".join(lines[method.end_lineno:])
+    compile(patched, path, "exec")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(patched)
 
-    py_compile.compile(path, doraise=True)
     print("patched + compiles OK:", path)
     return 0
 

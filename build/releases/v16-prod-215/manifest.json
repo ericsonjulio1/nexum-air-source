@@ -1,0 +1,19 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-215",
+  "base_image": "ericsonjulio/erpnext@sha256:80c646bb6638280a00e0d061f5ffcb4b3f884fb2ab095abd49e536ff54db5787",
+  "platform": "linux/amd64",
+  "upstream_manifest": "../v16-prod-206/manifest.json",
+  "custom_apps": {
+    "my_branding": {
+      "repository": "https://github.com/ericsonjulio1/Nexum-Air.git",
+      "commit": "PENDING"
+    },
+    "eam": {
+      "repository": "https://github.com/ericsonjulio1/eam.git",
+      "commit": "PENDING"
+    }
+  },
+  "digest": null,
+  "inherited_release": "../v16-prod-214/manifest.json",
+  "changes_upstream_dependencies": false
+}

@@ -151,7 +151,13 @@ and the other 2026-08-22 frappe/erpnext security backports.
 
 ## Reproducing the build
 
-Exact app commits are pinned in `saas/image/apps.pinned.json`; the image is built
-by `saas/image/Containerfile` + `build.sh`. Checking out each app at its pinned
-commit, applying the modifications above, and building reproduces the running
-service.
+The current release is reproduced through the immutable recipe chain in the
+public source mirror: `build/releases/v16-prod-215/manifest.json` pins the v214
+base digest and exact custom-app commits. Its `prepare.py` archives those commits
+and its Dockerfile replaces the complete custom-app trees. Follow the inherited
+release manifests for upstream source and frontend build provenance.
+
+`saas/image/Containerfile` and older patchers are historical full-build tooling;
+they do not by themselves reproduce the current service. Before a future
+from-scratch rebuild or dependency upgrade, review their guards against the new
+pinned sources. v215 does not run those historical adapters or update dependencies.

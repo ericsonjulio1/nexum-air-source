@@ -17,8 +17,14 @@ prefix and every segment prefix, and skip keys that aren't present / non-numeric
 cells. Behaviour for vertical (single-segment) templates is unchanged.
 
 ## How it is applied
-`financial_report_growth_columnar.py` in this directory is the idempotent,
-anchor-guarded patcher (no-op if already patched via the `PATCHED (NexumAir)`
-marker; fails the build loudly if the upstream code shape moves). The image build
-runs it against the baked erpnext app. Drop it once upstream fixes the columnar
-Growth lookup.
+`financial_report_growth_columnar.py` uses the Python AST to locate only
+`GrowthViewTransformer.transform`, then requires the exact reviewed legacy method
+hash before replacing it. It preserves all other transformers, compiles before
+writing, and rejects unknown method bodies even under `python -O`. A patched
+method must match the complete replacement; a marker alone is insufficient.
+
+The current ERPNext 16.50.0 runtime already contains the upstream segment-aware
+implementation. Its source remains byte-for-byte unchanged by this patcher.
+The v215 recipe inherits that fixed runtime and does not run this historical
+patch. The patcher is retained for documented older builds; its regression tests
+cover unrelated transformers, unknown source, misleading markers and idempotence.
