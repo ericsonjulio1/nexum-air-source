@@ -690,6 +690,26 @@ test('idx 148: a desk unlock (nexum-idle:gen) refreshes the token before anythin
 	assert.equal(t.beats().length, 0, 'no heartbeat without activity');
 });
 
+test('a suite theme change uses the same-user token refreshed after Desk unlock', async () => {
+	const t = loadActivity();
+	Object.assign(t.ctx, { __NEXUM_BRAND__: { theme: 'Light', theme_csrf: 'tok-old' },
+		matchMedia: () => ({ matches: false, addEventListener() {} }),
+		MutationObserver: class { observe() {} }, location: { pathname: '/crm/leads' } });
+	vm.runInNewContext(read('js/suite-theme.js'), t.ctx, { filename: 'suite-theme.js' });
+	t.ctx.dispatch('storage', { key: 'nexum-idle:gen', newValue: '1760000000000' });
+	await flush();
+	t.fetch.to('idle_lock.session_token')[0].respond(200, { message: { user: 'a@example.com', csrf_token: 'tok-new' } });
+	await flush();
+	const save = t.ctx.NexumTheme.setChoice('dark');
+	await flush();
+	const request = t.fetch.to('user.switch_theme')[0];
+	assert.equal(request.opts.headers['X-Frappe-CSRF-Token'], 'tok-new',
+		'the refreshed session must not receive the expired boot-time token');
+	request.respond(200, {});
+	await save;
+	assert.equal(t.ctx.NexumTheme.getChoice(), 'dark');
+});
+
 test("idx 148: another user's token is never taken", async () => {
 	const t = loadActivity();
 	t.doc.dispatchEvent({ type: 'keydown' });
@@ -761,6 +781,44 @@ test('idx 82: one unsupported format alone is not a failure (the next source pla
 // =====================================================================================
 // idx 84 — brand.js chart label/mark pass: not on tooltip churn, not on hidden charts
 // =====================================================================================
+function loadLegacyCrumbPass(modern) {
+	const { doc, h, MutationObserver: DomObserver } = makeDom();
+	const raf = [], metrics = { observers: 0, frames: 0 };
+	const crumb = h('a', { class: 'worksapce-breadcrumb', href: '#' }, 'Stock');
+	doc.body.appendChild(h('div', { class: 'navbar-breadcrumbs' }, crumb));
+	const ctx = {
+		document: doc,
+		frappe: { boot: modern ? { module_sidebars: {} } : {}, app: { sidebar: { current_module: 'Accounts' } },
+			utils: { get_desktop_icon_by_label: label => ({ label }), get_route_for_icon: () => '/desk/accounts' } },
+		MutationObserver: class { constructor(callback) { metrics.observers++; return new DomObserver(callback); } },
+		requestAnimationFrame: callback => { metrics.frames++; raf.push(callback); return metrics.frames; },
+	};
+	const src = section(read('js/brand.js'), "The breadcrumb's workspace crumb can freeze", '--- Desk-home glass/aurora scope');
+	vm.runInNewContext(src, ctx, { filename: 'brand.js#legacy-crumb' });
+	const settle = async () => { await flush(); while (raf.length) { raf.shift()(); await flush(); } };
+	return { doc, h, crumb, metrics, settle };
+}
+
+test('modern native breadcrumbs do not schedule the obsolete body observer', async () => {
+	const t = loadLegacyCrumbPass(true);
+	for (let n = 0; n < 20; n++) {
+		t.doc.body.appendChild(t.h('div', {}, 'Unrelated report row'));
+		await t.settle();
+	}
+	assert.deepEqual(t.metrics, { observers: 0, frames: 0 }, 'modern trails are handled by navigation.js');
+	assert.equal(t.crumb.textContent, 'Stock', 'legacy code must not own the native trail');
+});
+
+test('legacy breadcrumbs still coalesce mutations and repair the workspace trail', async () => {
+	const t = loadLegacyCrumbPass(false);
+	for (let n = 0; n < 20; n++) t.doc.body.appendChild(t.h('div', {}, 'Report row'));
+	await t.settle();
+	assert.equal(t.metrics.observers, 1);
+	assert.ok(t.metrics.frames <= 2, 'one coalesced pass plus its own text mutation');
+	assert.equal(t.crumb.textContent, 'Accounts');
+	assert.equal(t.crumb.getAttribute('href'), '/desk/accounts');
+});
+
 function loadChartPass() {
 	const { doc, h, MutationObserver } = makeDom();
 	const raf = [];

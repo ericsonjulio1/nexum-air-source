@@ -181,10 +181,16 @@ class TestInvoicePHTotals(unittest.TestCase):
 		total = sum(_amount(v) for _cls, _label, v in before_total)
 		self.assertAlmostEqual(total, _amount(grand[0][2]), places=2, msg=rows)
 		# an included tax is information under Total, never part of the sum
+		policy = cint(frappe.get_single_value("Selling Settings", "enable_discount_accounting"))
 		for t in si.taxes:
-			if t.included_in_print_rate and t.tax_amount_after_discount_amount:
+			posted_tax = si.get_tax_amounts(t, policy)[0]
+			if t.included_in_print_rate and posted_tax:
 				self.assertIn("incl. " + t.description, labels, rows)
 				self.assertNotIn(t.description, [label for _c, label, _v in before_total], rows)
+			if posted_tax:
+				label = ("incl. " if t.included_in_print_rate else "") + t.description
+				printed = next(value for _cls, name, value in rows if name == label)
+				self.assertAlmostEqual(_amount(printed), posted_tax, places=2)
 		return rows
 
 	def test_included_vat_is_not_added_twice(self):
@@ -208,15 +214,64 @@ class TestInvoicePHTotals(unittest.TestCase):
 			with self.subTest(discount=discount, apply_on=apply_on):
 				self.assertAddsUp(_invoice(self.company, [VAT_INCL, SERVICE], discount=discount, apply_on=apply_on, rate=1120))
 
-	def test_exclusive_vat_prints_as_before(self):
+	def test_exclusive_vat_prints_the_native_after_discount_amount(self):
 		rows = self.assertAddsUp(_invoice(self.company, [VAT_EXCL]))
 		self.assertEqual([(label, _amount(v)) for _c, label, v in rows], [("Subtotal", 1000), ("VAT 12%", 120), ("Total", 1120)])
 		rows = self.assertAddsUp(_invoice(self.company, [VAT_EXCL], discount=10, apply_on="Grand Total"))
 		self.assertEqual(
 			[(label, _amount(v)) for _c, label, v in rows],
-			[("Subtotal", 1000), ("Discount (10%)", -112), ("VAT 12%", 120), ("Total", 1008)],
+			[("Subtotal", 1000), ("Discount (10%)", -100), ("VAT 12%", 108), ("Total", 1008)],
 		)
 		self.assertAddsUp(_invoice(self.company, [VAT_EXCL], discount=10, apply_on="Net Total"))
+
+
+	def test_tax_print_matches_native_gl_under_both_discount_policies(self):
+		"""Read-only native GL construction: setting/account/apply-on all affect the policy."""
+		from frappe.utils.jinja import get_jenv
+		native_single = frappe.get_single_value
+		db_single = frappe.db.get_single_value
+		# Frappe captures the bound DB method in its request-local Jinja namespace.
+		jinja_db = get_jenv().globals["frappe"]["db"]
+		for enabled, has_account, apply_on in ((0, True, "Grand Total"), (1, True, "Grand Total"),
+				(1, False, "Grand Total"), (1, True, "Net Total")):
+			for included in (0, 1):
+				with self.subTest(enabled=enabled, account=has_account, apply_on=apply_on, included=included):
+					si = _invoice(self.company, [_tax("VAT 12%", 12, included)], discount=10,
+						apply_on=apply_on, rate=1120 if included else 1000)
+					si.additional_discount_account = "_nx-b205 discount" if has_account else None
+					def setting(original):
+						def read(doctype, fieldname, *args, **kwargs):
+							if (doctype, fieldname) == ("Selling Settings", "enable_discount_accounting"):
+								return enabled
+							return original(doctype, fieldname, *args, **kwargs)
+						return read
+					with patch.object(frappe, "get_single_value", side_effect=setting(native_single)), patch.object(
+						frappe.db, "get_single_value", side_effect=setting(db_single)
+					), patch.dict(jinja_db, {"get_single_value": setting(db_single)}), patch(
+						"erpnext.accounts.doctype.sales_invoice.sales_invoice.get_account_currency", return_value=si.currency
+					), patch.object(
+						si, "get_gl_dict", side_effect=lambda values, *_args, **_kwargs: values
+					):
+						entries = []
+						si.make_tax_gl_entries(entries)
+						self.assertEqual(len(entries), 1)
+						expected = 120 if enabled and has_account and apply_on == "Grand Total" else 108
+						self.assertEqual(entries[0]["credit_in_transaction_currency"], expected)
+						rows = _sum_rows(_render(si))
+						label = ("incl. " if included else "") + "VAT 12%"
+						printed = next(value for _cls, name, value in rows if name == label)
+						self.assertEqual(_amount(printed), entries[0]["credit_in_transaction_currency"])
+						grand = next(row for row in rows if row[0] == "nxi-grand")
+						self.assertAlmostEqual(sum(_amount(value) for _cls, _label, value in rows[:rows.index(grand)]),
+							_amount(grand[2]), places=2)
+
+	def test_credit_note_discount_is_one_signed_amount(self):
+		si = _invoice(self.company, [VAT_EXCL], discount=10, rate=-1000)
+		si.is_return = 1
+		rows = _sum_rows(_render(si))
+		discount = next(value for _cls, label, value in rows if label.startswith("Discount"))
+		self.assertLessEqual(discount.count("-"), 1, rows)
+		self.assertAddsUp(si)
 
 
 class TestInvoicePHAmountDue(unittest.TestCase):
@@ -258,6 +313,20 @@ class TestInvoicePHAmountDue(unittest.TestCase):
 		si.docstatus = 1
 		si.outstanding_amount = 400
 		self.assertEqual([(label, _amount(v)) for label, v in self._due_rows(si)], [("Paid", 600), ("Amount Due", 400)])
+
+	def test_rounding_noise_does_not_print_paid_zero(self):
+		si = _invoice(self.company, rate=1000)
+		si.docstatus = 1
+		si.outstanding_amount = si.grand_total - 0.0000001
+		self.assertEqual(self._due_rows(si), [])
+
+	def test_disabled_rounding_uses_unrounded_total_for_amount_due(self):
+		si = _invoice(self.company, rate=1000.4)
+		si.docstatus = 1
+		si.disable_rounded_total = 1
+		si.rounded_total = 1000
+		si.outstanding_amount = si.grand_total
+		self.assertEqual(self._due_rows(si), [])
 
 
 class TestInvoicePHSellerAddress(unittest.TestCase):
@@ -567,12 +636,13 @@ class TestGenericVatParking(unittest.TestCase):
 				coa_guard._fix_company(self.company)
 				self.assertFalse(self._disabled())
 
-	def test_parked_once_only_cancelled_documents_carry_it(self):
+	def test_kept_enabled_when_tax_tables_show_only_cancelled_documents(self):
 		with _savepoint():
 			frappe.db.set_value("Account", self.generic, "disabled", 0)
 			self._row("Sales Taxes and Charges", "Sales Order", 2)
 			coa_guard._fix_company(self.company)
-			self.assertTrue(self._disabled())
+			# Journal/Payment drafts, defaults and custom links can still use it.
+			self.assertFalse(self._disabled())
 
 
 # --------------------------------------------------------------------------- idx 159

@@ -15,7 +15,7 @@
 		form.parentNode.insertBefore(head, form);
 	}
 
-	var asset = "/assets/my_branding/video/nexumair-plant-20261003-v5";
+	var asset = "/assets/my_branding/video/nexumair-plant-20261016-v6";
 	var art = document.createElement("div");
 	art.className = "nexum-art";
 	var poster = document.createElement("img");

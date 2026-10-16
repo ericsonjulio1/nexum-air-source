@@ -22,7 +22,7 @@ APP_TITLES = app_titles()
 # also covers the /apps switcher + navbar dropdown.
 ICON = "/assets/my_branding/images/icons/%s?v=c1"
 APP_LOGOS = {
-	"erpnext": ICON % "erpnext_app.svg",
+	"erpnext": ICON % "erp_app.svg",
 	"hrms": ICON % "hrms_app.svg",
 	"crm": ICON % "crm_app2.svg",
 	"gameplan": ICON % "gameplan_app2.svg",
@@ -61,7 +61,7 @@ def get_apps():
 	"""override_whitelisted_methods for frappe.apps.get_apps — relabel the apps
 	screen to the Nexum Air names + teal icons. Calls the real implementation (the
 	function object, not the whitelisted path, so there's no recursion) and
-	rewrites the display `title` and `logo`. Nexum Air in a SPA's switcher returns
+	rewrites the display `title` and `logo`. ERP in a SPA's switcher returns
 	to the suite launcher; the ERP tile's own landing remains in boot.app_data.
 	Hardened: on any error fall back to the original list."""
 	from frappe.apps import get_apps as _get_apps
@@ -113,13 +113,13 @@ def get_apps():
 # Builder ships its OWN apps endpoint (builder.api.get_apps) that bypasses
 # frappe.apps.get_apps, prepends a "Desk" entry, and lists "ERPNext" with stock
 # logos. Override it too: rebrand the two ERPNext-jargon titles + teal logos.
-BUILDER_TITLE_OVERRIDES = {"frappe": "Home", "erpnext": "Nexum Air"}
+BUILDER_TITLE_OVERRIDES = {"frappe": "Home", "erpnext": APP_TITLES["erpnext"]}
 
 
 @frappe.whitelist()
 def builder_get_apps():
 	"""override_whitelisted_methods for builder.api.get_apps — relabel "Desk"->
-	"Home" and "ERPNext"->"Nexum Air" and swap to teal logos. Hardened: on any
+	"Home" and "ERPNext"->"ERP" and swap to teal logos. Hardened: on any
 	error fall back to Builder's original list."""
 	try:
 		from builder.api import get_apps as _builder_get_apps

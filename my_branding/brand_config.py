@@ -33,12 +33,12 @@ APPS = {
 	# Installed Applications) render its app_title "Frappe Framework" — brand it too.
 	# "Framework" matches the launcher tile label in DESKTOP_ICON_ORDER.
 	"frappe":   {"suffix": "Framework", "display": "Framework", "native": "Frappe Framework", "route": None},
-	"erpnext":  {"suffix": "",         "display": None,       "native": None,              "route": None},
+	"erpnext":  {"suffix": "",         "display": "ERP",      "native": None,              "route": None},
 	"hrms":     {"suffix": "HR",       "display": "HR",       "native": "Frappe HR",       "route": "/hrms"},
 	"crm":      {"suffix": "CRM",      "display": "CRM",      "native": "Frappe CRM",      "route": "/crm"},
 	"helpdesk": {"suffix": "Helpdesk", "display": "Helpdesk", "native": "Frappe Helpdesk", "route": "/helpdesk"},
 	"drive":    {"suffix": "Drive",    "display": "Drive",    "native": "Frappe Drive",    "route": "/drive"},
-	"insights": {"suffix": "Insights", "display": "Insights", "native": "Frappe Insights", "route": "/insights", "extra_swaps": [["ERPNext", "Nexum Air"]]},
+	"insights": {"suffix": "Insights", "display": "Insights", "native": "Frappe Insights", "route": "/insights", "extra_swaps": [["ERPNext", "ERP"]]},
 	"builder":  {"suffix": "Builder",  "display": "Builder",  "native": "Frappe Builder",  "route": "/builder"},
 	"lms":      {"suffix": "Learning", "display": "Learning", "native": "Frappe Learning", "route": "/lms"},
 	"gameplan": {"suffix": "Teams",    "display": "Teams",    "native": "Frappe Gameplan", "route": "/g", "extra_swaps": [["Gameplan", "Teams"]]},

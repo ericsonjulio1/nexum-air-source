@@ -12,3 +12,6 @@ teal→cyan brand squircle. Two upstream icon sets are used:
 
 No attribution is required in the application UI under either licence; these
 notices and the bundled licence files satisfy the retention requirements.
+
+The connected business-module glyph in `erp_app.svg` (and the compatibility
+copy `erpnext_app.svg`) is original Nexum Air artwork under this app's MIT licence.

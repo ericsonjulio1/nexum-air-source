@@ -3,6 +3,91 @@
 (function () {
 	if (frappe.__nexumMaintenanceEntry) return;
 	frappe.__nexumMaintenanceEntry = true;
+	const sections = {
+		"work-orders": "Work Orders",
+		"pm-planning": "PM Planning",
+		reports: "Reports",
+		"spare-parts": "Spare Parts",
+	};
+	// Keep the persisted, editable workspace shortcut. Its rendered body provides
+	// section links using the same markup as native link cards, without inventing
+	// Page records or adding a second inventory/navigation model.
+	const shortcutBlock = frappe.workspace_block?.blocks?.shortcut?.prototype;
+	if (shortcutBlock?.render) {
+		const render = shortcutBlock.render;
+		shortcutBlock.render = function () {
+			const wrapper = render.apply(this, arguments);
+			if (!this.readOnly || this.data?.shortcut_name !== "Maintenance"
+				|| frappe.workspace?._page?.name !== "Assets") return wrapper;
+			const card = wrapper.querySelector(".widget");
+			if (!card) return wrapper;
+			card.classList.add("links-widget-box", "nx-maintenance-entry");
+			card.setAttribute("role", "group");
+			card.removeAttribute("tabindex");
+			const title = card.querySelector(".widget-title");
+			const home = document.createElement("a");
+			home.href = "/desk/maintenance";
+			home.textContent = title.textContent;
+			home.className = "nx-maintenance-home";
+			title.replaceChildren(home);
+			const body = card.querySelector(".widget-body");
+			body.replaceChildren();
+			for (const [section, label] of Object.entries(sections)) {
+				const link = document.createElement("a");
+				link.href = "/desk/maintenance?section=" + section;
+				link.className = "link-item";
+				link.dataset.nexumMaintenanceSection = section;
+				const content = document.createElement("span");
+				content.className = "link-content";
+				const text = document.createElement("span");
+				text.className = "link-text";
+				text.textContent = __(label);
+				content.append(text);
+				link.append(content);
+				body.append(link);
+			}
+			return wrapper;
+		};
+	}
+
+	// Scroll only when the requested card has actually rendered. No persistent
+	// DOM observer or retry timer is needed; cached routes use the router event.
+	let scrollFrame, awaitingAjax = false;
+	const scrollToSection = () => {
+		const label = sections[new URLSearchParams(window.location.search).get("section")];
+		if (!label || frappe.workspace?._page?.name !== "Maintenance"
+			|| frappe.app?.sidebar?.current_module !== "Maintenance") return;
+		const card = [...frappe.workspace.wrapper[0].querySelectorAll("[card_name]")]
+			.find(element => element.getAttribute("card_name") === label);
+		const heading = card?.querySelector(".widget-title");
+		if (!heading || card.closest(".edit-mode")) return;
+		const header = frappe.workspace.wrapper[0].querySelector(".page-head");
+		card.style.scrollMarginTop = ((header?.getBoundingClientRect().height || 0) + 16) + "px";
+		card.scrollIntoView({ block: "start", behavior: "instant" });
+		heading.setAttribute("tabindex", "-1");
+		heading.focus({ preventScroll: true });
+	};
+	const scheduleSection = () => {
+		if (scrollFrame) cancelAnimationFrame(scrollFrame);
+		if (!sections[new URLSearchParams(window.location.search).get("section")] || awaitingAjax) return;
+		// Number-card results can change the rows above the target. Wait for native
+		// requests and their render microtasks before measuring the final layout.
+		awaitingAjax = true;
+		frappe.after_ajax(() => {
+			awaitingAjax = false;
+			scrollFrame = requestAnimationFrame(() => { scrollFrame = null; scrollToSection(); });
+		});
+	};
+	const cardBlock = frappe.workspace_block?.blocks?.card?.prototype;
+	if (cardBlock?.rendered) {
+		const rendered = cardBlock.rendered;
+		cardBlock.rendered = function () {
+			const result = rendered.apply(this, arguments);
+			if (frappe.workspace?._page?.name === "Maintenance") scheduleSection();
+			return result;
+		};
+		frappe.router.on("change", scheduleSection);
+	}
 	// Framework injects Custom Documents / Reports after the last link card,
 	// including empty placeholders. Keep the Assets doorway beside its two cards
 	// after that injection; retain every custom card and tenant block.
@@ -26,13 +111,19 @@
 	// Native URL shortcuts always open a new window. This internal workspace
 	// doorway follows the same in-place navigation as its sidebar counterpart.
 	if (document.addEventListener) document.addEventListener("click", function (event) {
-		if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		if (frappe.app?.sidebar?.current_module !== "Assets") return;
 		const card = event.target.closest?.('[shortcut_name="Maintenance"] .widget');
 		if (!card || card.closest(".edit-mode")) return;
+		const link = event.target.closest("a");
+		// Let genuine anchors keep browser open-in-new-tab behavior, without the
+		// parent URL shortcut also opening its generic destination.
+		if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+			if (link) event.stopImmediatePropagation();
+			return;
+		}
 		event.preventDefault();
 		event.stopImmediatePropagation();
-		frappe.set_route("maintenance");
+		frappe.set_route(link?.getAttribute("href") || "maintenance");
 	}, true);
 
 	const sidebarItem = frappe.ui.sidebar_item;

@@ -97,8 +97,9 @@ def autocomplete_setup(company_name=None, country="Philippines", currency="PHP")
 	Uses the client's signup company name; safe market defaults (Philippines/PHP, which
 	the client can change later) and a standard calendar fiscal year. Idempotent: a no-op
 	if setup is already complete, so re-running provisioning can't double-create anything.
-	Hardened: persists country/currency on System Settings first (resume-safe, see above)
-	and finalizes the per-app + global setup-complete flags so is_setup_complete() is True.
+	Persists country/currency on System Settings first (resume-safe, see above).
+	Completion flags belong to the native wizard; return success only after its
+	stages have actually completed.
 	"""
 	import json as _json
 
@@ -155,11 +156,13 @@ def autocomplete_setup(company_name=None, country="Philippines", currency="PHP")
 	if "crm" in frappe.get_installed_apps():
 		frappe.db.set_default("crm_demo_data_created", "1")
 
-	stock_setup_complete(_json.dumps(args))
+	result = stock_setup_complete(_json.dumps(args))
 
-	# Finalize: only frappe+erpnext have setup stages, so mark every installed app +
-	# the global flag so is_setup_complete() is True and the wizard never shows again.
-	frappe.db.sql("update `tabInstalled Application` set is_setup_complete=1")
-	frappe.db.set_single_value("System Settings", "setup_complete", 1)
-	frappe.db.commit()
+	# A native duplicate request can return status=ok while another setup owns
+	# the lock. Older implementations can also return fail/registered. Neither
+	# proves completion; never overwrite the native stages' flags to force it.
+	if not isinstance(result, dict) or result.get("status") != "ok" or not frappe.is_setup_complete():
+		frappe.throw(
+			_("Setup has not completed. Wait for any active setup process to finish and retry provisioning.")
+		)
 	return {"status": "completed", "company": company_name}

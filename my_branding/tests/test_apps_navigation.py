@@ -13,6 +13,7 @@ class TestAppsNavigation(unittest.TestCase):
 		info = frappe._dict(app_data=[app])
 		boot.boot_session(info)
 		self.assertEqual(app["app_logo_url"], naming.APP_LOGOS["erpnext"])
+		self.assertEqual(app["app_title"], "ERP")
 		self.assertEqual(app["app_route"], "/desk/home")
 		self.assertTrue(app["on_apps_screen"])
 		self.assertEqual(app["dock"], [{"name": "Assets"}])
@@ -24,8 +25,10 @@ class TestAppsNavigation(unittest.TestCase):
 		self.assertFalse(app["on_apps_screen"])
 		self.assertEqual(app["dock"], [])
 
-	def test_spa_nexum_air_entry_returns_to_suite_and_other_apps_keep_their_routes(self):
+	def test_spa_erp_entry_returns_to_suite_and_other_apps_keep_their_routes(self):
 		apps = {app["name"]: app for app in naming.get_apps()}
 		self.assertEqual(apps["erpnext"]["route"], "/desk")
+		self.assertEqual(apps["erpnext"]["title"], "ERP")
+		self.assertIn("/erp_app.svg", apps["erpnext"]["logo"])
 		if "crm" in apps:
 			self.assertEqual(apps["crm"]["route"], "/crm")

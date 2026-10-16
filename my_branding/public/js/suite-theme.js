@@ -8,6 +8,8 @@
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const normal = value => ({light: 'light', dark: 'dark', automatic: 'system', auto: 'system', system: 'system'})[String(value).toLowerCase()];
     let choice = normal(config.theme) || 'light';
+    let confirmed = choice;
+    let choiceVersion = 0;
     let saving = Promise.resolve();
     const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
     const write = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
@@ -26,19 +28,23 @@
     function save(next) {
         next = normal(next);
         if (!next || next === choice) return saving;
-        const previous = choice;
+        const version = ++choiceVersion;
         choice = next;
         seed();
         if (!config.theme_csrf) return saving;
         saving = saving.catch(() => {}).then(async () => {
+            // Desk unlock refreshes the SPA's shared token through idle_activity;
+            // this boot-time config still belongs to the expired session.
+            const csrf = window.csrf_token || window.frappe?.csrf_token || config.theme_csrf;
             const response = await fetch('/api/method/frappe.core.doctype.user.user.switch_theme', {
                 method: 'POST', credentials: 'same-origin',
-                headers: {'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': config.theme_csrf},
+                headers: {'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf},
                 body: JSON.stringify({theme: {light: 'Light', dark: 'Dark', system: 'Automatic'}[next]}),
             });
             if (!response.ok) throw new Error('Theme preference could not be saved');
+            confirmed = next;
         }).catch(() => {
-            if (choice === next) { choice = previous; seed(); }
+            if (version === choiceVersion) { choice = confirmed; seed(); }
             const notice = document.createElement('div');
             notice.setAttribute('role', 'alert');
             notice.className = 'nx-theme-error';

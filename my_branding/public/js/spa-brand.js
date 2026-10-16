@@ -307,12 +307,12 @@
 		var a = document.createElement("a");
 		a.id = "nexum-apps-btn";
 		a.href = "/app";
-		a.title = "Back to Nexum Air apps";
+		a.title = "Back to ERP";
 		a.innerHTML =
 			'<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex:none">' +
 			'<rect x="3" y="3" width="8" height="8" rx="2"></rect><rect x="13" y="3" width="8" height="8" rx="2"></rect>' +
 			'<rect x="3" y="13" width="8" height="8" rx="2"></rect><rect x="13" y="13" width="8" height="8" rx="2"></rect>' +
-			"</svg><span>Apps</span>";
+			"</svg><span>ERP</span>";
 		a.style.cssText =
 			"position:fixed;left:16px;bottom:16px;z-index:2147483000;display:inline-flex;align-items:center;" +
 			"gap:7px;background:#2E5562;color:#fff;text-decoration:none;font:600 13px/1 -apple-system,system-ui,sans-serif;" +

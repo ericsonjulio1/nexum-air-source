@@ -114,7 +114,7 @@ ion-tab-button.tab-selected * {
  * logo as <img src=...>. brand.css can't reach inside the SPA, so swap those
  * stock logos to the teal Nexum Air icons here. Keyed on the full logo src. */
 img[src$="/assets/erpnext/images/erpnext-logo.svg"],
-img[src$="/assets/builder/images/desk.png"]            { content: url("/assets/my_branding/images/icons/erpnext_app.svg?v=c1") !important; }
+img[src$="/assets/builder/images/desk.png"]            { content: url("/assets/my_branding/images/icons/erp_app.svg?v=c1") !important; }
 img[src$="/assets/hrms/images/frappe-hr-logo.svg"]      { content: url("/assets/my_branding/images/icons/hrms_app.svg?v=c1") !important; }
 img[src$="/assets/crm/images/logo.svg"]                 { content: url("/assets/my_branding/images/icons/crm_app2.svg?v=c1") !important; }
 img[src$="/assets/gameplan/manifest/favicon-196.png"]   { content: url("/assets/my_branding/images/icons/gameplan_app2.svg?v=c1") !important; }

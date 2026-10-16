@@ -34,3 +34,52 @@ test('Automatic follows the OS without converting that choice into permanent Dar
     assert.equal(state.storage.get('theme'),'system');
     assert.equal(state.calls.length,0);
 });
+
+test('failed rapid theme changes restore the last server-confirmed preference', async()=>{
+    for (const firstSucceeded of [false, true]) {
+        const state=boot('Light');
+        state.context.document.createElement=()=>({setAttribute(){},remove(){}});
+        state.context.document.body={appendChild(){}};
+        state.context.setTimeout=()=>0;
+        const replies=[];
+        state.context.fetch=()=>new Promise(resolve=>replies.push(resolve));
+        const theme=state.context.window.NexumTheme;
+        const first=theme.setChoice('dark');
+        const second=theme.setChoice('light');
+        await new Promise(resolve=>setImmediate(resolve));
+        replies[0]({ok:firstSucceeded});
+        await first;
+        await new Promise(resolve=>setImmediate(resolve));
+        replies[1]({ok:false});
+        await second;
+        const expected=firstSucceeded?'dark':'light';
+        assert.equal(theme.getChoice(),expected,'failed writes cannot become the rollback preference');
+        assert.equal(state.attrs['data-theme'],expected);
+        assert.equal(state.storage.get('theme'),expected);
+    }
+});
+
+test('an older failed save cannot roll back a later repeated theme choice', async()=>{
+    const state=boot('Light');
+    state.context.document.createElement=()=>({setAttribute(){},remove(){}});
+    state.context.document.body={appendChild(){}};
+    state.context.setTimeout=()=>0;
+    const replies=[];
+    state.context.fetch=()=>new Promise(resolve=>replies.push(resolve));
+    const theme=state.context.window.NexumTheme;
+    const first=theme.setChoice('dark');
+    const second=theme.setChoice('light');
+    const third=theme.setChoice('dark');
+    await new Promise(resolve=>setImmediate(resolve));
+    replies[0]({ok:false});
+    await first;
+    assert.equal(theme.getChoice(),'dark','first Dark and latest Dark are distinct intentions');
+    await new Promise(resolve=>setImmediate(resolve));
+    replies[1]({ok:false});
+    await second;
+    await new Promise(resolve=>setImmediate(resolve));
+    replies[2]({ok:true});
+    await third;
+    assert.equal(theme.getChoice(),'dark');
+    assert.equal(state.attrs['data-theme'],'dark');
+});

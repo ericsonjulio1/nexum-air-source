@@ -660,6 +660,9 @@
 // to the settled sidebar title on a rAF-coalesced observer tick; strict no-op
 // when they already agree. (Upstream class name really is "worksapce-breadcrumb".)
 (function () {
+	// Modern Framework owns page-scoped trails through navigation.js. Do not
+	// register a whole-body observer whose every scheduled pass would be a no-op.
+	if (frappe.boot?.module_sidebars) return;
 	var pending = null;
 	function syncCrumb() {
 		pending = null;

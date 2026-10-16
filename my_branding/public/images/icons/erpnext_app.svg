@@ -1,4 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs><linearGradient id="bg-C" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#9DBEC8"/><stop offset="100%" stop-color="#557E94"/></linearGradient></defs><rect x="0" y="0" width="100" height="100" rx="24" fill="url(#bg-C)"/><line x1="0" y1="50" x2="100" y2="50" stroke="#1C2B30" stroke-width="1" opacity="0.1"/>
-<text x="50" y="54" font-family="Helvetica, Arial, sans-serif" font-size="58" font-weight="700"
-        fill="#1C2B30" text-anchor="middle" dominant-baseline="central">N</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="ERP">
+  <title>ERP — connected business modules</title>
+  <defs><linearGradient id="erp-bg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#9DBEC8"/><stop offset="100%" stop-color="#557E94"/></linearGradient></defs>
+  <rect width="100" height="100" rx="24" fill="url(#erp-bg)"/>
+  <path d="M0 50h100" stroke="#1C2B30" opacity=".1"/>
+  <g fill="#1C2B30">
+    <path d="M40 29h20v6H40zm0 36h20v6H40zM29 40h6v20h-6zm36 0h6v20h-6z"/>
+    <rect x="20" y="20" width="24" height="24" rx="5"/>
+    <rect x="56" y="20" width="24" height="24" rx="5"/>
+    <rect x="20" y="56" width="24" height="24" rx="5"/>
+    <rect x="56" y="56" width="24" height="24" rx="5"/>
+  </g>
 </svg>

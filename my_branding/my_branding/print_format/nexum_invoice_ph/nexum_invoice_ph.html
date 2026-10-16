@@ -118,30 +118,29 @@
       {#- The lines must add up to Total whatever the tax setup (batch205 idx 91). A tax
           "included in the basic rate" is already inside the item amounts, hence inside
           Subtotal: it is shown under Total as "incl. ..." (the VAT stays its own line, as
-          BIR wants), never added a second time. With such a tax the added taxes are shown
-          after discount and the discount on the same VAT-inclusive footing (Subtotal +
-          added taxes - Total): the stored discount when it is on the Grand Total, its
-          VAT-inclusive equivalent when it is on the Net Total. Invoices without an
-          included tax print exactly as before. -#}
+          BIR wants), never added a second time. Ask the native posting controller for
+          each tax amount: explicit discount accounting may retain pre-discount VAT.
+          The displayed discount reconciles those amounts and the item subtotal to the
+          native grand total; it never recomputes VAT. -#}
       {%- set incl = doc.taxes | selectattr("included_in_print_rate") | list -%}
       {%- set added = doc.taxes | rejectattr("included_in_print_rate") | list -%}
-      {%- set tax_field = "tax_amount_after_discount_amount" if incl else "tax_amount" -%}
+      {%- set discount_accounting = frappe.utils.cint(frappe.db.get_single_value("Selling Settings", "enable_discount_accounting")) -%}
       {%- set discount = doc.get("discount_amount") or 0 -%}
-      {%- if discount and incl -%}
+      {%- if discount -%}
         {%- set ns = namespace(added=0) -%}
-        {%- for t in added %}{% set ns.added = ns.added + (t.get(tax_field) or 0) %}{% endfor -%}
+        {%- for t in added %}{% set ns.added = ns.added + (doc.get_tax_amounts(t, discount_accounting)[0] or 0) %}{% endfor -%}
         {%- set discount = (doc.total or 0) + ns.added - (doc.grand_total or 0) -%}
       {%- endif -%}
       <table class="nxi-sum">
         <tr><td>Subtotal</td><td>{{ money(doc.total) }}</td></tr>
-        {%- if discount %}<tr><td>Discount{% if doc.get("additional_discount_percentage") %} ({{ doc.additional_discount_percentage }}%){% endif %}</td><td>- {{ money(discount) }}</td></tr>{% endif -%}
-        {%- for t in added %}{% if t.get(tax_field) %}
-        <tr><td>{{ t.description }}</td><td>{{ money(t.get(tax_field)) }}</td></tr>
+        {%- if discount %}<tr><td>Discount{% if doc.get("additional_discount_percentage") %} ({{ doc.additional_discount_percentage }}%){% endif %}</td><td>{{ money(-discount) }}</td></tr>{% endif -%}
+        {%- for t in added %}{% set tax_amount = doc.get_tax_amounts(t, discount_accounting)[0] %}{% if tax_amount %}
+        <tr><td>{{ t.description }}</td><td>{{ money(tax_amount) }}</td></tr>
         {%- endif %}{% endfor %}
         {%- if doc.get("rounding_adjustment") and not doc.get("disable_rounded_total") %}<tr><td>Rounding</td><td>{{ money(doc.rounding_adjustment) }}</td></tr>{% endif -%}
         <tr class="nxi-grand"><td>Total {% if cur != company.default_currency %}({{ cur }}){% endif %}</td><td>{{ money(doc.rounded_total if (doc.get("rounded_total") and not doc.get("disable_rounded_total")) else doc.grand_total) }}</td></tr>
-        {%- for t in incl %}{% if t.tax_amount_after_discount_amount %}
-        <tr class="nxi-incl"><td>incl. {{ t.description }}</td><td>{{ money(t.tax_amount_after_discount_amount) }}</td></tr>
+        {%- for t in incl %}{% set tax_amount = doc.get_tax_amounts(t, discount_accounting)[0] %}{% if tax_amount %}
+        <tr class="nxi-incl"><td>incl. {{ t.description }}</td><td>{{ money(tax_amount) }}</td></tr>
         {%- endif %}{% endfor %}
         {#- outstanding_amount is kept in the party account's currency: ERPNext works it out
             from the base (company-currency) totals when that differs from the invoice
@@ -152,8 +151,8 @@
             currency is exact again (Paid = Total), so a settled invoice keeps it. -#}
         {%- set pac = doc.get("party_account_currency") or cur -%}
         {%- if doc.get("outstanding_amount") == 0 -%}{%- set pac = cur -%}{%- endif -%}
-        {%- set due_total = (doc.rounded_total or doc.grand_total) if pac == cur else (doc.base_rounded_total or doc.base_grand_total) -%}
-        {%- if doc.docstatus == 1 and doc.get("outstanding_amount") is not none and doc.outstanding_amount != due_total and not is_return %}
+        {%- set due_total = (doc.rounded_total if (doc.rounded_total and not doc.get("disable_rounded_total")) else doc.grand_total) if pac == cur else (doc.base_rounded_total if (doc.base_rounded_total and not doc.get("disable_rounded_total")) else doc.base_grand_total) -%}
+        {%- if doc.docstatus == 1 and doc.get("outstanding_amount") is not none and frappe.utils.flt(due_total - doc.outstanding_amount, doc.precision("outstanding_amount")) and not is_return %}
         <tr><td>Paid{% if pac != cur %} ({{ pac }}){% endif %}</td><td>{{ frappe.utils.fmt_money(due_total - doc.outstanding_amount, currency=pac) }}</td></tr>
         <tr class="nxi-due"><td>Amount Due{% if pac != cur %} ({{ pac }}){% endif %}</td><td>{{ frappe.utils.fmt_money(doc.outstanding_amount, currency=pac) }}</td></tr>
         {%- endif %}

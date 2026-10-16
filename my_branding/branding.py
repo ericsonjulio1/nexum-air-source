@@ -60,8 +60,8 @@ def _set_labels(doctype, fields):
 # these exact strings are always the brand leak (deep settings screens, module
 # lists, Installed Applications).
 EXTRA_TRANSLATIONS = {
-	"ERPNext": brand_config.BRAND,
-	"ERPNext Integrations": "%s Integrations" % brand_config.BRAND,
+	"ERPNext": brand_config.display_name("erpnext"),
+	"ERPNext Integrations": "%s Integrations" % brand_config.display_name("erpnext"),
 	# The classic CRM/Support workspaces render a "Switch to Frappe CRM/Helpdesk"
 	# sidebar button (client-side __()); exact-match Translations relabel them.
 	"Switch to Frappe CRM": "Switch to CRM",
