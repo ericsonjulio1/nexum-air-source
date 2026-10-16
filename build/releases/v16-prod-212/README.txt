@@ -27,7 +27,7 @@ Validation
 - browser_empty_chart.py exercises the installed ChartWidget with a disposable
   DOM-only fixture. Ten redraws must retain one connected chart after animation
   timers settle and GC; the owner's cleanup must leave none. It holds only WeakRefs.
-- Re-run v211/lifecycle.test.cjs and v211/browser_performance.py to check the
+- Re-run v211/lifecycle.test.cjs and browser_performance.py to check the
   inherited Teams resource, single-fetch, tab freshness and populated-chart fixes.
 - Run the existing navigation/theme/financial smoke checks, native Mac checks,
   and migrations on all restored staging sites before deployment.
@@ -35,3 +35,7 @@ Validation
 Browser environment: BASE_URL, OUTPUT_DIR, CHROMIUM_PATH, SID_FILE (temporary
 JSON containing sid), and optional CHROMIUM_HOST_RULES for an origin tunnel.
 Output contains only aggregate lifecycle evidence, never session credentials.
+
+The performance browser check waits for the actual My Tasks route and discussion
+response, including on slower remote connections; it retains every request-count
+and memory assertion. The v211 harness could click back before lazy routing ended.
