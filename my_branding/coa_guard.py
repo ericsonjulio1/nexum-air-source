@@ -33,14 +33,18 @@ def reconcile_ph_coa_defaults():
 		frappe.db.savepoint("nx_coa_company")
 		try:
 			_fix_company(company)
-		except Exception:
+		except Exception as error:
 			traceback = frappe.get_traceback()
 			try:
 				frappe.db.rollback(save_point="nx_coa_company")
 			except Exception:
-				# A database deadlock can already have rolled back the whole
+				if not isinstance(error, (frappe.QueryDeadlockError, frappe.QueryTimeoutError)):
+					# An unexpected savepoint failure must abort migration. Silently
+					# rolling back everything could discard earlier hooks' writes.
+					raise
+				# These database failures can already have rolled back the whole
 				# transaction, including the savepoint. Prior companies committed
-				# separately, so a full rollback cannot erase their changes.
+				# separately, so recovery cannot erase their changes.
 				frappe.db.rollback()
 			frappe.log_error(
 				title=f"coa_guard failed for {company}",

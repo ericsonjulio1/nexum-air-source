@@ -83,3 +83,38 @@ test('an older failed save cannot roll back a later repeated theme choice', asyn
     assert.equal(theme.getChoice(),'dark');
     assert.equal(state.attrs['data-theme'],'dark');
 });
+
+for (const invalid of ['{{ csrf_token }}', 'None']) {
+    test(`theme save ignores invalid page token ${invalid}`, async()=>{
+        const state=boot('Light');
+        state.context.window.csrf_token=invalid;
+        state.context.window.frappe={csrf_token:invalid};
+        const headers=[];
+        state.context.fetch=async(_,options)=>{headers.push(options.headers);return {ok:true};};
+        await state.context.window.NexumTheme.setChoice('dark');
+        assert.equal(headers.length,1);
+        assert.equal(headers[0]['X-Frappe-CSRF-Token'],'test-csrf');
+    });
+}
+test('theme save prefers a valid refreshed Framework token over boot config', async()=>{
+    const state=boot('Light');
+    state.context.window.csrf_token='{{ csrf_token }}';
+    state.context.window.frappe={csrf_token:'refreshed-framework-token'};
+    let sent;
+    state.context.fetch=async(_,options)=>{sent=options.headers['X-Frappe-CSRF-Token'];return {ok:true};};
+    await state.context.window.NexumTheme.setChoice('dark');
+    assert.equal(sent,'refreshed-framework-token');
+});
+
+test('theme save sends no invalid token when every source is unusable', async()=>{
+    const state=boot('Light');
+    state.context.window.csrf_token='None';
+    state.context.window.frappe={csrf_token:'{{ csrf_token }}'};
+    state.context.window.__NEXUM_BRAND__.theme_csrf='None';
+    state.context.document.createElement=()=>({setAttribute(){},remove(){}});
+    state.context.document.body={appendChild(){}};
+    state.context.setTimeout=()=>0;
+    await state.context.window.NexumTheme.setChoice('dark');
+    assert.equal(state.calls.length,0);
+    assert.equal(state.context.window.NexumTheme.getChoice(),'light');
+});

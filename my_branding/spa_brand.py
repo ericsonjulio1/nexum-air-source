@@ -77,7 +77,7 @@ def inject_brand_assets(response, request):
 			'<link rel="stylesheet" href="/assets/my_branding/css/spa-brand.css?v=%s">'
 			"<script>window.__NEXUM_BRAND__=%s;</script>"
 			'<link rel="stylesheet" href="/assets/my_branding/css/report-theme.css?v=20261016d">'
-			'<script src="/assets/my_branding/js/suite-theme.js?v=20261016-audit215"></script>'
+			'<script src="/assets/my_branding/js/suite-theme.js?v=20261016-audit215r2"></script>'
 			'<script src="/assets/my_branding/js/report-theme.js?v=20261016b"></script>'
 			'<script src="/assets/my_branding/js/spa-brand.js?v=%s"></script>'
 		) % (_MARKER, _VER, brand, _VER)

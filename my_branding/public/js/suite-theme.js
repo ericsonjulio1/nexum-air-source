@@ -35,7 +35,9 @@
         saving = saving.catch(() => {}).then(async () => {
             // Desk unlock refreshes the SPA's shared token through idle_activity;
             // this boot-time config still belongs to the expired session.
-            const csrf = window.csrf_token || window.frappe?.csrf_token || config.theme_csrf;
+            const csrf = [window.csrf_token, window.frappe?.csrf_token, config.theme_csrf]
+                .find(token => token && !String(token).includes('{{') && token !== 'None');
+            if (!csrf) throw new Error('A valid session token is required to save the theme');
             const response = await fetch('/api/method/frappe.core.doctype.user.user.switch_theme', {
                 method: 'POST', credentials: 'same-origin',
                 headers: {'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrf},

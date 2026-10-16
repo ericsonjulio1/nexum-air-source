@@ -44,7 +44,21 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-212
+## Current release: v16-prod-215
+
+The [v215 recipe and immutable manifest](build/releases/v16-prod-215/README.md)
+inherit the exact v214 runtime and replace the complete custom-app source trees.
+This release makes the login animation smaller and fixes maintenance provenance,
+report permissions, invoice presentation, setup completion and theme persistence.
+It preserves upstream versions, dependencies and the compiled standalone apps.
+
+The [v214 recipe](build/releases/v16-prod-214/README.md) records native page styling,
+the ERP app identity, and the exact rebuilt standalone frontend sources. The
+[v213 manifest](build/releases/v16-prod-213/manifest.json) records the preceding
+Maintenance navigation and native-layout changes. Follow the manifest chain for
+all retained modifications and immutable base digests.
+
+## Previous release: v16-prod-212
 
 The [v212 recipe and immutable manifest](build/releases/v16-prod-212/README.txt)
 extend chart cleanup to empty-state placeholders. The widget releases a previous

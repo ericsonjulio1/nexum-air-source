@@ -65,3 +65,35 @@ class TestCOAGuardPreservation(unittest.TestCase):
 		db.rollback.assert_called_once_with(save_point="nx_coa_company")
 		self.assertEqual(db.commit.call_count, 2)
 		log.assert_called_once()
+
+	def test_unexpected_savepoint_failure_does_not_silently_rollback_other_hooks(self):
+		db = Mock()
+		db.rollback.side_effect = RuntimeError("synthetic savepoint failure")
+		with patch.object(coa_guard.frappe, "db", db), \
+			patch.object(coa_guard.frappe, "get_all", return_value=["failed", "healthy"]), \
+			patch.object(coa_guard.frappe, "get_traceback", return_value="synthetic failure"), \
+			patch.object(coa_guard.frappe, "log_error") as log, \
+			patch.object(coa_guard, "_fix_company", side_effect=ValueError("validation error")) as fix:
+			with self.assertRaisesRegex(RuntimeError, "savepoint failure"):
+				coa_guard.reconcile_ph_coa_defaults()
+		db.rollback.assert_called_once_with(save_point="nx_coa_company")
+		db.commit.assert_not_called()
+		log.assert_not_called()
+		fix.assert_called_once_with("failed")
+
+	def test_transaction_loss_after_deadlock_or_timeout_allows_full_rollback(self):
+		for error in (coa_guard.frappe.QueryDeadlockError, coa_guard.frappe.QueryTimeoutError):
+			with self.subTest(error=error.__name__):
+				db = Mock()
+				db.rollback.side_effect = [RuntimeError("savepoint already lost"), None]
+				with patch.object(coa_guard.frappe, "db", db), \
+					patch.object(coa_guard.frappe, "get_all", return_value=["failed"]), \
+					patch.object(coa_guard.frappe, "get_traceback", return_value="synthetic database failure"), \
+					patch.object(coa_guard.frappe, "log_error") as log, \
+					patch.object(coa_guard, "_fix_company", side_effect=error("synthetic transaction loss")):
+					coa_guard.reconcile_ph_coa_defaults()
+				self.assertEqual(db.rollback.call_count, 2)
+				self.assertEqual(db.rollback.call_args_list[0].kwargs, {"save_point": "nx_coa_company"})
+				self.assertEqual(db.rollback.call_args_list[1].kwargs, {})
+				db.commit.assert_called_once_with()
+				log.assert_called_once()
