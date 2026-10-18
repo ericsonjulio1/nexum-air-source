@@ -1,0 +1,92 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-216",
+  "base_image": "ericsonjulio/erpnext@sha256:60690202d8452139c5a2807f6df86254c5f0a477e130e18f7252debf2d4bcf43",
+  "apps": {
+    "frappe": {
+      "repository": "https://github.com/frappe/frappe",
+      "previous_ref": "v16.51.1",
+      "ref": "v16.52.0",
+      "commit": "4515014c87ece6cb20ee91d2cfb121c5cbd1ff4a",
+      "published_at": "2026-10-14T01:27:57Z",
+      "url": "https://github.com/frappe/frappe/releases/tag/v16.52.0",
+      "archive_sha256": "19fd15451b3eccd3f749ef2340fd56b672e44aa67660569e8e877b36cac963d8",
+      "commits_ahead": 277,
+      "changed_files": 300
+    },
+    "erpnext": {
+      "repository": "https://github.com/frappe/erpnext",
+      "previous_ref": "v16.50.0",
+      "ref": "v16.51.1",
+      "commit": "5af6561f5aa48104559692fb4fd82f2580e8d338",
+      "published_at": "2026-10-15T17:09:25Z",
+      "url": "https://github.com/frappe/erpnext/releases/tag/v16.51.1",
+      "archive_sha256": "3b3ae8f2c065a36aa0e93f40dfdd9caf489ad00e8e5275fb9f5df5d6fcf0dd2c",
+      "commits_ahead": 652,
+      "changed_files": 300
+    },
+    "hrms": {
+      "repository": "https://github.com/frappe/hrms",
+      "previous_ref": "v16.50.0",
+      "ref": "v16.51.0",
+      "commit": "2478afc7a8f4959d500f6d17522853f0d244e38f",
+      "published_at": "2026-10-15T07:42:00Z",
+      "url": "https://github.com/frappe/hrms/releases/tag/v16.51.0",
+      "archive_sha256": "8ffaa50cf4126185ee6f8ec7c069484297f1d455206e9d45526d5879fd304b1b",
+      "commits_ahead": 49,
+      "changed_files": 45
+    },
+    "crm": {
+      "repository": "https://github.com/frappe/crm",
+      "previous_ref": "v1.87.0",
+      "ref": "v1.88.0",
+      "commit": "0baa1e8ea462b92d2920bcfdc7a532a730329b6c",
+      "published_at": "2026-10-15T18:58:15Z",
+      "url": "https://github.com/frappe/crm/releases/tag/v1.88.0",
+      "archive_sha256": "171e52871ed1a48cb8700b9002e20875d92bbf7daa8339481d6e57c4442481ba",
+      "commits_ahead": 95,
+      "changed_files": 300
+    },
+    "helpdesk": {
+      "repository": "https://github.com/frappe/helpdesk",
+      "previous_ref": "v1.30.2",
+      "ref": "v1.31.0",
+      "commit": "7d7e394e7571fbdbdda04a65a279566b0ac9ce7f",
+      "published_at": "2026-10-14T21:08:24Z",
+      "url": "https://github.com/frappe/helpdesk/releases/tag/v1.31.0",
+      "archive_sha256": "8a6f5f261b49850ad4f1b2675e2dd8131b91eecabab57875ac566cd23e03babc",
+      "commits_ahead": 40,
+      "changed_files": 300
+    },
+    "insights": {
+      "repository": "https://github.com/frappe/insights",
+      "previous_ref": "v3.14.2",
+      "ref": "v3.15.0",
+      "commit": "1f08dfadbd2781756a76f79741528b8cff2af730",
+      "published_at": "2026-10-15T11:36:00Z",
+      "url": "https://github.com/frappe/insights/releases/tag/v3.15.0",
+      "archive_sha256": "00b126fa3128bc46dbc139435e5472394ac78e17b51836bf409542eb2da94dcf",
+      "commits_ahead": 51,
+      "changed_files": 61
+    }
+  },
+  "retained_apps": [
+    "my_branding",
+    "eam",
+    "print_designer",
+    "drive",
+    "gameplan",
+    "payments",
+    "telephony"
+  ],
+  "custom_apps": {
+    "my_branding": {
+      "commit": "96c6e48fafcb3b8e1fb6f7f51f762c596c138548"
+    },
+    "eam": {
+      "commit": "05c867e650eadb181cf379ac88a75c555a1d2c0f",
+      "source": "private repository"
+    }
+  },
+  "candidate_image_id": "sha256:23dad475de3ed661317dd5ac2ad3edd8c4d59539238f22296c82314ab1468468",
+  "digest": "sha256:23dad475de3ed661317dd5ac2ad3edd8c4d59539238f22296c82314ab1468468"
+}

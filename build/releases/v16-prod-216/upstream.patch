@@ -1,0 +1,470 @@
+--- a/apps/frappe/frappe/cache_manager.py
++++ b/apps/frappe/frappe/cache_manager.py
+@@ -270,7 +270,13 @@
+ 	):
+ 		return
+ 	active_domains = frappe.get_active_domains()
+-	doctypes = frappe.get_all("DocType", filters={"restrict_to_domain": ("IN", active_domains)})
++	# NexumAir patch: domain-allowed cache — include entities with NO domain tag.
++	# is_item_allowed (frappe/desk/desk_views.py) requires membership in this cache,
++	# so leaving NULL-domain rows out hides every ordinary doctype/page sidebar link
++	# from non-Administrator users (v16 regression vs the old desktop.py, which used
++	# allowed_domains = [None, *active_domains]). Drop when fixed upstream.
++	allowed_domains = [None, "", *active_domains]
++	doctypes = frappe.get_all("DocType", filters={"restrict_to_domain": ("IN", allowed_domains)})
+ 	doctypes = [doc.name for doc in doctypes]
+ 	frappe.cache.set_value("domain_restricted_doctypes", doctypes)
+ 
+@@ -287,7 +293,9 @@
+ 	):
+ 		return
+ 	active_domains = frappe.get_active_domains()
+-	pages = frappe.get_all("Page", filters={"restrict_to_domain": ("IN", active_domains)})
++	# NexumAir patch: domain-allowed cache — see build_domain_restricted_doctype_cache.
++	allowed_domains = [None, "", *active_domains]
++	pages = frappe.get_all("Page", filters={"restrict_to_domain": ("IN", allowed_domains)})
+ 	pages = [page.name for page in pages]
+ 	frappe.cache.set_value("domain_restricted_pages", pages)
+ 
+--- a/apps/frappe/frappe/client.py
++++ b/apps/frappe/frappe/client.py
+@@ -189,10 +189,8 @@
+ 	:param fieldname: fieldname string or JSON / dict with key value pair
+ 	:param value: value if fieldname is JSON / dict"""
+ 
+-	if fieldname in (frappe.model.default_fields + frappe.model.child_table_fields):
+-		frappe.throw(_("Cannot edit standard fields"))
+-
+-	if not value:
++	values = {}
++	if value is None:
+ 		values = fieldname
+ 		if isinstance(fieldname, str):
+ 			try:
+@@ -201,6 +199,11 @@
+ 				values = {fieldname: ""}
+ 	else:
+ 		values = {fieldname: value}
++
++	forbidden = set(frappe.model.default_fields + frappe.model.child_table_fields)
++	for field in values:
++		if field in forbidden:
++			frappe.throw(_("Cannot edit standard fields"))
+ 
+ 	# check for child table doctype
+ 	if not frappe.get_meta(doctype).istable:
+--- a/apps/frappe/frappe/public/js/frappe/widgets/chart_widget.js
++++ b/apps/frappe/frappe/public/js/frappe/widgets/chart_widget.js
+@@ -38,8 +38,27 @@
+ 		};
+ 	}
+ 
++	destroy_empty_chart() {
++		const chart = this.empty_chart;
++		delete this.empty_chart;
++		chart?.destroy?.();
++	}
++
++	destroy_chart() {
++		const chart = this.dashboard_chart;
++		delete this.dashboard_chart;
++		chart?.destroy?.();
++		this.destroy_empty_chart();
++	}
++
++	delete(...args) {
++		this.deleted = true;
++		this.destroy_chart();
++		return super.delete(...args);
++	}
++
+ 	refresh() {
+-		delete this.dashboard_chart;
++		this.destroy_chart();
+ 		this.set_body();
+ 		this.make_chart();
+ 	}
+@@ -57,6 +76,7 @@
+ 	}
+ 
+ 	setup_container() {
++		this.destroy_chart();
+ 		this.body.empty();
+ 
+ 		if (this.chart_doc.type == "Heatmap") {
+@@ -107,6 +127,7 @@
+ 
+ 	make_chart() {
+ 		this.get_settings().then(() => {
++			if (this.deleted) return;
+ 			if (!this.settings) {
+ 				this.deleted = true;
+ 				this.widget.remove();
+@@ -309,7 +330,7 @@
+ 				label: __("Refresh"),
+ 				action: "action-refresh",
+ 				handler: () => {
+-					delete this.dashboard_chart;
++					this.destroy_chart();
+ 					this.make_chart();
+ 				},
+ 			},
+@@ -325,7 +346,7 @@
+ 				action: "action-reset",
+ 				handler: () => {
+ 					this.reset_chart();
+-					delete this.dashboard_chart;
++					this.destroy_chart();
+ 					this.make_chart();
+ 				},
+ 			},
+@@ -615,7 +636,9 @@
+ 	}
+ 
+ 	async render() {
++		if (this.deleted) return;
+ 		let setup_dashboard_chart = () => {
++			if (this.deleted) return;
+ 			const chart_args = this.get_chart_args();
+ 
+ 			const is_circular_chart = ["Pie", "Donut", "Percentage"].includes(this.chart_doc.type);
+@@ -623,8 +646,8 @@
+ 			if (!this.dashboard_chart) {
+ 				this.dashboard_chart = frappe.utils.make_chart(this.chart_wrapper[0], chart_args);
+ 			} else if (is_circular_chart) {
++				this.destroy_chart();
+ 				this.chart_wrapper.empty();
+-				delete this.dashboard_chart;
+ 				this.dashboard_chart = frappe.utils.make_chart(this.chart_wrapper[0], chart_args);
+ 			} else {
+ 				this.dashboard_chart.update(this.data);
+@@ -638,6 +661,7 @@
+ 			this.error_state.hide();
+ 			this.show_empty_state();
+ 		} else {
++			this.destroy_empty_chart();
+ 			this.loading.hide();
+ 			this.empty.hide();
+ 			this.error_state.hide();
+@@ -668,6 +692,7 @@
+ 	// Says what the chart will show once there is something to show, so a dashboard of empty
+ 	// charts reads as a list of what is coming rather than "No data yet" over and over.
+ 	show_empty_state() {
++		this.destroy_empty_chart();
+ 		const message = this.chart_doc.empty_state_message;
+ 		// shown before the sample is drawn, which sizes itself to the space it is given
+ 		this.empty.empty().show();
+@@ -675,7 +700,7 @@
+ 		if (this.chart_doc.type == "Line") {
+ 			const $sample = $(`<div class="chart-empty-sample" aria-hidden="true"></div>`);
+ 			$sample.appendTo(this.empty);
+-			frappe.utils.make_chart($sample[0], {
++			this.empty_chart = frappe.utils.make_chart($sample[0], {
+ 				type: "line",
+ 				colors: this.get_chart_colors(),
+ 				height: this.height,
+--- a/apps/frappe/frappe/website/doctype/web_form/web_form.py
++++ b/apps/frappe/frappe/website/doctype/web_form/web_form.py
+@@ -934,7 +934,8 @@
+ 					"decode": True,
+ 				}
+ 			)
+-			_file.save()
++			# Nexum: the form and parent document were authorized and saved above.
++			_file.save(ignore_permissions=True)
+ 
+ 			# update values
+ 			doc.set(fieldname, _file.file_url)
+--- a/apps/frappe/frappe/desk/doctype/sidebar/sidebar.py
++++ b/apps/frappe/frappe/desk/doctype/sidebar/sidebar.py
+@@ -42,7 +42,7 @@
+ from frappe.desk.utils import is_item_allowed
+ from frappe.model.document import Document
+ from frappe.model.rename_doc import rename_doc
+-from frappe.utils.modules import get_code_only_module_heirs, get_module_placement
++from frappe.utils.modules import get_code_only_module_heirs, get_code_only_modules, get_module_placement
+ 
+ # The fields copied unchanged from a source item row into a `Sidebar Item`.
+ SIDEBAR_ITEM_FIELDS = (
+@@ -132,7 +132,9 @@
+ 	"""
+ 	slug = shell_slug(title)
+ 	taken = [other for other in frappe.get_all("Sidebar", pluck="name") if other != name]
+-	taken += [other for other in frappe.get_all("Module Def", pluck="name") if other != module]
++	# Nexum: code-only modules have no computed shell or URL to collide with.
++	taken += [other for other in frappe.get_all("Module Def", pluck="name")
++		if other != module and other not in get_code_only_modules()]
+ 	return next((other for other in taken if shell_slug(other) == slug), None)
+ 
+ 
+@@ -221,7 +223,7 @@
+ 
+ 		Titling a sidebar after its own module is the default and is allowed.
+ 		"""
+-		if self.title == self.module:
++		if self.title == self.module or self.title in get_code_only_modules():
+ 			return
+ 
+ 		if frappe.db.exists("Module Def", self.title, cache=True):
+@@ -1880,6 +1882,10 @@
+ 	if not shell:
+ 		return None
+ 
++	# Nexum: an authored shell may reuse a code-only module name.
++	if shell in get_code_only_modules():
++		if row := frappe.db.get_value("Sidebar", shell, ["module"], as_dict=True, cache=True):
++			return row.module or None
+ 	if frappe.db.exists("Module Def", shell, cache=True):
+ 		return shell
+ 
+--- a/apps/hrms/roster/src/components/NavBar.vue
++++ b/apps/hrms/roster/src/components/NavBar.vue
+@@ -20,7 +20,7 @@
+ 					onClick: () => logout.submit(),
+ 				},
+ 				{
+-					label: 'Switch to Desk',
++					label: 'Switch to ERP',
+ 					onClick: () => goTo('/app'),
+ 				},
+ 			]"
+--- a/apps/crm/frontend/src/components/UserDropdown.vue
++++ b/apps/crm/frontend/src/components/UserDropdown.vue
+@@ -73,7 +73,7 @@
+   url: 'frappe.apps.get_apps',
+   cache: 'apps',
+   auto: true,
+-  transform: (data) => [deskApp(), ...crmSiblingApps(data)],
++  transform: (data) => [...(data.some(app => app.name === 'erpnext') ? [] : [deskApp()]), ...crmSiblingApps(data)],
+ })
+ 
+ const dropdownItems = computed(() => {
+@@ -177,8 +177,8 @@
+ function deskApp() {
+   return {
+     name: 'frappe',
+-    logo: '/assets/frappe/images/framework.png',
+-    title: __('Desk'),
++    logo: '/assets/my_branding/images/icons/erp_app.svg',
++    title: __('ERP'),
+     route: '/desk',
+   }
+ }
+--- a/apps/crm/frontend/src/components/Dashboard/DashboardItem.vue
++++ b/apps/crm/frontend/src/components/Dashboard/DashboardItem.vue
+@@ -2,7 +2,7 @@
+   <div class="h-full w-full">
+     <div
+       v-if="item.type == 'number_chart'"
+-      class="flex h-full w-full overflow-hidden cursor-pointer"
++      class="nx-report-panel nx-report-kpi flex h-full w-full overflow-hidden cursor-pointer"
+     >
+       <Tooltip :text="__(item.data.tooltip)">
+         <NumberCard
+@@ -20,14 +20,14 @@
+     >
+       {{ editing ? __('Spacer') : '' }}
+     </div>
+-    <ChartCard v-else-if="item.type == 'axis_chart'" class="h-full">
++    <ChartCard v-else-if="item.type == 'axis_chart'" class="nx-report-panel h-full">
+       <component
+         :is="axisChart.component"
+         v-if="item.data"
+         v-bind="axisChart.props"
+       />
+     </ChartCard>
+-    <ChartCard v-else-if="item.type == 'donut_chart'" class="h-full">
++    <ChartCard v-else-if="item.type == 'donut_chart'" class="nx-report-panel h-full">
+       <DonutChart v-if="item.data" v-bind="donutChartProps" />
+     </ChartCard>
+   </div>
+--- a/apps/helpdesk/desk/src/composables/useApps.ts
++++ b/apps/helpdesk/desk/src/composables/useApps.ts
+@@ -12,9 +12,9 @@
+ 
+ const deskApp: App = {
+   name: "frappe",
+-  logo: "/assets/helpdesk/desk/desk.png",
+-  title: "Desk",
+-  route: "/desk/helpdesk",
++  logo: "/assets/my_branding/images/icons/erp_app.svg",
++  title: "ERP",
++  route: "/desk",
+ };
+ 
+ interface AppsMenuOption {
+@@ -38,7 +38,7 @@
+     // switch, so this re-evaluates for agents
+     auto: !isCustomerPortal.value,
+     transform: (data: App[]) => {
+-      const apps = [deskApp];
++      const apps: App[] = data.some(app => app.name === "erpnext") ? [] : [deskApp];
+       data.forEach((app) => {
+         if (app.name === "helpdesk") return;
+         apps.push({
+--- a/apps/helpdesk/desk/src/components/BarChartCard.vue
++++ b/apps/helpdesk/desk/src/components/BarChartCard.vue
+@@ -48,7 +48,7 @@
+   },
+   barColor: {
+     type: String,
+-    default: "#3BBDE5",
++    default: "#168c83",
+   },
+   dt: {
+     type: String,
+--- a/apps/helpdesk/desk/src/components/ChartCardBase.vue
++++ b/apps/helpdesk/desk/src/components/ChartCardBase.vue
+@@ -1,10 +1,10 @@
+ <template>
+   <div
+-    class="flex flex-col w-full h-full rounded-5 p-4"
++    class="nx-report-panel nx-report-kpi flex flex-col w-full h-full rounded-5 p-4"
+     :class="[orientation == 'horizontal' && 'pt-3']"
+   >
+     <slot name="title">
+-      <div class="text-ink-gray-5 text-base mb-2">
++      <div class="nx-chart-title text-ink-gray-5 text-base mb-2">
+         {{ title }}
+       </div>
+     </slot>
+--- a/apps/insights/frontend/src/utils/colors.ts
++++ b/apps/insights/frontend/src/utils/colors.ts
+@@ -49,6 +49,8 @@
+ }
+ 
+ export const getColors = (num = Object.keys(COLOR_MAP).length) => {
++	const branded = (window as any).NexumCharts?.palette()
++	if (branded) return Array.from({length: num}, (_, index) => branded[index % branded.length])
+ 	if (num == 1) {
+ 		return randomColor()
+ 	}
+--- a/apps/insights/frontend/src/components/Sidebar.vue
++++ b/apps/insights/frontend/src/components/Sidebar.vue
+@@ -10,6 +10,10 @@
+ 			<router-link to="/" class="rg:hidden flex cursor-pointer">
+ 				<img src="../assets/insights-logo-new.svg" class="rounded" />
+ 			</router-link>
++
++			<Dropdown :options="[{label: 'ERP', icon: 'grid', onClick: () => open('/desk', '_self')}]">
++				<Button class="mt-3 w-full" icon-left="grid">Apps</Button>
++			</Dropdown>
+ 
+ 			<div class="mt-4 flex flex-col">
+ 				<nav class="flex-1 space-y-1 pb-4 text-base">
+@@ -106,7 +110,7 @@
+ 						},
+ 						session.user.is_admin
+ 							? {
+-									label: 'Switch to Desk',
++									label: 'Switch to ERP',
+ 									icon: 'grid',
+ 									onClick: () => open('/app'),
+ 							  }
+@@ -262,7 +266,7 @@
+ 	return route.path
+ })
+ 
+-const open = (url) => window.open(url, '_blank')
++const open = (url, target = '_blank') => window.open(url, target)
+ 
+ const { waiting: dashboardsWaiting, canMigrate } = useV2MigrationNudge()
+ 
+--- a/apps/insights/frontend/src/components/Charts/ChartTitle.vue
++++ b/apps/insights/frontend/src/components/Charts/ChartTitle.vue
+@@ -5,7 +5,7 @@
+ </script>
+ 
+ <template>
+-	<div class="px-4 py-2 text-lg font-medium leading-6 text-gray-800">
++	<div class="nx-chart-title px-4 py-2 text-lg font-medium leading-6 text-gray-800">
+ 		{{ title }}
+ 	</div>
+ </template>
+--- a/apps/insights/frontend/src/components/Charts/BaseChart.vue
++++ b/apps/insights/frontend/src/components/Charts/BaseChart.vue
+@@ -50,7 +50,7 @@
+ </script>
+ 
+ <template>
+-	<div class="flex h-full w-full flex-col rounded">
++	<div class="nx-report-panel flex h-full w-full flex-col rounded">
+ 		<ChartTitle v-if="title" :title="title" />
+ 		<div ref="chartRef" class="w-full flex-1 overflow-hidden">
+ 			<slot></slot>
+--- a/apps/insights/frontend/src2/charts/colors.ts
++++ b/apps/insights/frontend/src2/charts/colors.ts
+@@ -29,7 +29,7 @@
+ }
+ 
+ export const getColors = () => {
+-	return Object.values(COLOR_MAP)
++	return (window as any).NexumCharts?.palette() || Object.values(COLOR_MAP)
+ }
+ 
+ export const getGradientColors = (color: keyof typeof GRADIENT_COLORS) => {
+--- a/apps/insights/frontend/src2/components/UserDropdown.vue
++++ b/apps/insights/frontend/src2/components/UserDropdown.vue
+@@ -111,7 +111,20 @@
+ const showSwitchToV2Dialog = ref(false)
+ const showLoginToFCDialog = ref(false)
+ 
+-const userDropdownOptions = ref([
++const launcherApp = {name: 'erpnext', title: 'ERP', route: '/desk', logo: '/assets/my_branding/images/icons/erp_app.svg'}
++const appMenuItem = (app: any) => ({
++	label: app.title,
++	icon: h('img', {src: app.logo, class: 'h-5 w-5 rounded'}),
++	onClick: () => window.location.assign(app.route),
++})
++const userDropdownOptions = ref<any[]>([
++	{label: __('Apps'), icon: 'grid', submenu: [appMenuItem(launcherApp)]},
++	{label: __('Appearance'), icon: h(ToggleRight), submenu: ['Light', 'Dark', 'Automatic'].map(label => ({
++		label: __(label), onClick: async () => {
++			await (window as any).NexumTheme?.setChoice(label.toLowerCase())
++			window.location.reload()
++		},
++	}))},
+ 	{
+ 		label: __('Documentation'),
+ 		icon: h(HelpCircle),
+@@ -143,13 +156,11 @@
+ 		})
+ 	}
+ 
+-	if (session.user.is_admin) {
+-		userDropdownOptions.value.splice(userDropdownOptions.value.length - 2, 0, {
+-			label: __('Switch to Desk'),
+-			icon: h(ToggleRight),
+-			onClick: () => window.open('/app', '_blank'),
+-		})
+-	}
++	call('frappe.apps.get_apps').then((apps: any[]) => {
++		const siblings = apps.filter(app => app.name !== 'insights')
++		if (!siblings.some(app => app.name === 'erpnext')) siblings.unshift(launcherApp)
++		userDropdownOptions.value[0].submenu = siblings.map(appMenuItem)
++	}).catch(() => {}) // the launcher remains reachable if the app list is unavailable
+ })
+ 
+ if (window.is_fc_site) {
+--- a/apps/insights/frontend/src2/charts/components/ChartTitle.vue
++++ b/apps/insights/frontend/src2/charts/components/ChartTitle.vue
+@@ -5,7 +5,7 @@
+ </script>
+ 
+ <template>
+-	<div class="px-4 py-2 font-medium leading-6 text-gray-800">
++	<div class="nx-chart-title px-4 py-2 font-medium leading-6 text-gray-800">
+ 		{{ title }}
+ 	</div>
+ </template>
+--- a/apps/insights/frontend/src2/charts/components/BaseChart.vue
++++ b/apps/insights/frontend/src2/charts/components/BaseChart.vue
+@@ -79,7 +79,7 @@
+ </script>
+ 
+ <template>
+-	<div class="flex h-full w-full flex-col rounded">
++	<div class="nx-report-panel flex h-full w-full flex-col rounded">
+ 		<ChartTitle v-if="title" :title="title" />
+ 		<div ref="chartRef" class="w-full flex-1 overflow-hidden">
+ 			<slot></slot>

@@ -1,0 +1,176 @@
+[
+  {
+    "file": "frappe/ui/yarn.lock",
+    "original_sha256": "6042d7dc9d09df104e18912d2f2f0fa63fa6329adb30ee72e7835b03b8b4090a",
+    "production_sha256": "079062d66e4d0f4e3cabfba35d0a0bebf1e93c07e0c72e04872233b4d65cb539",
+    "result": "use-target-lock-and-verify-frozen-install",
+    "candidate_sha256": "5658e8fa9c33523249ca40357a66859e22db31a891325c99f799f39f00665078"
+  },
+  {
+    "file": "frappe/frappe/cache_manager.py",
+    "original_sha256": "b1f7515fb4f542aef1d0ec7a450b218517b28bf4f2eca7f6c54dbb2957ee72ac",
+    "production_sha256": "f0ebe52fd9f254be00bdfca752c1bcda1806047be0cd43b7bbedf2d79a77d908",
+    "result": "merged",
+    "candidate_sha256": "f0ebe52fd9f254be00bdfca752c1bcda1806047be0cd43b7bbedf2d79a77d908"
+  },
+  {
+    "file": "frappe/frappe/client.py",
+    "original_sha256": "cf459a0e3f117206f803e10234240ae72c5a127a0a6506fafee4e7b12e7d7f74",
+    "production_sha256": "4008cb7bce1257908d5f32725600f89c3d2a766f44ee2d11cc1df46c054a0ea3",
+    "result": "merged",
+    "candidate_sha256": "4008cb7bce1257908d5f32725600f89c3d2a766f44ee2d11cc1df46c054a0ea3"
+  },
+  {
+    "file": "frappe/frappe/public/images/framework.png",
+    "original_sha256": "57fd58b5321a41e247952c276e85db999fcb45eb008623dcb1cb3d0b7ea96c6f",
+    "production_sha256": "a740342670c715048560e69832041f97c82b2538a1249799278b6add4ce6af75",
+    "result": "preserve-binary-brand-asset",
+    "candidate_sha256": "a740342670c715048560e69832041f97c82b2538a1249799278b6add4ce6af75"
+  },
+  {
+    "file": "frappe/frappe/public/js/frappe/widgets/chart_widget.js",
+    "original_sha256": "e1ccecbb47cf1c54819ce5c601e72892caca1e20ea5ab6751502ce0405809c8e",
+    "production_sha256": "f7af21f74be769d769be68089fc741afb6ba3aadafc648f2140e4d12d0c6a591",
+    "result": "merged",
+    "candidate_sha256": "f7af21f74be769d769be68089fc741afb6ba3aadafc648f2140e4d12d0c6a591"
+  },
+  {
+    "file": "frappe/frappe/website/doctype/web_form/web_form.py",
+    "original_sha256": "90531fb98a0ff35f0270a9d3430d1ce654221fcb04edd9059b863798cd2ef1b2",
+    "production_sha256": "75a8d97d570ab73f0178eb982b69adbb43f5441ae2d7d2ef4fd8b9b714509f13",
+    "result": "merged",
+    "candidate_sha256": "75a8d97d570ab73f0178eb982b69adbb43f5441ae2d7d2ef4fd8b9b714509f13"
+  },
+  {
+    "file": "frappe/frappe/patches/v16_0/convert_custom_sidebars.py",
+    "original_sha256": "8481a4ac941968bca3528fcbcc9e0e498d8a0a18bcd592ff829fe3e48c1143eb",
+    "production_sha256": "1bf4635a0826fbc81a4d34019c897e96c853bc5df6bee6ee3591738c695eb4ef",
+    "result": "native-upstream-fix",
+    "candidate_sha256": "7fc10a64e318723bb562518a69ed48f2e94d9d9f42f42e4f0ee25b86cad17f23"
+  },
+  {
+    "file": "frappe/frappe/desk/doctype/sidebar/sidebar.py",
+    "original_sha256": "1986bb5d4b73219fbf596d8de3b19944930b1e0995e4e9f65d7fcd03044a9625",
+    "production_sha256": "b2e8f877cc271f66077d96d7380a995e8446e9ec10b161a4ff06fc8cb19533e9",
+    "result": "merged",
+    "candidate_sha256": "7872a9e7c3f3824b1e4f5a8ada940219f8c1711aa2a4f303083e113fdceee365"
+  },
+  {
+    "file": "hrms/roster/src/components/NavBar.vue",
+    "original_sha256": "c89240635c0a732704e00ea233f4f4e282600c6f0cedb6c9d38a96e7444b6c1f",
+    "production_sha256": "631fa3a016cd360f6b83381751b70b5d22035eb8fee1bf9ca3ce3e2efdb9e5c3",
+    "result": "merged",
+    "candidate_sha256": "631fa3a016cd360f6b83381751b70b5d22035eb8fee1bf9ca3ce3e2efdb9e5c3"
+  },
+  {
+    "file": "crm/frontend/auto-imports.d.ts",
+    "original_sha256": "7099468b538479c823294707e289600fcb7dd9c5da0faa8c07b38a6afac0d76f",
+    "production_sha256": "194ee3276321bf899a3206b1ff852cf99cc86412bfc90ac9abbd6ad7911e2dac",
+    "result": "regenerate-with-frontend-build"
+  },
+  {
+    "file": "crm/frontend/src/components/UserDropdown.vue",
+    "original_sha256": "9083b56f30891dd932e350c3468fa8b1aa17e3f5e22a413895393767a9c81547",
+    "production_sha256": "fea74945df87c81e32e29a755d87fdabc586bb3ff1f1e1acb2ee43aeee65d388",
+    "result": "merged",
+    "candidate_sha256": "9571e2c44fe1bdd039efec842fb6051f7ef25589fac0d4a1928b677c313095ec"
+  },
+  {
+    "file": "crm/frontend/src/components/Dashboard/DashboardItem.vue",
+    "original_sha256": "057295727d1b9c700fe863e4fd3bf736ad9b716c0f2e885fd2e0d39e4ac52368",
+    "production_sha256": "45252addea5b3f10f285898bdba42fc33e364c107e88d27a3d4b06d03a25c92a",
+    "result": "reviewed-new-native-chart-components-with-preserved-style-hooks",
+    "candidate_sha256": "cb61ba2728e66f9b0427620fd22e8a469302156ab9d724f9e3581fbb2a34d1cf"
+  },
+  {
+    "file": "helpdesk/desk/yarn.lock",
+    "original_sha256": "75be9f8eb2b1f2e6085eea389332691edecf6aed4ab3f755789fb5689a2b3c6f",
+    "production_sha256": "91fbeead863789e1ad5543516d9c06087e3cff45fbd5df6a859d1b7923312894",
+    "result": "use-target-lock-and-verify-frozen-install",
+    "candidate_sha256": "bc338999ca9fa8e772873296b0bc00d1fb6c242c39b1c82651ffb8854815db2f"
+  },
+  {
+    "file": "helpdesk/desk/auto-imports.d.ts",
+    "original_sha256": "7d04f214fcaa3cef399e1f7b6201741eac21103f3497b2cebff882f0a04862e2",
+    "production_sha256": "9b8c791766844528a395d1cc32aa3b4fa72145867871218490f75d7db414b7dc",
+    "result": "regenerate-with-frontend-build",
+    "candidate_sha256": "7d04f214fcaa3cef399e1f7b6201741eac21103f3497b2cebff882f0a04862e2"
+  },
+  {
+    "file": "helpdesk/desk/src/composables/useApps.ts",
+    "original_sha256": "82c773bebc664a118c7253c8239a363eb68a4ae8cc189828f5da1ea2afe72f43",
+    "production_sha256": "b253afd1ea163865809fe888df5a77eb85612d55a70092ba5b489b61729a9897",
+    "result": "merged",
+    "candidate_sha256": "b253afd1ea163865809fe888df5a77eb85612d55a70092ba5b489b61729a9897"
+  },
+  {
+    "file": "helpdesk/desk/src/components/BarChartCard.vue",
+    "original_sha256": "7a0555043ae725f8657b4eeba39c4889ab2b76463e85107688b2c90ff3bbd50a",
+    "production_sha256": "66f946c4b49fcc36ce18ea3c1445008a9e2aad7cf55d7b0797b1ce7925dcb786",
+    "result": "merged",
+    "candidate_sha256": "10c26dd1d5720536869b1c2014efdb0b44b9a196bbe05fe6b9fde8623216401d"
+  },
+  {
+    "file": "helpdesk/desk/src/components/ChartCardBase.vue",
+    "original_sha256": "64bc66e2763fac34f37e681b83eaf80bd4ce695da84e936e0610f05bee6e01bb",
+    "production_sha256": "6ccee75a07373c33fd30ccb5f1dbb22911820c6db41b2811f5ff82761194921a",
+    "result": "reviewed-new-rounded-token-with-preserved-style-hooks",
+    "candidate_sha256": "2d7598a8fd6d9b763f79428d30e732273a90998c57cb448f76264a74dc7a6a4c"
+  },
+  {
+    "file": "insights/frontend/src/utils/colors.ts",
+    "original_sha256": "cf9790cdeaaf6080b4fbea8398a3d5bf0c5d3b56c443a14d99482cf80a77b7cc",
+    "production_sha256": "c1e8b66c7425e962f88f2f99e10b39df58a0afde9c66da311213a74857c2a491",
+    "result": "merged",
+    "candidate_sha256": "c1e8b66c7425e962f88f2f99e10b39df58a0afde9c66da311213a74857c2a491"
+  },
+  {
+    "file": "insights/frontend/src/components/Sidebar.vue",
+    "original_sha256": "ac8f913a23e42bcab0745a92bae928dabb1b240f9f4578aad2ceb32d92ab9b98",
+    "production_sha256": "beb483fcc5a1ed29ee4a11c19f708e5cc5f370012a1f429e5953966b843d7165",
+    "result": "merged",
+    "candidate_sha256": "beb483fcc5a1ed29ee4a11c19f708e5cc5f370012a1f429e5953966b843d7165"
+  },
+  {
+    "file": "insights/frontend/src/components/Charts/ChartTitle.vue",
+    "original_sha256": "bb7c7bf522ee32745d5a0708841173450d246f9856adda6d6755615d37958c9c",
+    "production_sha256": "3aa8700deea4e4669313a2ed399fdfed53aa7e68cad6937c60a6a0e8490029fd",
+    "result": "merged",
+    "candidate_sha256": "3aa8700deea4e4669313a2ed399fdfed53aa7e68cad6937c60a6a0e8490029fd"
+  },
+  {
+    "file": "insights/frontend/src/components/Charts/BaseChart.vue",
+    "original_sha256": "3c9f600983ab3132d7dc86f9f8f170d82897bf22ff48b3f162aaf6ff461debd2",
+    "production_sha256": "c38d270b474e362bd1e0f206cdd6d5c3b7c91ecde1b19b4e3a661897211c6fe7",
+    "result": "merged",
+    "candidate_sha256": "c38d270b474e362bd1e0f206cdd6d5c3b7c91ecde1b19b4e3a661897211c6fe7"
+  },
+  {
+    "file": "insights/frontend/src2/charts/colors.ts",
+    "original_sha256": "663601ec08de189f35b843155211c25b40592b8ede3b8ec72625978e37e6e60d",
+    "production_sha256": "96bc8c8893183831372b535ede6ec6434e2fa625b78ec5f5f887c53238d3ef68",
+    "result": "merged",
+    "candidate_sha256": "96bc8c8893183831372b535ede6ec6434e2fa625b78ec5f5f887c53238d3ef68"
+  },
+  {
+    "file": "insights/frontend/src2/components/UserDropdown.vue",
+    "original_sha256": "6ea41880781bce93c6326c2cfce2ed06cf86a3f2410d4431ade5fcffd46ad52e",
+    "production_sha256": "625cb98c7e27ad8afdef14fc1e906dbd53df67d27ee93498cbf24e7fc441c823",
+    "result": "merged",
+    "candidate_sha256": "625cb98c7e27ad8afdef14fc1e906dbd53df67d27ee93498cbf24e7fc441c823"
+  },
+  {
+    "file": "insights/frontend/src2/charts/components/ChartTitle.vue",
+    "original_sha256": "a20b2a5b91a3ce4d94d81bc9fa72a52b63cd39f0897c5c2f9b9fca088db5695d",
+    "production_sha256": "ae6229b6283d185f4a09c47e626bf20be5bc1860d59a010c72a6db5dd53e7006",
+    "result": "merged",
+    "candidate_sha256": "ae6229b6283d185f4a09c47e626bf20be5bc1860d59a010c72a6db5dd53e7006"
+  },
+  {
+    "file": "insights/frontend/src2/charts/components/BaseChart.vue",
+    "original_sha256": "ad3fde3711f4f1a273a25eeb41a490b52bac1c1f656c9197e0c8c82474f698a7",
+    "production_sha256": "4cca85f3c5dd8b9afdac491670eac9ba22a94ebe39c902ba698beaee91a5a0a5",
+    "result": "merged",
+    "candidate_sha256": "4cca85f3c5dd8b9afdac491670eac9ba22a94ebe39c902ba698beaee91a5a0a5"
+  }
+]
