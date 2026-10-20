@@ -44,7 +44,16 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-217
+## Current release: v16-prod-218
+
+The [v218 recipe and immutable manifest](build/releases/v16-prod-218/README.md)
+inherit the exact v217 runtime and replace only the `my_branding` source tree.
+A `/<doctype>/<name>` path whose doctype matches only without regard to letter
+case now receives the 404 page instead of the print view's server error.
+Upstream versions, dependencies, EAM and the compiled standalone apps are v216's;
+the pinned commits above apply.
+
+## Previous release: v16-prod-217
 
 The [v217 recipe and immutable manifest](build/releases/v16-prod-217/README.md)
 inherit the exact v216 runtime and replace only the `my_branding` source tree.
@@ -181,13 +190,13 @@ and the other 2026-08-22 frappe/erpnext security backports.
 ## Reproducing the build
 
 The current release is reproduced through the immutable recipe chain in the
-public source mirror: `build/releases/v16-prod-217/manifest.json` pins the v216
+public source mirror: `build/releases/v16-prod-218/manifest.json` pins the v217
 base digest and the exact `my_branding` commit. Its `prepare.py` archives that
 commit and its Dockerfile replaces the complete `my_branding` tree. Follow the
-inherited release manifests (v216, then v215 onward) for upstream source, EAM and
-frontend build provenance.
+inherited release manifests (v217, v216, then v215 onward) for upstream source,
+EAM and frontend build provenance.
 
 `saas/image/Containerfile` and older patchers are historical full-build tooling;
 they do not by themselves reproduce the current service. Before a future
 from-scratch rebuild or dependency upgrade, review their guards against the new
-pinned sources. v217 does not run those historical adapters or update dependencies.
+pinned sources. v218 does not run those historical adapters or update dependencies.
