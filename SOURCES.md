@@ -27,14 +27,14 @@ upstream commit we run, and our modifications.
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
-| frappe (framework) | MIT | https://github.com/frappe/frappe | `2871914b69b6` |
-| erpnext | GPLv3 | https://github.com/frappe/erpnext | `7474d9e78627` |
-| hrms | GPLv3 | https://github.com/frappe/hrms | `7c037698ce57` |
+| frappe (framework) | MIT | https://github.com/frappe/frappe | `4515014c87ec` |
+| erpnext | GPLv3 | https://github.com/frappe/erpnext | `5af6561f5aa4` |
+| hrms | GPLv3 | https://github.com/frappe/hrms | `2478afc7a8f4` |
 | payments | MIT | https://github.com/frappe/payments | `cca07d9f9392` |
 | **print_designer** | **AGPLv3** | https://github.com/frappe/print_designer | `7beaad298dd6` |
-| **insights** | **AGPLv3** | https://github.com/frappe/insights | `5447f1621c0e` |
-| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `78722c2b3643` |
-| **crm** | **AGPLv3** | https://github.com/frappe/crm | `0d3910b456ef` |
+| **insights** | **AGPLv3** | https://github.com/frappe/insights | `1f08dfadbd27` |
+| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `7d7e394e7571` |
+| **crm** | **AGPLv3** | https://github.com/frappe/crm | `0baa1e8ea462` |
 | **gameplan** | **AGPLv3** | https://github.com/frappe/gameplan | `30d4f16f9f2c` |
 | **drive** | **AGPLv3** | https://github.com/frappe/drive | `0bd11d8f4124` |
 | **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `039cf39f245d` |
@@ -44,7 +44,22 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-215
+## Current release: v16-prod-217
+
+The [v217 recipe and immutable manifest](build/releases/v16-prod-217/README.md)
+inherit the exact v216 runtime and replace only the `my_branding` source tree.
+The demo site's after-migrate check follows the Frappe 16.50+ navigation model
+instead of rewriting archived sidebar rows. Upstream versions, dependencies, EAM
+and the compiled standalone apps are v216's; the pinned commits above apply.
+
+## Previous release: v16-prod-216
+
+The [v216 recipe and immutable manifest](build/releases/v16-prod-216/README.md)
+upgrade Frappe to 16.52.0, ERPNext to 16.51.1, HRMS to 16.51.0, CRM to 1.88.0,
+Helpdesk to 1.31.0 and Insights to 3.15.0 (the pinned commits above). The other
+application runtimes and the v215 Nexum branding are retained.
+
+## Previous release: v16-prod-215
 
 The [v215 recipe and immutable manifest](build/releases/v16-prod-215/README.md)
 inherit the exact v214 runtime and replace the complete custom-app source trees.
@@ -166,12 +181,13 @@ and the other 2026-08-22 frappe/erpnext security backports.
 ## Reproducing the build
 
 The current release is reproduced through the immutable recipe chain in the
-public source mirror: `build/releases/v16-prod-215/manifest.json` pins the v214
-base digest and exact custom-app commits. Its `prepare.py` archives those commits
-and its Dockerfile replaces the complete custom-app trees. Follow the inherited
-release manifests for upstream source and frontend build provenance.
+public source mirror: `build/releases/v16-prod-217/manifest.json` pins the v216
+base digest and the exact `my_branding` commit. Its `prepare.py` archives that
+commit and its Dockerfile replaces the complete `my_branding` tree. Follow the
+inherited release manifests (v216, then v215 onward) for upstream source, EAM and
+frontend build provenance.
 
 `saas/image/Containerfile` and older patchers are historical full-build tooling;
 they do not by themselves reproduce the current service. Before a future
 from-scratch rebuild or dependency upgrade, review their guards against the new
-pinned sources. v215 does not run those historical adapters or update dependencies.
+pinned sources. v217 does not run those historical adapters or update dependencies.

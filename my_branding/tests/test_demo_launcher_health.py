@@ -3,6 +3,7 @@
 Run via:  bench --site <site> run-tests --module my_branding.tests.test_demo_launcher_health
 """
 import unittest
+from unittest.mock import patch
 
 import frappe
 
@@ -69,6 +70,8 @@ class TestDemoSidebarHeal(unittest.TestCase):
         frappe.db.rollback()
 
     def test_empty_json_backed_sidebar_is_reimported(self):
+        if demo._modern_navigation():
+            self.skipTest("Frappe 16.50+: Workspace Sidebar is an archive (TestDemoNavigation)")
         if not frappe.db.exists("Workspace Sidebar", "Selling"):
             self.skipTest("Selling sidebar absent")
         before = frappe.db.count("Workspace Sidebar Item", {"parent": "Selling"})
@@ -95,6 +98,97 @@ class TestDemoSidebarHeal(unittest.TestCase):
         frappe.db.delete("Workspace Sidebar Item", {"parent": "Selling"})
         demo.reconcile_demo_health()
         self.assertEqual(frappe.db.count("Workspace Sidebar Item", {"parent": "Selling"}), 0)
+
+
+def _healthy_payload():
+    return {shell: {"name": shell, "module": module, "items": [{"label": "x"}]}
+            for shell, module in demo.DEMO_CORE_SHELLS.items()}
+
+
+class TestDemoNavigation(unittest.TestCase):
+    """2026-10-20: on Frappe 16.50+ the heal must leave the Workspace Sidebar archive alone
+    and the demo login's resolved navigation is checked instead."""
+
+    def setUp(self):
+        if not demo._modern_navigation():
+            self.skipTest("pre-16.50 Frappe: the legacy sidebar heal applies")
+        self._old = frappe.conf.get("is_demo_site")
+        frappe.conf.is_demo_site = 1
+        if not frappe.db.exists("User", demo.DEMO_USER):
+            frappe.get_doc({"doctype": "User", "email": demo.DEMO_USER, "first_name": "Demo",
+                            "send_welcome_email": 0}).insert(ignore_permissions=True)
+
+    def tearDown(self):
+        frappe.conf.is_demo_site = self._old
+        frappe.set_user("Administrator")
+        frappe.db.rollback()
+
+    def _errors(self, title):
+        return frappe.db.count("Error Log", {"method": title})
+
+    def test_archive_untouched_and_no_sidebar_error(self):
+        sidebar = frappe.db.get_value("Workspace Sidebar Item", {}, "parent")
+        if not sidebar:
+            self.skipTest("no archived Workspace Sidebar rows on this site")
+        frappe.db.delete("Workspace Sidebar Item", {"parent": sidebar})
+        before = self._errors("reconcile_demo_health sidebars failed")
+        with patch("frappe.boot.get_module_sidebars", return_value=_healthy_payload()):
+            demo.reconcile_demo_health()
+        self.assertEqual(frappe.db.count("Workspace Sidebar Item", {"parent": sidebar}), 0)
+        self.assertTrue(frappe.db.exists("Workspace Sidebar", sidebar))
+        self.assertEqual(self._errors("reconcile_demo_health sidebars failed"), before)
+
+    def test_healthy_navigation_reports_nothing(self):
+        before = self._errors("reconcile_demo_health navigation unhealthy")
+        with patch("frappe.boot.get_module_sidebars", return_value=_healthy_payload()):
+            self.assertEqual(demo._demo_navigation_problems(), [])
+            demo.reconcile_demo_health()
+        self.assertEqual(self._errors("reconcile_demo_health navigation unhealthy"), before)
+
+    def test_missing_or_empty_core_shell_is_logged(self):
+        if not frappe.db.exists("Module Def", "Selling"):
+            self.skipTest("Selling module absent")
+        payload = _healthy_payload()
+        del payload["Selling"]
+        payload["Accounts"]["items"] = []
+        before = self._errors("reconcile_demo_health navigation unhealthy")
+        with patch("frappe.boot.get_module_sidebars", return_value=payload):
+            problems = demo._demo_navigation_problems()
+            demo.reconcile_demo_health()
+        self.assertTrue(any("'Selling'" in p and "missing" in p for p in problems), problems)
+        self.assertTrue(any("'Accounts'" in p and "no items" in p for p in problems), problems)
+        self.assertEqual(self._errors("reconcile_demo_health navigation unhealthy"), before + 1)
+
+    def test_resolved_as_demo_user_and_user_restored(self):
+        seen = []
+        with patch("frappe.boot.get_module_sidebars",
+                   side_effect=lambda: seen.append(frappe.session.user) or _healthy_payload()):
+            demo._demo_navigation_problems()
+        self.assertEqual(seen, [demo.DEMO_USER])
+        self.assertEqual(frappe.session.user, "Administrator")
+
+    def test_user_restored_when_resolution_raises(self):
+        with patch("frappe.boot.get_module_sidebars", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                demo._demo_navigation_problems()
+        self.assertEqual(frappe.session.user, "Administrator")
+        before = self._errors("reconcile_demo_health navigation check failed")
+        with patch("frappe.boot.get_module_sidebars", side_effect=RuntimeError("boom")):
+            demo.reconcile_demo_health()  # swallowed into Error Log, never aborts the migrate
+        self.assertEqual(self._errors("reconcile_demo_health navigation check failed"), before + 1)
+
+    def test_missing_demo_user_is_a_problem(self):
+        with patch.object(demo, "DEMO_USER", "no-such-demo-user@example.invalid"):
+            problems = demo._demo_navigation_problems()
+        self.assertEqual(len(problems), 1)
+        self.assertIn("does not exist", problems[0])
+
+    def test_noop_off_demo_site(self):
+        frappe.conf.is_demo_site = 0
+        before = self._errors("reconcile_demo_health navigation unhealthy")
+        with patch("frappe.boot.get_module_sidebars", return_value={}):
+            demo.reconcile_demo_health()
+        self.assertEqual(self._errors("reconcile_demo_health navigation unhealthy"), before)
 
 
 if __name__ == "__main__":
