@@ -333,6 +333,9 @@ on_session_creation = ["my_branding.idle_lock.on_session_creation"]
 # idle + 60 s warning + 90 s grace (see idle_lock.enforce).
 before_request = ["my_branding.idle_lock.enforce"]
 
+# /bin/x, /project/.env: a 404 instead of the print view's 500 for a miscased doctype
+page_renderer = ["my_branding.print_route.MiscasedPrintRoute"]
+
 # Scheduled Tasks
 # ---------------
 

@@ -232,8 +232,8 @@ class _FakeRun:
     """subprocess.run stand-in for main(): every external command answers healthy except
     the per-site probes, which come from `probes` (None = no WDPROBE line)."""
 
-    def __init__(self, wd, probes):
-        self.wd, self.probes = wd, probes
+    def __init__(self, wd, probes, stopped=()):
+        self.wd, self.probes, self.stopped = wd, probes, stopped
 
     def __call__(self, args, input=None, **kw):
         out = ""
@@ -242,7 +242,7 @@ class _FakeRun:
         elif args[0] == "df":
             out = "Use%\n 34%\n"
         elif args[:2] == ["docker", "ps"]:
-            out = "\n".join(self.wd.CONTAINERS)
+            out = "\n".join(c for c in self.wd.CONTAINERS if c not in self.stopped)
         elif "console" in args:
             probe = self.probes.get(args[args.index("--site") + 1])
             out = "WDPROBE " + json.dumps(probe) if probe is not None else "Traceback: no site"
@@ -272,7 +272,8 @@ class TestMainOrchestration(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def probe(self, site, **over):
-        p = {"sched": True, "setup": True, "stuck": 0, "maint": False, "jobs": []}
+        p = {"sched": True, "setup": True, "stuck": 0, "maint": False, "jobs": [],
+             "late": {"dormant": False, "jobs": []}}
         if site == self.HQ:
             p["billing"] = []
         if site == self.wd.DEMO_SITE:
@@ -280,7 +281,7 @@ class TestMainOrchestration(unittest.TestCase):
         p.update(over)
         return p
 
-    def run_main(self, probes=None, reset=lambda n: None, stale=(), deploy=None, state=None):
+    def run_main(self, probes=None, reset=lambda n: None, stale=(), deploy=None, state=None, stopped=()):
         """Run main(); `reset(n)` answers the n-th demo_reset_in_progress() call (0-based).
         Returns (problems saved in state, heal calls, demo_reset call count, state)."""
         probes = {s: self.probe(s) for s in (self.HQ, self.SBL, self.wd.DEMO_SITE)} | (probes or {})
@@ -296,7 +297,7 @@ class TestMainOrchestration(unittest.TestCase):
         resp = types.SimpleNamespace(status=200)
         wd = self.wd
         with patch.object(wd, "TSV_PATH", self.tsv), patch.object(wd, "STATE_PATH", self.state_path), \
-                patch.object(wd.subprocess, "run", _FakeRun(wd, probes)), \
+                patch.object(wd.subprocess, "run", _FakeRun(wd, probes, stopped)), \
                 patch.object(wd.urllib.request, "urlopen", lambda *a, **k: resp), \
                 patch.object(wd, "log_fresh", lambda *a: (True, "ok (1h ago)")), \
                 patch.object(wd, "newest_b2_age_h", lambda *a: 1.0), \
@@ -374,6 +375,141 @@ class TestMainOrchestration(unittest.TestCase):
                                           state={"last_problems": prev})
         self.assertEqual(problems, [prev[1]])  # demo's probe ran healthy; only its URL was deferred
 
+    def late(self, site, *jobs):
+        return {site: self.probe(site, late={"dormant": False, "jobs": [list(j) for j in jobs]})}
+
+    def test_late_site_alerts_on_its_second_consecutive_run(self):
+        late = self.late(self.SBL, ("frappe.email.queue.flush", "All", 45))
+        problems, _, _, saved = self.run_main(probes=late)
+        self.assertEqual(problems, [])
+        self.assertEqual(saved["late_seen"], [self.SBL])
+        problems, _, _, saved = self.run_main(probes=late, state=saved)
+        self.assertEqual(len(problems), 1)
+        self.assertTrue(problems[0].startswith(f"SCHEDULED JOBS OVERDUE {self.SBL}: "), problems)
+
+    def test_late_recovery_clears_the_sighting(self):
+        _, _, _, saved = self.run_main(probes=self.late(self.SBL, ("x.y", "Hourly", 200)))
+        problems, _, _, saved = self.run_main(state=saved)
+        self.assertEqual(problems, [])
+        self.assertEqual(saved["late_seen"], [])
+
+    def test_late_text_is_stable_whatever_the_jobs(self):
+        _, _, _, saved = self.run_main(probes=self.late(self.HQ, ("a.b", "All", 40)))
+        a = self.run_main(probes=self.late(self.HQ, ("a.b", "All", 70)), state=dict(saved))[0]
+        b = self.run_main(probes=self.late(self.HQ, ("c.d", "Daily", 999), ("a.b", "All", 41)),
+                          state=dict(saved))[0]
+        self.assertEqual(a, b)
+
+    def test_failed_or_deferred_reading_keeps_the_sighting(self):
+        demo = self.wd.DEMO_SITE
+        state = {"late_seen": [self.HQ, demo]}
+        _, _, _, saved = self.run_main(probes={self.HQ: self.probe(self.HQ, late="ERR:x")},
+                                       reset=lambda n: "pid 7: bash reset", state=state)
+        self.assertEqual(saved["late_seen"], [demo, self.HQ])
+        self.assertIn(f"OVERDUE CHECK FAILED {self.HQ}: can't read Scheduled Job Type "
+                      "(details in the summary)", saved["last_problems"])
+
+    def test_demo_restore_catch_up_does_not_alert(self):
+        # the nightly golden restore brings back old last_execution values: late until the
+        # scheduler's next tick runs the jobs, then healthy — one sighting, no alert
+        demo = self.wd.DEMO_SITE
+        problems, _, _, saved = self.run_main(probes=self.late(demo, ("frappe.email.queue.flush", "All", 900)))
+        self.assertEqual((problems, saved["late_seen"]), ([], [demo]))
+        problems, _, _, saved = self.run_main(state=saved)
+        self.assertEqual((problems, saved["late_seen"]), ([], []))
+
+    def test_unreadable_scheduler_state_keeps_the_sighting(self):
+        for sched in ("ERR:(2013, 'Lost connection')", None):
+            probe = self.probe(self.SBL, sched=sched, late={"dormant": False, "jobs": []})
+            _, _, _, saved = self.run_main(probes={self.SBL: probe}, state={"late_seen": [self.SBL]})
+            self.assertEqual(saved["late_seen"], [self.SBL], sched)
+            self.assertIn(f"OVERDUE CHECK FAILED {self.SBL}: can't read Scheduled Job Type "
+                          "(details in the summary)", saved["last_problems"])
+
+    def test_scheduler_off_is_not_late(self):
+        probes = {self.SBL: self.probe(self.SBL, sched=False,
+                                       late={"dormant": False, "jobs": [["x.y", "All", 900]]})}
+        problems, _, _, saved = self.run_main(probes=probes, state={"late_seen": [self.SBL]})
+        self.assertFalse([p for p in problems if "OVERDUE" in p])
+        self.assertEqual(saved["late_seen"], [])
+
+    def test_roster_last_row_wins(self):
+        with open(self.tsv, "a") as fh:  # sbl deleted after its active row
+            fh.write(f"y\t{self.SBL}\towner@example.com\tbusiness\tdeleted\n")
+        probes = {self.SBL: None}  # would read PROBE FAILED if sbl were still probed
+        problems, _, _, saved = self.run_main(probes=probes, state={"late_seen": [self.SBL]})
+        self.assertEqual(problems, [])
+        self.assertEqual(saved["late_seen"], [])
+
+    def test_stopped_worker_container_alerts(self):
+        problems, _, _, _ = self.run_main(stopped=("nexum-queue-long-1",))
+        self.assertEqual(problems, ["CONTAINER nexum-queue-long-1: not running"])
+
+
+class TestRoster(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.wd = _load_watchdog()
+
+    def roster(self, *rows):
+        with tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False) as fh:
+            fh.write("".join(rows))
+        try:
+            return self.wd.read_roster(fh.name)
+        finally:
+            os.unlink(fh.name)
+
+    def test_last_row_per_site_wins(self):
+        self.assertEqual(self.roster("t\ta.example\tp\te\tpaid\n", "t\tb.example\tp\te\tdeleted\n",
+                                     "t\ta.example\tp\te\tdeleted\n", "t\tb.example\tp\te\ttrial\n"),
+                         {"a.example": "deleted", "b.example": "trial"})
+
+    def test_short_rows_skipped_and_missing_file_empty(self):
+        self.assertEqual(self.roster("t\ta.example\tp\tpaid\n", "\n"), {})
+        self.assertEqual(self.wd.read_roster("/nonexistent/tenants.tsv"), {})
+
+    def test_matches_deploy_sh_reading(self):
+        # deploy.sh: awk -F'\t' 'NF >= 5 {last[$2] = $5}' — a sixth column doesn't change $5
+        self.assertEqual(self.roster("t\ta.example\tp\te\tpaid\textra\n"), {"a.example": "paid"})
+
+
+class TestLateJobs(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.wd = _load_watchdog()
+
+    def late(self, *jobs, dormant=False):
+        return [j[0] for j in self.wd.late_jobs({"dormant": dormant, "jobs": [list(j) for j in jobs]})]
+
+    def test_grace_by_frequency(self):
+        for freq, grace in (("All", 30), ("Cron", 30), ("Hourly", 90), ("Hourly Long", 90),
+                            ("Hourly Maintenance", 90), ("Daily", 360), ("Daily Long", 360),
+                            ("Weekly", 720), ("Monthly Long", 720), ("Yearly", 720)):
+            self.assertEqual(self.late(("m", freq, grace)), [], freq)
+            self.assertEqual(self.late(("m", freq, grace + 1)), ["m"], freq)
+
+    def test_dormant_site_runs_jobs_daily(self):
+        self.assertEqual(self.late(("m", "All", 600), dormant=True), [])
+        self.assertEqual(self.late(("m", "All", 26 * 60 + 1), dormant=True), ["m"])
+
+    def test_malformed_raises_not_healthy(self):
+        for bad in (None, "ERR:(2013, 'Lost connection')", {"jobs": []}, {"dormant": False},
+                    {"dormant": "no", "jobs": []}, {"dormant": False, "jobs": [["m", "All"]]},
+                    {"dormant": False, "jobs": [["m", "All", "5"]]}):
+            with self.assertRaises(ValueError, msg=str(bad)):
+                self.wd.late_jobs(bad)
+
+    def test_findings_texts_are_fixed(self):
+        site = "hq.nexumair.com"
+        texts = {tuple(self.wd.late_findings(site, {"sched": True, "late": err})[1])
+                 for err in ("ERR:a", "ERR:b", None)}
+        self.assertEqual(texts, {(f"OVERDUE CHECK FAILED {site}: can't read Scheduled Job Type "
+                                  "(details in the summary)",)})
+        late, problems, summary = self.wd.late_findings(
+            site, {"sched": True, "late": {"dormant": False, "jobs": [["a.b", "All", 31], ["c.d", "All", 3]]}})
+        self.assertEqual((late, problems), ([("a.b", "All", 31)], []))
+        self.assertTrue(any("a.b" in s for s in summary))
+
 
 class TestProbeSource(unittest.TestCase):
     def test_probe_compiles(self):
@@ -381,7 +517,7 @@ class TestProbeSource(unittest.TestCase):
         # on the host as PROBE FAILED on every site
         wd = _load_watchdog()
         compile(wd.PROBE_SRC, "PROBE_SRC", "exec")
-        for field in ('out["jobs"]', 'out["maint"]', 'out["reconcile"]'):
+        for field in ('out["jobs"]', 'out["maint"]', 'out["reconcile"]', 'out["late"]'):
             self.assertIn(field, wd.PROBE_SRC)
 
 
