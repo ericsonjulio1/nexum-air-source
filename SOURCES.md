@@ -19,7 +19,8 @@ upstream commit we run, and our modifications.
   public.
 - **Our modifications** — the `my_branding` application (this repository) and the
   patches we apply to bundled apps at build time (see *Modifications* below). The
-  complete buildable source corresponding to the running service is published at
+  complete source and build instructions for the AGPL-covered applications and
+  our published modifications are available at
   **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
   by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
@@ -44,7 +45,26 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-219
+## Current release: v16-prod-220
+
+The [v220 recipe and immutable manifest](build/releases/v16-prod-220/README.md)
+inherit the exact v219 runtime and replace only the private MIT-licensed `eam`
+source tree, from `05c867e650ea` to `f806e3d7ccae`. Start Work now requires recorded
+isolation (lockout/tagout) when a job needs it. Schedule Conformance measures
+whether work finishes by the end of the planned day, and next week's plan is
+frozen automatically every Friday at 17:00 site time. Moving a job's Scheduled
+Date preserves its original date, requires a reason and records the change.
+Maintenance permissions are set up as soon as the app is installed.
+
+`my_branding` stays at `16fae11ed4ba`; the AGPL-covered sources and every published
+modification are unchanged from v219. EAM is not part of the AGPL Corresponding
+Source offer, and a public reader cannot rebuild its private layer from this
+mirror. Everything outside `apps/eam` is byte-identical to v219 (416,034 entries
+verified). The framework release remains v16-prod-216 (Frappe 16.52.0, ERPNext
+16.51.1, HRMS 16.51.0); upstream dependencies and the pinned commits above are
+unchanged.
+
+## Previous release: v16-prod-219
 
 The [v219 recipe and immutable manifest](build/releases/v16-prod-219/README.md)
 inherit the exact v218 runtime and replace only the `my_branding` source tree.
@@ -198,14 +218,17 @@ and the other 2026-08-22 frappe/erpnext security backports.
 
 ## Reproducing the build
 
-The current release is reproduced through the immutable recipe chain in the
-public source mirror: `build/releases/v16-prod-219/manifest.json` pins the v218
-base digest and the exact `my_branding` commit. Its `prepare.py` archives that
-commit and its Dockerfile replaces the complete `my_branding` tree. Follow the
-inherited release manifests (v218, v217, v216, then v215 onward) for upstream source,
-EAM and frontend build provenance.
+The current release's immutable recipe chain is recorded in the public source
+mirror: `build/releases/v16-prod-220/manifest.json` pins the v219 base digest,
+the changed private `eam` commit and the retained `my_branding` commit. Its
+`prepare.py` requires access to the private EAM repository and archives only the
+pinned EAM commit; its Dockerfile replaces only the complete `eam` tree. A public
+reader cannot rebuild that private layer from this mirror. The AGPL-covered
+sources and all published modifications remain v219's, unchanged. Follow the
+inherited release manifests (v219, v218, v217, v216, then v215 onward) for their
+source and build instructions, EAM provenance and frontend build provenance.
 
 `saas/image/Containerfile` and older patchers are historical full-build tooling;
 they do not by themselves reproduce the current service. Before a future
 from-scratch rebuild or dependency upgrade, review their guards against the new
-pinned sources. v219 does not run those historical adapters or update dependencies.
+pinned sources. v220 does not run those historical adapters or update dependencies.

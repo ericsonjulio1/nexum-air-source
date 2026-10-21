@@ -1,0 +1,23 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-220",
+  "base_image": "ericsonjulio/erpnext@sha256:8a344bf75b77639e897a7a058711f594089586b58dec34fc004c76a75b98b748",
+  "platform": "linux/amd64",
+  "upstream_manifest": "../v16-prod-216/manifest.json",
+  "custom_apps": {
+    "eam": {
+      "repository": "https://github.com/ericsonjulio1/eam.git",
+      "commit": "f806e3d7ccaea10f31b0d4bc8a91aa8d5cb7df5d",
+      "source": "private repository",
+      "license": "MIT"
+    }
+  },
+  "retained_custom_apps": {
+    "my_branding": {
+      "repository": "https://github.com/ericsonjulio1/Nexum-Air.git",
+      "commit": "16fae11ed4ba5a6e90f10b9c7ba533688ae35012"
+    }
+  },
+  "digest": "sha256:a601fe57c981461d2c4c4d29d6a2bc2bd81b5c22d7d49d5a2ff6cb005aba5a41",
+  "inherited_release": "../v16-prod-219/manifest.json",
+  "changes_upstream_dependencies": false
+}
