@@ -18,7 +18,7 @@ app_include_css = [
 ]
 app_include_js = [
 	"/assets/my_branding/js/report-theme.js?v=20261016d",
-	"/assets/my_branding/js/brand.js?v=20261016-audit215",
+	"/assets/my_branding/js/brand.js?v=20261021-chart219",
 	"/assets/my_branding/js/navigation.js?v=20261016d",
 	# idle screen lock: warning, lock in place, unlock (see idle_lock.py)
 	"/assets/my_branding/js/idle_lock.js?v=20261010a",

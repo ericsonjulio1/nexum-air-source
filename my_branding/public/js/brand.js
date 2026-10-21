@@ -987,9 +987,9 @@
 // about 800px chart width and a stride of 4, index 28 is kept and index 30 is
 // force-drawn only ~52px later even though the label is ~70px wide, so they
 // overlap. Every workspace, dashboard, and query-report chart rendered through
-// frappe.Chart shares this path. Fix only the rendered x-axis text after render
-// (and after resize): no chart data, tooltip, legend, or y-axis changes. This
-// wrapper composes with, rather than replaces, the Nexum Air palette wrap above.
+// frappe.Chart shares this path. Fix rendered x-axis text after render/resize,
+// and size bars before animation: no chart data, tooltip, legend, or y-axis changes.
+// This wrapper composes with the Nexum Air palette wrap above.
 (function () {
 	function fixLabels(container) {
 		try {
@@ -1039,10 +1039,46 @@
 	// keep their gradient (untouched: their cells are rect.day, not rect.bar).
 	// Charts with only 1-3 categories (e.g. an annual roll-up) get slab-wide bars
 	// from frappe-charts' fill-the-space sizing — owner: "very unprofessional".
-	// Cap the mark width and re-center it in its slot; the slot center is what
-	// tooltips key on, so hover is unaffected. Idempotent: a capped bar is under
-	// the cap on the next pass and is left alone.
+	// Native sizing below handles AxisChart before animation. Keep this DOM cap
+	// as a backstop for the first chart's zero-data draw and non-AxisChart bars;
+	// re-centering preserves the tooltip's slot center, and capped bars are a no-op.
 	var MAX_BAR_WIDTH = 56;
+	function capBarWidth(chart) {
+		try {
+			var proto = chart && Object.getPrototypeOf(chart);
+			if (!proto || proto.__nxBarWidthPatched || typeof proto.calcXPositions !== "function") return;
+			var calc = proto.calcXPositions;
+			proto.calcXPositions = function () {
+				var result = calc.apply(this, arguments);
+				try {
+					var s = this.state, options = this.barOptions;
+					if (!s || !isFinite(s.unitWidth) || s.unitWidth <= 0 || !options) return result;
+					// Keep the author's floor once per options object, not our last computed
+					// ratio: a narrower container must be able to return to native spacing.
+					if (!Object.prototype.hasOwnProperty.call(options, "__nxSpaceRatio")) {
+						Object.defineProperty(options, "__nxSpaceRatio", { value: options.spaceRatio });
+					}
+					var datasets = (this.data && this.data.datasets) || [], bars = 0;
+					for (var i = 0; i < datasets.length; i++) {
+						if (datasets[i] && datasets[i].chartType === "bar") bars++;
+					}
+					bars = options.stacked ? 1 : Math.max(1, bars);
+					// rc27 reads this before every draw/update, including the animated SVG.
+					// A .95 ceiling still exceeds 56px in a stacked slot wider than 1120px;
+					// allow the computed ratio up to 1, retaining narrower author settings.
+					options.spaceRatio = Math.min(1, Math.max(
+						options.__nxSpaceRatio || 0.5, 1 - MAX_BAR_WIDTH * bars / s.unitWidth));
+				} catch (e) {
+					/* never block a chart from rendering */
+				}
+				return result;
+			};
+			proto.__nxBarWidthPatched = true;
+		} catch (e) {
+			/* never block a chart from rendering */
+		}
+	}
+
 	function restyleMarks(container) {
 		try {
 			var i, el, fill, w;
@@ -1204,6 +1240,7 @@
 			var args = [null].concat(Array.prototype.slice.call(arguments));
 			var Bound = Function.prototype.bind.apply(Orig, args);
 			var chart = new Bound();
+			capBarWidth(chart);
 			try {
 				attachLabelFix(chart);
 			} catch (e) {
@@ -1267,6 +1304,11 @@
 			// Feed an already-loaded constructor through the new outer accessor;
 			// its setter then calls the palette accessor's setter, preserving both.
 			if (current) frappe.Chart = current;
+			// desk.bundle defines this subclass before app_include_js, capturing the
+			// old constructor. Its first chart must not depend on another chart's patch.
+			if (frappe.ui && frappe.ui.RealtimeChart) {
+				frappe.ui.RealtimeChart = wrap(frappe.ui.RealtimeChart);
+			}
 			return true;
 		} catch (e) {
 			return false;
