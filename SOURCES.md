@@ -44,7 +44,16 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-218
+## Current release: v16-prod-219
+
+The [v219 recipe and immutable manifest](build/releases/v16-prod-219/README.md)
+inherit the exact v218 runtime and replace only the `my_branding` source tree.
+Chart bars are sized by frappe-charts itself at most 56 px wide from the first
+frame, so few-column charts no longer snap narrower after the entry animation.
+Upstream versions, dependencies, EAM and the compiled standalone apps are v216's;
+the pinned commits above apply.
+
+## Previous release: v16-prod-218
 
 The [v218 recipe and immutable manifest](build/releases/v16-prod-218/README.md)
 inherit the exact v217 runtime and replace only the `my_branding` source tree.
@@ -190,13 +199,13 @@ and the other 2026-08-22 frappe/erpnext security backports.
 ## Reproducing the build
 
 The current release is reproduced through the immutable recipe chain in the
-public source mirror: `build/releases/v16-prod-218/manifest.json` pins the v217
+public source mirror: `build/releases/v16-prod-219/manifest.json` pins the v218
 base digest and the exact `my_branding` commit. Its `prepare.py` archives that
 commit and its Dockerfile replaces the complete `my_branding` tree. Follow the
-inherited release manifests (v217, v216, then v215 onward) for upstream source,
+inherited release manifests (v218, v217, v216, then v215 onward) for upstream source,
 EAM and frontend build provenance.
 
 `saas/image/Containerfile` and older patchers are historical full-build tooling;
 they do not by themselves reproduce the current service. Before a future
 from-scratch rebuild or dependency upgrade, review their guards against the new
-pinned sources. v218 does not run those historical adapters or update dependencies.
+pinned sources. v219 does not run those historical adapters or update dependencies.
