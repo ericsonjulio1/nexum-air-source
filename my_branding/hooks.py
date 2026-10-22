@@ -18,7 +18,8 @@ app_include_css = [
 ]
 app_include_js = [
 	"/assets/my_branding/js/report-theme.js?v=20261016d",
-	"/assets/my_branding/js/brand.js?v=20261021-chart219",
+	"/assets/my_branding/js/compatibility.js?v=20261022-architecture1",
+	"/assets/my_branding/js/brand.js?v=20261022-architecture1",
 	"/assets/my_branding/js/navigation.js?v=20261016d",
 	# idle screen lock: warning, lock in place, unlock (see idle_lock.py)
 	"/assets/my_branding/js/idle_lock.js?v=20261010a",
@@ -306,21 +307,9 @@ doc_events = {
 	},
 }
 
-# Free-tier document-count caps (nexum_doc_caps in site_config; absent = unlimited/paid).
-# One before_insert per capped doctype; the handler no-ops on sites without the config,
-# so this is inert on every paid tenant. IMPORTANT: any doctype added to a plan's
-# nexum_doc_caps MUST also be listed here, or its cap won't be enforced.
-for _capped_dt in (
-	"Customer",
-	"Supplier",
-	"Item",
-	"Sales Invoice",
-	"Purchase Order",
-	"Purchase Invoice",
-	"Journal Entry",
-	"Stock Entry",
-	"Payment Entry",
-):
+# Every capped DocType is wired from the same policy as provisioning.
+from my_branding.plan_policy import CAPPED_DOCTYPES
+for _capped_dt in CAPPED_DOCTYPES:
 	doc_events.setdefault(_capped_dt, {})["before_insert"] = "my_branding.doc_caps.enforce_doc_cap"
 
 # A returning customer on an idle-parked Free site re-enables its own scheduler.

@@ -249,13 +249,19 @@ class TestWorkerPureHelpers(unittest.TestCase):
     def setUpClass(cls):
         import importlib.util
         import os
+        import sys
         path = os.path.join(os.path.dirname(frappe.get_app_path("my_branding")),
                             "saas", "billing-worker.py")
         if not os.path.exists(path):
             raise unittest.SkipTest("saas/billing-worker.py not present")
         spec = importlib.util.spec_from_file_location("billing_worker", path)
         cls.bw = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.bw)
+        # Loading by file path does not expose the adjacent host-only package.
+        sys.path.insert(0, os.path.dirname(path))
+        try:
+            spec.loader.exec_module(cls.bw)
+        finally:
+            sys.path.pop(0)
 
     def test_add_one_month_caps_day_at_28(self):
         from datetime import date as _d

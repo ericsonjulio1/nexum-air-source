@@ -42,7 +42,7 @@ def main():
             page.get_by_role('button',name=label,exact=False).first.click()
             apps = page.get_by_role('menuitem',name='Apps',exact=True)
             apps.hover()
-            item = page.get_by_role('menuitem',name='Nexum Air',exact=True)
+            item = page.get_by_role('menuitem',name='ERP',exact=True)
             item.wait_for(state='visible')
             assert item.count()==1
             page.get_by_role('menuitem',name='Desk',exact=True).wait_for(state='hidden')
@@ -51,9 +51,9 @@ def main():
             page.screenshot(path=str(OUTPUT/(label.lower()+'-apps.png')))
             item.focus()
             item.press('Enter')
-            page.locator('.desktop-icon img[alt="Nexum Air"]').wait_for(state='visible')
+            page.locator('.desktop-icon img[alt="ERP"]').wait_for(state='visible')
             assert page.url.rstrip('/')==BASE+'/desk', page.url
-            print('PASS',label,'has one keyboard-accessible Nexum Air entry in its top-left Apps menu',flush=True)
+            print('PASS',label,'has one keyboard-accessible ERP entry in its top-left Apps menu',flush=True)
 
         page.goto(BASE+'/desk/accounts/accounting')
         ready(page)

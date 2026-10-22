@@ -17,7 +17,7 @@ assert.ok(output.startsWith(repo + path.sep), 'All proof artifacts must stay ins
 await mkdir(output, { recursive: true });
 const baseline = '636bb1a'; // v218 runtime brand.js, before this working-tree change
 const oldBrand = execFileSync('git', ['show', `${baseline}:my_branding/public/js/brand.js`], { cwd: repo, encoding: 'utf8' });
-const newBrand = await readFile(path.join(repo, 'my_branding/public/js/brand.js'), 'utf8');
+const newBrand = await readFile(path.join(repo, 'my_branding/public/js/compatibility.js'), 'utf8');
 function section(source, marker) {
 	const heading = source.indexOf(marker);
 	assert.ok(heading >= 0, `Missing chart section: ${marker}`);
@@ -29,7 +29,7 @@ function section(source, marker) {
 function chartSource(source) {
 	return section(source, '// Shared report palette,') + '\n' + section(source, '// Frappe chart terminal x-axis');
 }
-const scripts = { native: '', v218: chartSource(oldBrand), edited: chartSource(newBrand) };
+const scripts = { native: '', v218: chartSource(oldBrand), edited: newBrand + '\nwindow.NexumCompatibility.install("chartPalette"); window.NexumCompatibility.install("chartSizing");'  };
 const library = await readFile(path.join(assets, 'frappe-charts.umd.js'));
 const css = await readFile(path.join(assets, 'frappe-charts.min.css'));
 const scenarios = ['one-period', 'three-periods', 'twelve-periods', 'stacked', 'axis-mixed', 'resize', 'wide-stacked', 'realtime'];

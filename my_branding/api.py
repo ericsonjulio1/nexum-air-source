@@ -29,6 +29,10 @@ from html import escape
 
 import frappe
 from frappe.utils import get_bench_path
+from my_branding.plan_policy import (
+	SIGNUP_PLANS as KNOWN_PLANS, AUTO_APPROVE_PLANS,
+	CHECKOUT_PRICES_PHP as XENDIT_PLAN_PRICES_PHP, canonical_plan,
+)
 
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 BASE_DOMAIN = "nexumair.com"
@@ -58,12 +62,10 @@ DISPOSABLE_EMAIL_DOMAINS = {
 	"moakt.com", "discard.email", "getairmail.com",
 }
 # plan labels we know how to provision (mirror provision-worker.py PLAN_MAP keys).
-KNOWN_PLANS = {"free", "essentials", "starter", "business", "enterprise"}
 # Plans eligible for UNATTENDED auto-approval. Enterprise is deliberately excluded:
 # those are higher-value, higher-touch prospects worth a human qualification, so an
 # Enterprise signup is HELD for manual review even when everything else looks low-risk.
 # Free is the lowest-touch, instant-by-design tier (also gated by the global free cap).
-AUTO_APPROVE_PLANS = {"free", "essentials", "starter", "business"}
 # ceilings on UNATTENDED auto-approvals; a clean-looking burst beyond EITHER holds
 # for manual review, so abuse/runaway cost can never auto-spin an unbounded number
 # of tenants. Both are enforced with an atomic Redis counter (see _bump_window).
@@ -261,7 +263,7 @@ def _assess_trial_risk(email, subdomain, plan, ts):
 
 def _is_free(plan):
 	"""True when the form/CRM plan label refers to the perpetual Free tier."""
-	return (plan or "").strip().lower() in ("free", "free tier", "free plan")
+	return canonical_plan(plan) == "free"
 
 
 def _free_cap():
@@ -830,11 +832,6 @@ XENDIT_API_BASE = "https://api.xendit.co"
 
 # Peso price points per XENDIT-SPEC section 2 — PENDING OWNER/ACCOUNTANT
 # CONFIRMATION (flat, VAT stance undecided). One edit point.
-XENDIT_PLAN_PRICES_PHP = {
-	"Essentials": 2790,
-	"Business": 8490,
-	"Enterprise": 22740,
-}
 
 
 def _xendit_api(method, path, payload=None):

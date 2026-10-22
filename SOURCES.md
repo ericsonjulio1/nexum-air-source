@@ -45,7 +45,21 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-220
+## Current release: v16-prod-221
+
+The [v221 recipe and immutable manifest](build/releases/v16-prod-221/README.md)
+inherit v220 and replace only the `my_branding` and private `eam` source trees.
+`my_branding` is pinned to `d3aab28c735a`; EAM is pinned to `50725b23392f`.
+Plan policy, transaction-scoped upload quota checks and browser compatibility now
+have dedicated modules. Financial views share their query helpers without changing
+the calculations. All 415,538 other bench paths remain identical to v220; upstream
+versions, dependencies and the published third-party modifications are unchanged.
+
+The runtime branding application and package metadata in this mirror match the
+committed image source. EAM remains private and is not included in this mirror;
+see the recipe for the exact commits and that reproduction limit.
+
+## Previous release: v16-prod-220
 
 The [v220 recipe and immutable manifest](build/releases/v16-prod-220/README.md)
 inherit the exact v219 runtime and replace only the private MIT-licensed `eam`
@@ -231,4 +245,4 @@ source and build instructions, EAM provenance and frontend build provenance.
 `saas/image/Containerfile` and older patchers are historical full-build tooling;
 they do not by themselves reproduce the current service. Before a future
 from-scratch rebuild or dependency upgrade, review their guards against the new
-pinned sources. v220 does not run those historical adapters or update dependencies.
+pinned sources. v221 does not run those historical adapters or update dependencies.

@@ -29,7 +29,7 @@ def screenshot(page, name):
 
 
 def launcher(page):
-    page.locator('.desktop-icon img[alt="Nexum Air"]').wait_for(state="visible")
+    page.locator('.desktop-icon img[alt="ERP"]').wait_for(state="visible")
     assert page.url.rstrip("/") == BASE + "/desk", page.url
 
 
@@ -46,26 +46,26 @@ def main():
         page = ctx.new_page()
         page.goto(BASE + "/desk")
         launcher(page)
-        logo = page.locator('.desktop-icon img[alt="Nexum Air"]')
-        assert "/my_branding/images/icons/erpnext_app.svg" in logo.get_attribute("src")
+        logo = page.locator('.desktop-icon img[alt="ERP"]')
+        assert "/my_branding/images/icons/erp_app.svg" in logo.get_attribute("src")
         for icon in page.locator('.desktop-icon img[src*="/my_branding/images/icons/"]').all():
             assert icon.evaluate("e => getComputedStyle(e).filter") == "none"
         screenshot(page, "suite-launcher.png")
         print("PASS suite launcher uses the existing slate brand icons without hue shifts")
 
-        page.locator('.desktop-icon .icon-title', has_text="Nexum Air").click()
+        page.locator('.desktop-icon .icon-title', has_text="ERP").click()
         page.locator('.dock-item[aria-label="Assets"]').wait_for(state="visible")
-        assert "/my_branding/images/icons/erpnext_app.svg" in page.locator('.dock-logo img').get_attribute("src")
+        assert "/my_branding/images/icons/erp_app.svg" in page.locator('.dock-logo img').get_attribute("src")
         page.locator('.dock-item[aria-label="Assets"]').click()
         card = page.locator('[shortcut_name="Maintenance"] .widget')
         card.wait_for(state="visible")
         screenshot(page, "assets-maintenance-entry.png")
         before = len(ctx.pages)
-        card.click()
+        card.locator('.nx-maintenance-home').click()
         page.wait_for_function("frappe.app.sidebar.current_module === 'Maintenance'")
         assert page.url.rstrip("/") == BASE + "/desk/maintenance", page.url
         assert len(ctx.pages) == before, "Internal Maintenance card opened another window"
-        print("PASS Nexum Air → Assets → Maintenance card opens the full workspace in place")
+        print("PASS ERP → Assets → Maintenance card opens the full workspace in place")
 
         page.goto(BASE + "/desk/assets")
         entry = page.locator('.sidebar-items a[href="/desk/maintenance"]')
@@ -76,7 +76,7 @@ def main():
         assert page.url.rstrip("/") == BASE + "/desk/maintenance"
         print("PASS Assets sidebar enters Maintenance with its own navigation")
 
-        for label, keyboard in (("Nexum Air", False), ("Nexum Air", True), ("CRM", False)):
+        for label, keyboard in (("ERP", False), ("ERP", True), ("CRM", False)):
             page.goto(BASE + "/helpdesk")
             ready(page)
             page.get_by_role("button", name="Helpdesk", exact=False).first.click()

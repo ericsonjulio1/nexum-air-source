@@ -2,8 +2,7 @@
 
 The plan is stamped into site_config by provision-tenant.sh (`nexum_plan`); sites that
 predate the key (or the dev stack) fall back to an inference from the installed apps
-(the plan->apps map lives in provision-tenant.sh: free = erpnext only, starter adds
-print_designer, business adds hrms/crm/helpdesk/..., enterprise adds eam/lms/...).
+(the canonical policy and legacy inference live in plan_policy.py).
 
 "Simple mode" = the Free + Essentials(starter) presentation: collapsed advanced form
 fields (simple_mode.py) + slimmer report filter bars (brand.js). Business/Enterprise
@@ -13,8 +12,7 @@ via the "Show advanced fields" toggle (user default `nx_advanced_fields`).
 
 import frappe
 
-PLANS = ("free", "starter", "business", "enterprise")
-SIMPLE_PLANS = ("free", "starter")
+from my_branding.plan_policy import PLAN_IDS as PLANS, SIMPLE_PLANS, infer_plan
 _ADV_KEY = "nx_advanced_fields"
 
 
@@ -24,14 +22,7 @@ def get_plan():
 		plan = (frappe.conf.get("nexum_plan") or "").strip().lower()
 		if plan in PLANS:
 			return plan
-		apps = set(frappe.get_installed_apps())
-		if "eam" in apps or "lms" in apps or "drive" in apps:
-			return "enterprise"
-		if "hrms" in apps or "crm" in apps or "helpdesk" in apps or "insights" in apps:
-			return "business"
-		if "print_designer" in apps:
-			return "starter"
-		return "free"
+		return infer_plan(frappe.get_installed_apps())
 	except Exception:
 		return "business"  # unknown -> full form, never strip fields by accident
 

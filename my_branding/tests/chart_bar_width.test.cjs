@@ -4,9 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const brand = fs.readFileSync(path.join(__dirname, '../public/js/brand.js'), 'utf8');
-const start = brand.indexOf('(function () {', brand.indexOf('// Frappe chart terminal x-axis'));
-const source = brand.slice(start, brand.indexOf('\n})();', start) + '\n})();'.length);
+const source = fs.readFileSync(path.join(__dirname, '../public/js/compatibility.js'), 'utf8')
+    + '\nwindow.NexumCompatibility.install("chartSizing");';
 
 function setup() {
 	class AxisChart {

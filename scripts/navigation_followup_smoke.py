@@ -26,7 +26,7 @@ with sync_playwright() as p:
  for _ in range(3):
   page.get_by_role('button',name='Drive',exact=False).first.click()
   page.get_by_role('menuitem',name='Apps',exact=True).hover()
-  page.get_by_role('menuitem',name='Nexum Air',exact=True).wait_for()
+  page.get_by_role('menuitem',name='ERP',exact=True).wait_for()
   page.wait_for_timeout(500)
   counts.append(page.evaluate('window.__deskFrames.length'))
   page.keyboard.press('Escape');page.keyboard.press('Escape');page.wait_for_timeout(100)
@@ -45,7 +45,7 @@ with sync_playwright() as p:
  if native == 1:
   apps=page.get_by_role('menuitem',name='Apps',exact=True)
   apps.hover()
-  launcher=page.get_by_role('menuitem',name='Nexum Air',exact=True)
+  launcher=page.get_by_role('menuitem',name='ERP',exact=True)
   launcher.wait_for(state='visible')
   assert launcher.count()==1
   assert page.get_by_role('menuitem',name='Desk',exact=True).count()==0
@@ -56,7 +56,7 @@ with sync_playwright() as p:
   page.keyboard.press('ArrowDown');page.keyboard.press('Home')
   assert launcher.evaluate('e=>e===document.activeElement')
   page.keyboard.press('Enter')
-  page.locator('.desktop-icon img[alt="Nexum Air"]').wait_for()
+  page.locator('.desktop-icon img[alt="ERP"]').wait_for()
   print('PASS Teams mouse and keyboard submenu, Escape focus return, and launcher destination',flush=True)
 
  page.goto(base+'/desk/maintenance');page.wait_for_load_state('networkidle')

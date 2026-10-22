@@ -19,12 +19,9 @@ const flush = async (turns = 3) => {
 	for (let i = 0; i < turns; i++) await new Promise((resolve) => setImmediate(resolve));
 };
 
-// One brand.js section: from the comment line holding `start` to the one holding `end`.
-function section(src, start, end) {
-	const a = src.indexOf(start);
-	const b = src.indexOf(end, a);
-	assert.ok(a !== -1 && b !== -1, 'section markers moved: ' + start);
-	return src.slice(src.lastIndexOf('\n', a) + 1, src.lastIndexOf('\n', b) + 1);
+// Execute the shipped adapter through its public installation interface.
+function compatibility(name) {
+    return read('js/compatibility.js') + '\nwindow.NexumCompatibility.install(' + JSON.stringify(name) + ');';
 }
 
 // --- selectors: lists, descendant/child combinators, tag #id .class [attr op v] :not() ---
@@ -394,12 +391,80 @@ function windowEvents(ctx) {
 	ctx.listeners = on;
 }
 
+test('compatibility installs as a whole once and composes lazy Chart and DataTable adapters', async () => {
+	const { doc, MutationObserver } = makeDom();
+	const clock = makeClock();
+	const routeHandlers = [];
+	const frappe = { boot: { module_sidebars: {}, module_wise_workspaces: {} }, ui: {}, views: {},
+		router: { on: (event, callback) => routeHandlers.push(callback) }, get_route: () => [] };
+	let palettes = 0;
+	const ctx = { frappe, document: doc, MutationObserver, localStorage: makeStorage(),
+		setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
+		setInterval: clock.setInterval, clearInterval: clock.clearInterval,
+		requestAnimationFrame: () => 0,
+		NexumCharts: { frappeOptions: (options) => { palettes++; return { ...options, colors: ['#123456'] }; } } };
+	ctx.window = ctx;
+	windowEvents(ctx);
+	const source = read('js/compatibility.js');
+	vm.runInNewContext(source, ctx);
+	const api = ctx.NexumCompatibility;
+	api.install();
+	api.install();
+	vm.runInNewContext(source, ctx);
+	ctx.NexumCompatibility.install();
+	assert.equal(ctx.NexumCompatibility, api);
+	assert.equal(routeHandlers.length, 1, 'route listeners are not duplicated');
+	assert.deepEqual(Array.from(frappe.boot.module_wise_workspaces.EAM), ['Assets']);
+	class Chart {
+		constructor(parent, options) {
+			this.options = options; this.data = options.data; this.barOptions = {}; this.state = {};
+			this.calcXPositions();
+		}
+		calcXPositions() { this.state.unitWidth = 1020; return 'native'; }
+	}
+	class DataTable {
+		buildOptions(options) { this.options = options; return options; }
+		refresh(data, columns) { return columns; }
+	}
+	frappe.Chart = Chart;
+	ctx.DataTable = DataTable;
+	frappe.DataTable = DataTable;
+	const wrapped = frappe.Chart, buildOptions = DataTable.prototype.buildOptions;
+	const options = { type: 'bar', data: { labels: ['Oct'], datasets: [{ chartType: 'bar', values: [1] }] } };
+	const chart = new frappe.Chart(null, options);
+	assert.equal(chart.calcXPositions(), 'native');
+	assert.ok(Math.abs(chart.state.unitWidth * (1 - chart.barOptions.spaceRatio) - 56) < 1e-9);
+	assert.deepEqual(chart.options.colors, ['#123456']);
+	assert.equal(palettes, 1, 'palette and sizing wrappers compose exactly once');
+	const columns = [{ id: 'name' }, { id: 'amount' }];
+	new DataTable().buildOptions({ columns, layout: 'fixed' });
+	assert.equal(columns[0].sticky, true);
+	api.install();
+	await clock.advance(250);
+	assert.equal(frappe.Chart, wrapped);
+	assert.equal(DataTable.prototype.buildOptions, buildOptions);
+});
+
+test('presentation remains available when compatibility is missing or fails', () => {
+	for (const compatibility of [undefined, { install() { throw new Error('fixture adapter failure'); } }]) {
+		const { doc, MutationObserver, location } = makeDom();
+		const ctx = { document: doc, MutationObserver, location, navigator: {},
+			frappe: { boot: {}, ready() {} }, localStorage: makeStorage(), sessionStorage: makeStorage(),
+			setTimeout: () => 0, setInterval: () => 0, clearInterval() {}, clearTimeout() {},
+			requestAnimationFrame: () => 0, console: { warn() {} }, NexumCompatibility: compatibility };
+		ctx.window = ctx;
+		windowEvents(ctx);
+		vm.runInNewContext(read('js/brand.js'), ctx);
+		assert.equal(doc.getElementById('nx-source-link').textContent, 'Source code');
+	}
+});
+
 // =====================================================================================
 // idx 78 — brand.js: simple-mode "More filters" looks again after route filters land
 // =====================================================================================
 function loadPresets() {
 	const { doc } = makeDom();
-	const src = section(read('js/brand.js'), 'Report presets for simple mode', 'Bare-root landing');
+	const src = compatibility('reportFilters');
 	class QueryReport {
 		constructor(name, dfs) {
 			const form = doc.createElement('div');
@@ -793,7 +858,8 @@ function loadLegacyCrumbPass(modern) {
 		MutationObserver: class { constructor(callback) { metrics.observers++; return new DomObserver(callback); } },
 		requestAnimationFrame: callback => { metrics.frames++; raf.push(callback); return metrics.frames; },
 	};
-	const src = section(read('js/brand.js'), "The breadcrumb's workspace crumb can freeze", '--- Desk-home glass/aurora scope');
+	ctx.window = ctx;
+	const src = compatibility('breadcrumbSync');
 	vm.runInNewContext(src, ctx, { filename: 'brand.js#legacy-crumb' });
 	const settle = async () => { await flush(); while (raf.length) { raf.shift()(); await flush(); } };
 	return { doc, h, crumb, metrics, settle };
@@ -858,7 +924,7 @@ function loadChartPass() {
 	};
 	ctx.window = ctx;
 	windowEvents(ctx);
-	const src = section(read('js/brand.js'), 'Frappe chart terminal x-axis label overlap', 'Balance Sheet chart: composition columns');
+	const src = compatibility('chartSizing');
 	vm.runInNewContext(src, ctx, { filename: 'brand.js#chart-labels' });
 	const page = h('div', { class: 'page-container' });
 	doc.body.appendChild(page);
@@ -1010,7 +1076,7 @@ test('idx 150: spa-brand.css hides the svg fingerprints everywhere except Builde
 // with_doc from boot, and fakes no docinfo: a form opened on the card later must fetch
 // its doc + docinfo (timeline, assignments, @mentions all need one).
 function loadWidgetBoot(docs) {
-	const src = section(read('js/brand.js'), 'Home KPI widgets: docs from boot', 'AGPL source-code offer');
+	const src = compatibility('bootDocuments');
 	const locals = {};
 	const fetched = [];
 	const frappe = {

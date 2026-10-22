@@ -15,6 +15,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
+from my_branding.storage_quota import QuotaBusy, QuotaTransactionConflict, check_and_hold
+
 
 def _quota_bytes():
 	"""Quota in bytes from site_config; 0 (or unset/invalid) means unlimited."""
@@ -37,12 +39,9 @@ def _used_bytes(exact=False):
 	and Drive uploads (Drive keeps its own ``Drive File`` doctype — both count
 	against the one plan quota).
 
-	This ran a full ``SUM(file_size)`` table scan on EVERY upload. The result is now
-	cached per-site for a few seconds to spare that scan on routine uploads; pass
-	``exact=True`` to bypass the cache and recompute. The caller forces an exact
-	recompute once an upload is near the limit, so the quota boundary stays precise
-	while far-from-limit uploads stay cheap. (frappe.cache is per-site namespaced,
-	so one tenant's total can't leak into another's.)"""
+	This display cache expires after 30 seconds; ``exact=True`` recomputes it.
+	Quota decisions use the transaction-coordinated storage_quota module instead.
+	Frappe namespaces this cache by site."""
 	if not exact:
 		cached = frappe.cache.get_value(_USED_CACHE_KEY)
 		if cached is not None:
@@ -56,30 +55,28 @@ def _used_bytes(exact=False):
 	return used
 
 
-def invalidate_used_cache(doc, method=None):
-	"""Drop the cached usage total when a File/Drive File is deleted.
-
-	Without this, the cached SUM only expired on its 30s TTL, so a tenant AT quota
-	who deleted files to free space could stay blocked for up to 30s (the next
-	upload read the stale-high cached total). Deleting a File is the one event that
-	*lowers* usage, so bust the cache here — the next ``_used_bytes`` call recomputes
-	exactly. Best-effort: a cache hiccup must never block a delete."""
+def invalidate_used_cache(doc=None, method=None):
+	"""Best-effort display refresh after a file change or transaction completion."""
 	try:
 		frappe.cache.delete_value(_USED_CACHE_KEY)
 	except Exception:
-		frappe.log_error(
-			title="my_branding invalidate_used_cache failed",
-			message=frappe.get_traceback(),
-		)
+		# Even logging may depend on the unavailable service. Transaction callbacks
+		# must continue: the upload can already be committed at this point.
+		try:
+			frappe.log_error(
+				title="my_branding invalidate_used_cache failed",
+				message=frappe.get_traceback(),
+			)
+		except Exception:
+			pass
 
 
 def _bust_used_cache_on_rollback():
-	"""Register a rollback callback that drops the usage-cache reservation, so a
-	rolled-back upload's projected total can't linger and over-block the next one.
+	"""Register a rollback callback that drops any display total read mid-transaction.
 	No-op on frappe builds without the after_rollback CallbackManager."""
 	cb = getattr(frappe.db, "after_rollback", None)
 	if cb is not None and hasattr(cb, "add"):
-		cb.add(lambda: frappe.cache.delete_value(_USED_CACHE_KEY))
+		cb.add(invalidate_used_cache)
 
 
 def enforce_file_quota(doc, method=None):
@@ -106,30 +103,21 @@ def enforce_file_quota(doc, method=None):
 		if incoming <= 0:
 			return  # nothing to count yet (e.g. folder, or size set later)
 
-		used = _used_bytes()
-		# cheap cached read above; if it puts us anywhere near the limit, recompute
-		# exactly so the cache's few-second lag can never wave an upload past quota.
-		if (used + incoming) > quota * 0.9:
-			used = _used_bytes(exact=True)
-		projected = used + incoming
-		over_limit = projected > quota
-		# Keep the cached total in step with THIS upload. The cache is otherwise only
-		# refreshed on a 30s miss or on delete, so without this a burst of uploads inside
-		# the TTL window would each read the pre-burst total and could slip past quota
-		# (the near-limit exact recompute above can't catch it when the STALE `used` is
-		# itself low). Best-effort: a cache hiccup must never block a legitimate upload.
-		if not over_limit:
-			try:
-				frappe.cache.set_value(_USED_CACHE_KEY, projected, expires_in_sec=_USED_CACHE_TTL)
-				# If this insert is later rolled back (a downstream validation/permission
-				# failure, etc.), the projected reservation would linger for up to the TTL
-				# and wrongly block the tenant's NEXT small upload. Drop it on rollback so
-				# the next read recomputes exactly. On COMMIT the reservation stands — that
-				# is the burst-bypass guard. Guarded for older frappe without the hook.
-				_bust_used_cache_on_rollback()
-			except Exception:
-				pass
-	except Exception:
+		over_limit = not check_and_hold(frappe.db, incoming, quota)
+		# Display-only usage cache must not retain values from an earlier transaction.
+		frappe.db.after_commit.add(invalidate_used_cache)
+		_bust_used_cache_on_rollback()
+	except QuotaBusy:
+		frappe.throw(_("Another upload is completing. Please retry in a moment."), title=_("Upload Busy"))
+	except QuotaTransactionConflict as exc:
+		raise frappe.QueryDeadlockError(str(exc)) from exc
+	except (frappe.QueryDeadlockError, frappe.QueryTimeoutError):
+		# Frappe wraps driver errors; errno predicates do not recognize wrappers.
+		raise
+	except Exception as exc:
+		# A database transaction conflict must roll back, never continue partially.
+		if frappe.db.is_deadlocked(exc) or frappe.db.is_timedout(exc):
+			raise
 		frappe.log_error(
 			title="my_branding enforce_file_quota failed (fail-open)",
 			message=frappe.get_traceback(),
