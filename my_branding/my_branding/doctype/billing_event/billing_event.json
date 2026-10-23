@@ -14,6 +14,7 @@
   "column_break_main",
   "processed",
   "processed_on",
+  "last_attempted_on",
   "processing_error",
   "section_payload",
   "payload"
@@ -71,6 +72,13 @@
    "fieldtype": "Datetime",
    "label": "Processed On",
    "read_only": 1
+  },
+  {
+   "fieldname": "last_attempted_on",
+   "fieldtype": "Datetime",
+   "label": "Last Attempted On",
+   "read_only": 1,
+   "description": "Host worker attempt timestamp, including failures. Does not mean the payment was applied or the event processed."
   },
   {
    "fieldname": "processing_error",

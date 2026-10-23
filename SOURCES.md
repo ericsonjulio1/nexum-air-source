@@ -45,7 +45,17 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-221
+## Current release: v16-prod-222
+
+The [v222 recipe and immutable manifest](build/releases/v16-prod-222/README.md)
+inherit v221 and replace only the custom application source trees. Branding is
+pinned to `8c52989cd390`; private EAM is pinned to `9de5ada9a7e5`.
+This release strengthens billing retry scheduling, payment entitlement protection,
+webhook validation, welcome-message recovery, SPA branding and EAM calendar history.
+It adds a nullable billing attempt timestamp and an index; upstream dependencies
+and all 415,538 other bench paths remain unchanged.
+
+## Previous release: v16-prod-221
 
 The [v221 recipe and immutable manifest](build/releases/v16-prod-221/README.md)
 inherit v220 and replace only the `my_branding` and private `eam` source trees.

@@ -35,9 +35,10 @@ class _Req:
         return self._body
 
 
-def _run(body, token="tok-1", configured="tok-1", existing=False):
+def _run(body, token="tok-1", configured="tok-1", existing=False, inserts=None):
     """Drive xendit_webhook with everything stubbed; returns (result, inserts)."""
-    inserts = []
+    if inserts is None:
+        inserts = []
 
     class _Doc(dict):
         def insert(self, ignore_permissions=False):
@@ -70,8 +71,47 @@ class TestWebhookGate(unittest.TestCase):
         with self.assertRaises(frappe.ValidationError):
             _run("[1,2,3]")  # JSON but not an object
 
+    def test_non_object_event_data_is_rejected_before_identity_or_insertion(self):
+        for data in (["x"], [], "value", 1, False):
+            for identity in ({}, {"id": "synthetic-event"}):
+                with self.subTest(data=data, identity=identity):
+                    inserts = []
+                    with self.assertRaises(frappe.ValidationError):
+                        _run({"event": "recurring.cycle.succeeded", "data": data, **identity}, inserts=inserts)
+                    self.assertEqual(inserts, [])
+
 
 class TestWebhookInbox(unittest.TestCase):
+    def test_exact_request_size_limit_is_accepted_but_one_more_byte_is_rejected(self):
+        body = {"event": "recurring.cycle.succeeded", "id": "synthetic-limit", "data": {"metadata": "é"}}
+        raw = json.dumps(body, ensure_ascii=False)
+        raw += " " * (api.XENDIT_MAX_PAYLOAD_BYTES - len(raw.encode("utf-8")))
+        result, inserts = _run(raw)
+        self.assertTrue(result["ok"])
+        self.assertEqual(json.loads(inserts[0]["payload"]), body)
+        inserts = []
+        with self.assertRaises(frappe.ValidationError):
+            _run(raw + " ", inserts=inserts)
+        self.assertEqual(inserts, [])
+
+    def test_multibyte_payload_is_limited_by_bytes_not_characters(self):
+        raw = json.dumps({"event": "recurring.cycle.succeeded", "id": "synthetic-utf8",
+                          "data": {"metadata": "é" * 50000}}, ensure_ascii=False)
+        self.assertLess(len(raw), api.XENDIT_MAX_PAYLOAD_BYTES)
+        self.assertGreater(len(raw.encode("utf-8")), api.XENDIT_MAX_PAYLOAD_BYTES)
+        inserts = []
+        with self.assertRaises(frappe.ValidationError):
+            _run(raw, inserts=inserts)
+        self.assertEqual(inserts, [])
+
+    def test_oversized_event_is_rejected_without_storing_truncated_json(self):
+        body = {"event": "recurring.cycle.succeeded", "id": "synthetic-large-event",
+                "data": {"id": "synthetic-cycle", "metadata": "x" * 100000}}
+        inserts = []
+        with self.assertRaises(frappe.ValidationError):
+            _run(body, inserts=inserts)
+        self.assertEqual(inserts, [])
+
     def test_known_event_queued_unprocessed(self):
         body = {"event": "recurring.cycle.succeeded", "id": "evt_1",
                 "data": {"id": "cycle_1", "plan_id": "plan_9"}}
@@ -83,6 +123,7 @@ class TestWebhookInbox(unittest.TestCase):
         self.assertEqual(row["event_id"], "evt_1")
         self.assertEqual(row["reference_id"], "plan_9")
         self.assertEqual(row["processed"], 0)
+        self.assertEqual(json.loads(row["payload"]), body)
 
     def test_unknown_event_acked_but_preprocessed(self):
         # a 4xx would make Xendit retry six times for a type we never handle —

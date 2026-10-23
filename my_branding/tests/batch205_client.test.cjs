@@ -1001,6 +1001,46 @@ function loadSpaBrand(pathname, brand, build) {
 }
 const CRM = { name: 'Nexum Air CRM', old: 'Frappe CRM', extra: [] };
 
+test('the legacy Insights replacement keeps sizing without inheriting the hidden marker', () => {
+	const t = loadSpaBrand('/insights',
+		{ name: 'Nexum Air Insights', old: 'Frappe Insights', extra: [] },
+		(doc, h) => doc.body.appendChild(h('header', { id: 'logo' }, h('img', {
+			id: 'original',
+			src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeEXAMPLE',
+			class: 'h-8'
+		}))));
+	const replacement = t.doc.getElementById('logo').querySelector('img[data-nexum-logo-img]');
+	assert.ok(replacement);
+	assert.equal(replacement.classList.contains('nx-legacy-logo-hidden'), false);
+	assert.equal(replacement.classList.contains('h-8'), true);
+	assert.equal(t.doc.getElementById('original').classList.contains('nx-legacy-logo-hidden'), true);
+});
+
+test('branding preserves text appended directly to script and style elements', async () => {
+	const t = loadSpaBrand('/crm/leads', CRM, (doc, h) => {
+		doc.body.appendChild(h('script', { id: 'data', type: 'application/json' }));
+		doc.body.appendChild(h('style', { id: 'styles' }));
+		for (const tag of ['script', 'style']) {
+			const svgElement = h(tag, { id: 'svg-' + tag });
+			svgElement.nodeName = tag; // SVG keeps lowercase nodeName in browsers.
+			doc.body.appendChild(h('svg', {}, svgElement));
+		}
+	});
+	const json = '{"product":"Frappe CRM"}';
+	const css = '.label:after { content: "Frappe CRM"; }';
+	t.doc.getElementById('data').appendChild(t.doc.createTextNode(json));
+	t.doc.getElementById('styles').appendChild(t.doc.createTextNode(css));
+	t.doc.getElementById('svg-script').appendChild(t.doc.createTextNode(json));
+	t.doc.getElementById('svg-style').appendChild(t.doc.createTextNode(css));
+	t.doc.body.appendChild(t.h('span', { id: 'chrome' }, 'Frappe CRM'));
+	await flush();
+	assert.equal(t.doc.getElementById('data').textContent, json);
+	assert.equal(t.doc.getElementById('styles').textContent, css);
+	assert.equal(t.doc.getElementById('svg-script').textContent, json);
+	assert.equal(t.doc.getElementById('svg-style').textContent, css);
+	assert.equal(t.doc.getElementById('chrome').textContent, 'Nexum Air CRM');
+});
+
 test('idx 80: the wordmark swap brands app chrome but never user text in editors or text areas', async () => {
 	const t = loadSpaBrand('/crm/leads/CRM-LEAD-0001', CRM, (doc, h) => {
 		doc.body.appendChild(h('aside', { class: 'sidebar' }, h('span', { id: 'wordmark' }, 'Frappe CRM')));

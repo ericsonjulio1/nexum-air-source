@@ -754,6 +754,7 @@ XENDIT_EVENT_TYPES = frozenset({
 	"payment.failure",
 	"payment.capture",
 })
+XENDIT_MAX_PAYLOAD_BYTES = 100000
 
 
 def _xendit_event_identity(body):
@@ -785,11 +786,16 @@ def xendit_webhook():
 	if not hmac.compare_digest(str(presented), str(configured)):
 		frappe.throw("Invalid webhook token.", frappe.PermissionError)
 
+	raw = frappe.request.get_data(as_text=True) or "{}"
+	if len(raw.encode("utf-8")) > XENDIT_MAX_PAYLOAD_BYTES:
+		frappe.throw("Webhook payload is too large.", frappe.ValidationError)
 	try:
-		body = json.loads(frappe.request.get_data(as_text=True) or "{}")
+		body = json.loads(raw)
 	except Exception:
 		frappe.throw("Malformed payload.", frappe.ValidationError)
 	if not isinstance(body, dict):
+		frappe.throw("Malformed payload.", frappe.ValidationError)
+	if body.get("data") is not None and not isinstance(body["data"], dict):
 		frappe.throw("Malformed payload.", frappe.ValidationError)
 
 	event_type = str(body.get("event") or "unknown")[:140]
@@ -806,7 +812,7 @@ def xendit_webhook():
 		"event_type": event_type,
 		"reference_id": str(data.get("plan_id") or data.get("reference_id")
 			or data.get("id") or "")[:140],
-		"payload": json.dumps(body, ensure_ascii=False)[:100000],
+		"payload": json.dumps(body, ensure_ascii=False),
 		# unknown types are stored pre-processed so the worker never sees them
 		"processed": 0 if known else 1,
 		"processing_error": None if known else "event type not in pipeline whitelist",

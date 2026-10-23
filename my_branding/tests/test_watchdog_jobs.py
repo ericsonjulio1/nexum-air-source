@@ -321,6 +321,15 @@ class TestMainOrchestration(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(heals, [])
 
+    def test_pending_billing_event_still_alerts_when_worker_log_is_fresh(self):
+        probes = {self.HQ: self.probe(self.HQ, billing=[["synthetic-retried", "recurring.cycle.succeeded"]])}
+        with patch.object(self.wd.os.path, "getmtime", return_value=time.time()):
+            first, _, _, _ = self.run_main(probes=probes)
+            second, _, _, _ = self.run_main(probes=probes)
+        self.assertFalse(any("BILLING EVENTS UNPROCESSED" in problem for problem in first))
+        self.assertTrue(any("BILLING EVENTS UNPROCESSED" in problem and "synthetic-retried" in problem
+                            and "IS running" in problem for problem in second))
+
     def test_reset_starting_mid_run_holds_heal_but_alerts_other_sites(self):
         # reset not running at the demo probe (call 0), running from the URL check on
         problems, heals, n, _ = self.run_main(reset=lambda n: None if n == 0 else "pid 7: bash reset",

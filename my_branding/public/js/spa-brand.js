@@ -220,6 +220,7 @@
 			img.src = APP_MARK;
 			img.alt = "Nexum Air";
 			img.className = el.getAttribute("class") || "";
+			img.classList.remove("nx-legacy-logo-hidden");
 			img.setAttribute("data-nexum-logo-img", "1");
 			parent.insertBefore(img, el);
 		}
@@ -262,6 +263,15 @@
 	function inUserText(el) {
 		return !!(el && el.nodeType === 1 && el.closest && el.closest(USER_TEXT));
 	}
+	function isCodeElement(node) {
+		return !!(node && /^(script|style)$/i.test(node.nodeName));
+	}
+	function canBrandText(node) {
+		var parent = node.parentNode;
+		return hasSwap(node.nodeValue) &&
+			!isCodeElement(parent) &&
+			!inUserText(parent);
+	}
 
 	// Rewrite the visible "Frappe X" wordmark to "Nexum Air X" within `root`.
 	// Text-nodes only — never attributes or <script>/<style> — so we can't corrupt
@@ -273,20 +283,16 @@
 		if ((!SWAPS.length && !EXACT_SWAPS.length) || !root) return;
 		if (root.nodeType === 3) {
 			// a text node was added directly
-			if (hasSwap(root.nodeValue) && !inUserText(root.parentNode)) {
+			if (canBrandText(root)) {
 				root.nodeValue = applySwaps(root.nodeValue);
 			}
 			return;
 		}
 		if (root.nodeType !== 1) return; // only elements have a text subtree
-		if (root.nodeName === "SCRIPT" || root.nodeName === "STYLE") return;
+		if (isCodeElement(root)) return;
 		var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
 			acceptNode: function (node) {
-				var p = node.parentNode;
-				if (p && (p.nodeName === "SCRIPT" || p.nodeName === "STYLE")) {
-					return NodeFilter.FILTER_REJECT;
-				}
-				return hasSwap(node.nodeValue) && !inUserText(p)
+				return canBrandText(node)
 					? NodeFilter.FILTER_ACCEPT
 					: NodeFilter.FILTER_SKIP;
 			},
