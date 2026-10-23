@@ -49,7 +49,7 @@ and `my_branding`'s source is offered accordingly.
 
 The [v222 recipe and immutable manifest](build/releases/v16-prod-222/README.md)
 inherit v221 and replace only the custom application source trees. Branding is
-pinned to `8c52989cd390`; private EAM is pinned to `9de5ada9a7e5`.
+pinned to `1f76ae4154eb`; private EAM is pinned to `9de5ada9a7e5`.
 This release strengthens billing retry scheduling, payment entitlement protection,
 webhook validation, welcome-message recovery, SPA branding and EAM calendar history.
 It adds a nullable billing attempt timestamp and an index; upstream dependencies

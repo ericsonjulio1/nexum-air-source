@@ -6,9 +6,9 @@ COPY --chown=frappe:frappe my_branding/ apps/my_branding/
 COPY --chown=frappe:frappe eam/ apps/eam/
 RUN env/bin/python -B -c "import ast,pathlib; [ast.parse(p.read_text()) for app in ('my_branding','eam') for p in pathlib.Path('apps',app).rglob('*.py')]"
 LABEL com.nexumair.release="v16-prod-222" \
-      com.nexumair.my_branding.commit="8c52989cd390df462c94b0e4dd40a2eca698bfcc" \
-      com.nexumair.branding.commit="8c52989cd390df462c94b0e4dd40a2eca698bfcc" \
-      com.nexumair.my_branding_sha="8c52989" \
+      com.nexumair.my_branding.commit="1f76ae4154ebb35266b5e7795544f8a156b986b7" \
+      com.nexumair.branding.commit="1f76ae4154ebb35266b5e7795544f8a156b986b7" \
+      com.nexumair.my_branding_sha="1f76ae4" \
       com.nexumair.my_branding.source="v16-prod-222" \
       com.nexumair.eam.commit="9de5ada9a7e57e5fb3db91f02bb93c7c67a81881" \
       com.nexumair.eam_sha="9de5ada"

@@ -9,7 +9,7 @@ The image replaces only the committed `my_branding` and `eam` trees on the pinne
 v221 base. All 415,538 other bench paths remain identical; Frappe 16.52.0,
 ERPNext 16.51.1 and upstream dependencies are unchanged.
 
-Runtime branding: `8c52989cd390df462c94b0e4dd40a2eca698bfcc`.
+Runtime branding: `1f76ae4154ebb35266b5e7795544f8a156b986b7`.
 Private EAM: `9de5ada9a7e57e5fb3db91f02bb93c7c67a81881`.
 The public application and package metadata match the image. This mirror does not
 include private EAM, so public readers cannot reproduce that layer without access.

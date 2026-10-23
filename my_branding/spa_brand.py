@@ -21,7 +21,7 @@ SPA_BRAND = brand_config.spa_brand()
 
 # Bump when editing spa-brand.css / spa-brand.js (the SPA service worker + HTTP
 # layer cache them aggressively).
-_VER = "20261016d"  # Shared theme, chart presentation and native app switchers
+_VER = "20261024-maintenance222"  # Refresh cached SPA branding after the maintenance fixes.
 
 _FAVICON = "/assets/my_branding/images/favicon.png"
 # Swap the href of any <link rel="icon"|"shortcut icon"> to the Nexum Air favicon.
