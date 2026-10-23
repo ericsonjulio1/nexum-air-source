@@ -243,16 +243,17 @@ and the other 2026-08-22 frappe/erpnext security backports.
 ## Reproducing the build
 
 The current release's immutable recipe chain is recorded in the public source
-mirror: `build/releases/v16-prod-220/manifest.json` pins the v219 base digest,
-the changed private `eam` commit and the retained `my_branding` commit. Its
-`prepare.py` requires access to the private EAM repository and archives only the
-pinned EAM commit; its Dockerfile replaces only the complete `eam` tree. A public
-reader cannot rebuild that private layer from this mirror. The AGPL-covered
-sources and all published modifications remain v219's, unchanged. Follow the
-inherited release manifests (v219, v218, v217, v216, then v215 onward) for their
-source and build instructions, EAM provenance and frontend build provenance.
+mirror: `build/releases/v16-prod-222/manifest.json` pins the v221 base digest
+and the exact `my_branding` and private `eam` commits. Its `prepare.py` takes
+local checkouts of both canonical repositories and extracts those pinned commits;
+its Dockerfile replaces their complete source trees. A public reader cannot
+rebuild the private EAM layer without repository access. The branding runtime
+and package metadata are published in this mirror. Upstream dependencies and
+third-party patches remain unchanged; follow the inherited manifests (v221,
+v220, v219, v218, v217, v216, then v215 onward) for their source, build instructions
+and frontend provenance.
 
 `saas/image/Containerfile` and older patchers are historical full-build tooling;
 they do not by themselves reproduce the current service. Before a future
 from-scratch rebuild or dependency upgrade, review their guards against the new
-pinned sources. v221 does not run those historical adapters or update dependencies.
+pinned sources. v222 does not run those historical adapters or update dependencies.
