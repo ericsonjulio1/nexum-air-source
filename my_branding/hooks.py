@@ -64,6 +64,7 @@ fixtures = [
 # (e.g. "Frappe HR" -> "HR"). Launcher visibility must run before launcher
 # ordering so catch-all ordering sees the final parent/child hidden state.
 after_migrate = [
+	"my_branding.tenant_identity.ensure_current_generation",
 	"my_branding.branding.reconcile_workspaces",
 	"my_branding.branding.ensure_translations",
 	"my_branding.branding.reconcile_navbar",

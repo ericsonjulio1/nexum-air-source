@@ -10,6 +10,7 @@ import unittest
 import frappe
 
 import my_branding.api as api
+import my_branding.billing_lifecycle as billing
 from my_branding.api import XENDIT_EVENT_TYPES, _xendit_event_identity, xendit_webhook
 
 
@@ -204,12 +205,13 @@ class TestCheckoutMirrorSafety(unittest.TestCase):
     def test_existing_row_gets_only_pending_fields(self):
         writes = []
         with _Patched(
-            (api, "_xendit_customer_id", lambda sub, email: "cust_1"),
+            (api, "_xendit_customer_id", lambda sub, email, generation: "cust_1"),
             (api, "_xendit_api", lambda m, p, payload=None: (200, dict(self._SESSION))),
             (frappe.db, "exists", lambda *a, **k: True),
             (frappe.db, "set_value", lambda dt, name, fields: writes.append((dt, name, fields))),
+            (billing, "save_pending_checkout", lambda sub, generation, fields: writes.append(("Nexum Subscription", sub, fields))),
         ):
-            out = api._create_checkout_session("acme", "Business", "a@b.co")
+            out = api._create_checkout_session("acme", "Business", "a@b.co", "a" * 32)
         self.assertEqual(out["checkout_url"], "https://dev.xen.to/abc")
         self.assertEqual(len(writes), 1)
         fields = writes[0][2]
@@ -228,12 +230,12 @@ class TestCheckoutMirrorSafety(unittest.TestCase):
                 return self
 
         with _Patched(
-            (api, "_xendit_customer_id", lambda sub, email: "cust_1"),
+            (api, "_xendit_customer_id", lambda sub, email, generation: "cust_1"),
             (api, "_xendit_api", lambda m, p, payload=None: (200, dict(self._SESSION))),
             (frappe.db, "exists", lambda *a, **k: False),
             (frappe, "get_doc", lambda d: _Doc(d)),
         ):
-            api._create_checkout_session("acme", "Business", "a@b.co")
+            api._create_checkout_session("acme", "Business", "a@b.co", "a" * 32)
         subs = [d for d in docs if d.get("doctype") == "Nexum Subscription"]
         attempts = [d for d in docs if d.get("doctype") == "Billing Checkout Attempt"]
         self.assertEqual(len(subs), 1)
@@ -276,6 +278,7 @@ class TestCheckoutMirrorSafety(unittest.TestCase):
                 subdomain="acme", plan="Business", email="a@b.co")),
             (frappe.db, "exists", lambda *a, **k: True),
             (frappe.db, "get_value", lambda *a, **k: row),
+            (billing, "prepare_checkout", lambda sub: frappe._dict(row, tenant_generation="a" * 32)),
             (frappe.db, "commit", lambda: None),
         ):
             out = api.xendit_checkout()
@@ -375,6 +378,7 @@ class TestCheckoutActiveBlock(unittest.TestCase):
                 subdomain="acme", plan="Business", email="a@b.co")),
             (frappe.db, "exists", lambda *a, **k: True),
             (frappe.db, "get_value", lambda *a, **k: row),
+            (billing, "prepare_checkout", lambda sub: frappe._dict(row, tenant_generation="a" * 32)),
             (frappe.db, "commit", lambda: None),
         ):
             with self.assertRaises(frappe.ValidationError):
@@ -408,6 +412,7 @@ class TestCheckoutEndpoint(unittest.TestCase):
             (api, "_bump_window", lambda *a, **k: 1),
             (api, "_subdomain_taken", lambda s, include_pipeline=True: taken),
             (api, "_xendit_api", fake_api),
+            (billing, "prepare_checkout", lambda sub: frappe._dict(tenant_generation="a" * 32)),
             (frappe.db, "exists", lambda *a, **k: exists),
             (frappe.db, "set_value",
              lambda dt, name, values: writes.append(("update", name, values))),

@@ -857,11 +857,9 @@ def _xendit_api(method, path, payload=None):
 	return resp.status_code, body
 
 
-def _xendit_customer_id(subdomain, email):
-	"""Create-or-fetch the Xendit customer for a tenant. reference_id is the
-	stable identity ``tenant-<subdomain>`` — Xendit rejects reuse on create, so
-	a resubscribing tenant is fetched instead (probe-verified 2026-08-30)."""
-	ref = "tenant-" + subdomain
+def _xendit_customer_id(subdomain, email, tenant_generation):
+	"""Create-or-fetch within one tenant generation; name reuse gets a new customer."""
+	ref = "tenant-" + subdomain + "-" + tenant_generation
 	status, body = _xendit_api("POST", "/customers", {
 		"reference_id": ref,
 		"type": "INDIVIDUAL",
@@ -936,12 +934,10 @@ def xendit_checkout():
 		# sees ours — without this the filelock guards nothing (frappe commits
 		# at request end, after the lock is gone)
 		frappe.db.commit()
-		if frappe.db.exists("Nexum Subscription", sub):
-			row = frappe.db.get_value(
-				"Nexum Subscription", sub,
-				["status", "xendit_plan_id", "pending_plan", "checkout_url",
-				 "checkout_expires_on"],
-				as_dict=True) or frappe._dict()
+		from my_branding.billing_lifecycle import prepare_checkout
+
+		row = prepare_checkout(sub)
+		if row:
 			# an already-billing tenant must not be able to open a SECOND
 			# recurring plan from the public pricing page — Xendit would
 			# happily charge both. Plan changes are a support flow until a
@@ -955,7 +951,7 @@ def xendit_checkout():
 			if (row.get("pending_plan") == plan and row.get("checkout_url")
 					and expires and expires > datetime.now()):
 				return {"ok": True, "checkout_url": row.checkout_url}
-		result = _create_checkout_session(sub, plan, email)
+		result = _create_checkout_session(sub, plan, email, row.tenant_generation)
 		frappe.db.commit()
 		return result
 
@@ -973,10 +969,14 @@ def _as_naive_dt(v):
 		return None
 
 
-def _create_checkout_session(sub, plan, email):
+def _create_checkout_session(sub, plan, email, tenant_generation):
 	"""Create the Xendit session + persist the pending-checkout mirror fields.
 	Caller holds the per-subdomain checkout filelock."""
-	customer_id = _xendit_customer_id(sub, email)
+	from my_branding.tenant_identity import valid_generation
+
+	if not valid_generation(tenant_generation):
+		raise frappe.ValidationError("Tenant identity is not bound for checkout")
+	customer_id = _xendit_customer_id(sub, email, tenant_generation)
 	status, session = _xendit_api("POST", "/sessions", {
 		"reference_id": "nexum-{0}-{1}".format(sub, frappe.generate_hash(length=8)),
 		"session_type": "SUBSCRIPTION",
@@ -1021,10 +1021,12 @@ def _create_checkout_session(sub, plan, email):
 		frappe.get_doc({
 			"doctype": "Billing Checkout Attempt", "plan_id": plan_id,
 			"subdomain": sub, "tier": plan,
+			"tenant_generation": tenant_generation,
 			"session_id": session.get("payment_session_id") or "",
 			"state": "Pending",
 		}).insert(ignore_permissions=True)
 	pending = {
+		"tenant_generation": tenant_generation,
 		"pending_plan": plan,
 		"pending_plan_id": plan_id,
 		"checkout_session_id": session.get("payment_session_id") or "",
@@ -1034,7 +1036,9 @@ def _create_checkout_session(sub, plan, email):
 		"xendit_customer_id": customer_id,
 	}
 	if frappe.db.exists("Nexum Subscription", sub):
-		frappe.db.set_value("Nexum Subscription", sub, pending)
+		from my_branding.billing_lifecycle import save_pending_checkout
+
+		save_pending_checkout(sub, tenant_generation, pending)
 	else:
 		frappe.get_doc(dict(pending, doctype="Nexum Subscription",
 		                    subdomain=sub, status="Pending",

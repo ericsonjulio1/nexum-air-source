@@ -15,7 +15,7 @@ from unittest.mock import patch
 import frappe
 import frappe.utils.synchronization as sync
 
-from my_branding import api
+from my_branding import api, billing_lifecycle as billing
 
 ORIGINAL_OPTIONS = ["Pending", "Active", "Retrying", "Failed", "Inactive", "Suspended"]
 SAVEPOINT = "nx_subscription_status_test"
@@ -63,7 +63,7 @@ class TestCheckoutAfterCancellation(unittest.TestCase):
 		"""Drive xendit_checkout for an existing mirror row; returns (result, sessions)."""
 		sessions = []
 
-		def _create(sub, plan, email):
+		def _create(sub, plan, email, generation):
 			sessions.append((sub, plan, email))
 			return {"ok": True, "checkout_url": "https://checkout.example/new"}
 
@@ -78,6 +78,7 @@ class TestCheckoutAfterCancellation(unittest.TestCase):
 				(frappe, "form_dict", frappe._dict(subdomain="acme", plan="Business", email="a@b.co")),
 				(frappe.db, "exists", lambda *a, **k: True),
 				(frappe.db, "get_value", lambda *a, **k: row),
+				(billing, "prepare_checkout", lambda sub: frappe._dict(row, tenant_generation="a" * 32)),
 				(frappe.db, "commit", lambda *a, **k: None),
 			):
 				stack.enter_context(patch.object(target, name, value))

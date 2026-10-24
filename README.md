@@ -29,9 +29,11 @@ telephony); the rest are GPLv3 or MIT.
 
 ## Reproducing the running image
 
-1. Check out each app from `build/apps.json` at the commit in `build/apps.pinned.json`.
-2. Place this `my_branding/` directory into the bench's `apps/`.
-3. Build with `build/Containerfile` (it applies our modifications, documented in `patches/`).
+Use the [v223 release recipe](build/releases/v16-prod-223/README.md) and its immutable
+manifest. It pins the v222 base and exact custom application commits; follow its
+inherited manifests for upstream source and retained patches. Historical
+`build/Containerfile` tooling alone does not reproduce the current service.
+Private EAM repository access is required to rebuild its layer.
 
 ## License
 

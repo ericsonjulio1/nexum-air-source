@@ -12,7 +12,10 @@
   "column_break_main",
   "plan_id",
   "target_paid_until",
-  "completed"
+  "completed",
+  "tenant_generation",
+  "initial_plan_recorded",
+  "initial_plan_id"
  ],
  "fields": [
   {
@@ -53,6 +56,27 @@
    "fieldtype": "Check",
    "label": "Completed",
    "in_list_view": 1
+  },
+  {
+   "fieldname": "tenant_generation",
+   "fieldtype": "Data",
+   "label": "Tenant Generation",
+   "read_only": 1,
+   "description": "Immutable site instance identity; missing legacy values require reconciliation."
+  },
+  {
+   "fieldname": "initial_plan_recorded",
+   "fieldtype": "Check",
+   "label": "Initial Plan Recorded",
+   "read_only": 1,
+   "description": "Distinguishes a recorded empty live plan from missing legacy evidence."
+  },
+  {
+   "fieldname": "initial_plan_id",
+   "fieldtype": "Data",
+   "label": "Initial Live Plan ID",
+   "read_only": 1,
+   "description": "Live subscription pointer before the first host application; immutable across retries."
   }
  ],
  "index_web_pages_for_search": 0,

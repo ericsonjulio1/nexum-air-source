@@ -15,3 +15,5 @@ class BillingEvent(Document):
 def on_doctype_update():
     frappe.db.add_index("Billing Event", ["processed", "last_attempted_on", "creation"],
                         index_name="billing_event_pending_attempt")
+    frappe.db.add_index("Billing Event", ["owner_alert_status", "owner_alert_attempted_on", "creation"],
+                        index_name="billing_event_pending_alert")

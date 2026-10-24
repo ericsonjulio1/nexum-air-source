@@ -16,6 +16,11 @@
   "processed_on",
   "last_attempted_on",
   "processing_error",
+  "owner_alert_status",
+  "owner_alert_subject",
+  "owner_alert_body",
+  "owner_alert_attempted_on",
+  "owner_alert_sent_on",
   "section_payload",
   "payload"
  ],
@@ -96,6 +101,38 @@
    "fieldtype": "Code",
    "label": "Raw Payload",
    "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "owner_alert_status",
+   "fieldtype": "Select",
+   "label": "Owner Alert Status",
+   "options": "\nPending\nSent",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "owner_alert_subject",
+   "fieldtype": "Data",
+   "label": "Owner Alert Subject",
+   "read_only": 1
+  },
+  {
+   "fieldname": "owner_alert_body",
+   "fieldtype": "Small Text",
+   "label": "Owner Alert Body",
+   "read_only": 1
+  },
+  {
+   "fieldname": "owner_alert_attempted_on",
+   "fieldtype": "Datetime",
+   "label": "Owner Alert Attempted On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "owner_alert_sent_on",
+   "fieldtype": "Datetime",
+   "label": "Owner Alert Sent On",
    "read_only": 1
   }
  ],

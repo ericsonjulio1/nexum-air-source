@@ -34,6 +34,10 @@ class NativeHQ(_worker.HQ):
         if method == "POST" and path == "/api/method/frappe.client.get_list":
             return {"message": get_list(**payload)}
         prefix = "/api/resource/Billing%20Event/"
+        if method == "GET" and path.startswith(prefix):
+            doc = frappe.get_doc("Billing Event", unquote(path[len(prefix):]))
+            doc.check_permission("read")
+            return {"data": doc.as_dict()}
         if method == "PUT" and path.startswith(prefix):
             previous = frappe.local.form_dict
             try:
@@ -100,6 +104,22 @@ class TestBillingQueueIntegration(unittest.TestCase):
         self.assertEqual([row.name for row in self.hq.pending_events()], [second, first])
         self.hq.mark_processed(second)
         self.assertEqual([row.name for row in self.hq.pending_events()], [first])
+
+    def test_terminal_alert_is_durable_after_payment_completion_and_has_separate_acknowledgement(self):
+        name = self.row("terminal")
+        frappe.set_user(self.manager)
+        self.hq.queue_owner_alert(name, "Synthetic refund", "Synthetic financial reconciliation")
+        self.hq.mark_processed(name, err="Payment not applied; refund required")
+        self.assertEqual([row.name for row in self.hq.pending_owner_alerts()], [name])
+        self.hq.mark_owner_alert_attempted(name)
+        self.hq.mark_owner_alert_sent(name)
+        self.hq.queue_owner_alert(name, "Replay must not reset Sent", "Replay")
+        self.assertEqual(self.hq.pending_owner_alerts(), [])
+        row = frappe.get_doc("Billing Event", name)
+        self.assertTrue(row.processed)
+        self.assertIn("refund required", row.processing_error)
+        self.assertEqual(row.owner_alert_subject, "Synthetic refund")
+        self.assertIsNotNone(row.owner_alert_sent_on)
 
     def test_native_permissions_reject_guest_and_unprivileged_queue_read_and_write(self):
         name = self.row("protected")

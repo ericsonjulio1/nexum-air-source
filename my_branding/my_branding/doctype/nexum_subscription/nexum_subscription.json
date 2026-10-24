@@ -25,7 +25,10 @@
   "checkout_expires_on",
   "section_worker",
   "last_paid_event",
-  "last_event_at"
+  "last_event_at",
+  "tenant_generation",
+  "billing_closed",
+  "previous_generations"
  ],
  "fields": [
   {
@@ -142,6 +145,25 @@
    "fieldname": "last_event_at",
    "fieldtype": "Datetime",
    "label": "Last Event At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tenant_generation",
+   "fieldtype": "Data",
+   "label": "Tenant Generation",
+   "read_only": 1,
+   "description": "Immutable site instance identity; missing legacy values require reconciliation."
+  },
+  {
+   "fieldname": "billing_closed",
+   "fieldtype": "Check",
+   "label": "Billing Closed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "previous_generations",
+   "fieldtype": "Long Text",
+   "label": "Previous Tenant Billing Snapshots",
    "read_only": 1
   }
  ],

@@ -14,7 +14,9 @@
   "session_id",
   "state",
   "needs_deactivation",
-  "superseded_by"
+  "superseded_by",
+  "tenant_generation",
+  "deactivation_attempted_on"
  ],
  "fields": [
   {
@@ -71,6 +73,19 @@
    "fieldname": "superseded_by",
    "fieldtype": "Data",
    "label": "Superseded By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tenant_generation",
+   "fieldtype": "Data",
+   "label": "Tenant Generation",
+   "read_only": 1,
+   "description": "Immutable site instance identity; missing legacy values require reconciliation."
+  },
+  {
+   "fieldname": "deactivation_attempted_on",
+   "fieldtype": "Datetime",
+   "label": "Last Deactivation Attempt",
    "read_only": 1
   }
  ],
