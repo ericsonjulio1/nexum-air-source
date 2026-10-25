@@ -45,7 +45,17 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-223
+## Current release: v16-prod-224
+
+The [v224 recipe and immutable manifest](build/releases/v16-prod-224/README.md)
+inherit v223. Branding is pinned to `206eb4b4835d`; private EAM remains
+`9de5ada9a7e5`. Migration branding changes only Workspace content that still
+matches an installed public standard definition, preserving tenant edits, and
+updates shortcut references atomically. Host operations hold every tenant deletion
+and verify deletion backups by encrypted offsite read-back. No schema, provider,
+framework or EAM change; all 415,538 paths outside the custom apps remain unchanged.
+
+## Previous release: v16-prod-223
 
 The [v223 recipe and immutable manifest](build/releases/v16-prod-223/README.md)
 inherit v222. Branding is pinned to `e734e49d054b`; private EAM remains
@@ -254,17 +264,17 @@ and the other 2026-08-22 frappe/erpnext security backports.
 ## Reproducing the build
 
 The current release's immutable recipe chain is recorded in the public source
-mirror: `build/releases/v16-prod-223/manifest.json` pins the v222 base digest
+mirror: `build/releases/v16-prod-224/manifest.json` pins the v223 base digest
 and the exact `my_branding` and private `eam` commits. Its `prepare.py` takes
 local checkouts of both canonical repositories and extracts those pinned commits;
 its Dockerfile replaces their complete source trees. A public reader cannot
 rebuild the private EAM layer without repository access. The branding runtime
 and package metadata are published in this mirror. Upstream dependencies and
-third-party patches remain unchanged; follow the inherited manifests (v222, v221,
+third-party patches remain unchanged; follow the inherited manifests (v223, v222, v221,
 v220, v219, v218, v217, v216, then v215 onward) for their source, build instructions
 and frontend provenance.
 
 `saas/image/Containerfile` and older patchers are historical full-build tooling;
 they do not by themselves reproduce the current service. Before a future
 from-scratch rebuild or dependency upgrade, review their guards against the new
-pinned sources. v223 does not run those historical adapters or update dependencies.
+pinned sources. v224 does not run those historical adapters or update dependencies.

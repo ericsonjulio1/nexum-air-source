@@ -29,8 +29,8 @@ telephony); the rest are GPLv3 or MIT.
 
 ## Reproducing the running image
 
-Use the [v223 release recipe](build/releases/v16-prod-223/README.md) and its immutable
-manifest. It pins the v222 base and exact custom application commits; follow its
+Use the [v224 release recipe](build/releases/v16-prod-224/README.md) and its immutable
+manifest. It pins the v223 base and exact custom application commits; follow its
 inherited manifests for upstream source and retained patches. Historical
 `build/Containerfile` tooling alone does not reproduce the current service.
 Private EAM repository access is required to rebuild its layer.

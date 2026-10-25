@@ -649,11 +649,35 @@ def _is_frappe_leak_block(text):
 	)
 
 
+def _shipped_workspace(ws):
+	"""Return an installed app's definition only for its public standard document.
+
+	A name or a Frappe URL is not evidence of ownership. Missing definitions are
+	left alone, as are private/custom copies and tenant additions to standard docs.
+	"""
+	import json
+	from pathlib import Path
+
+	if not ws.public or not ws.standard or ws.for_user or not ws.module:
+		return None
+	name = frappe.scrub(ws.name)
+	if not name or any(c in name for c in ("/", "\\")) or name in (".", ".."):
+		return None
+	try:
+		source = json.loads(Path(frappe.get_module_path(ws.module, "workspace", name, name + ".json")).read_text())
+	except (OSError, ValueError, ImportError):
+		return None
+	if (source.get("name") != ws.name or source.get("module") != ws.module
+		or not source.get("public") or not source.get("standard") or source.get("for_user")):
+		return None
+	return source
+
+
 def reconcile_content_leaks():
 	"""after_migrate: scrub Frappe-brand leaks that live INSIDE standard docs and
 	get re-synced on every migrate, so neither Translations nor label relabels can
 	reach them:
-	  - Workspace.content paragraph blocks linking frappe.io (the classic CRM and
+	  - Unmodified shipped Workspace.content paragraph blocks linking frappe.io (the classic CRM and
 	    Support workspaces ship a "deprecated, use Frappe CRM/Helpdesk instead"
 	    banner; Learning ships a docs.frappe.io link) — drop those blocks.
 	  - The Builder workspace shortcut labelled "Open <strong>Frappe Builder</strong>"
@@ -662,55 +686,73 @@ def reconcile_content_leaks():
 	    sidebar header renders the title verbatim). Workspace Sidebar `title` is
 	    UNIQUE and the classic desk already has a "CRM" sidebar, so the new-CRM
 	    sidebar gets the collision-free branded form ("<Brand> CRM").
+	Tenant paragraphs and shortcuts are never identified by their text alone.
 	Idempotent + hardened so it can never abort a migrate."""
 	import json
+
+	from frappe.desk.doctype.workspace.workspace import sanitize_content
 
 	if not frappe.db.table_exists("Workspace"):
 		return
 	try:
-		for ws in frappe.get_all("Workspace", fields=["name", "content"]):
+		for ws in frappe.get_all("Workspace", fields=["name", "content", "public", "standard", "for_user", "module"]):
 			if not ws.content or ("frappe.io" not in ws.content and "Frappe Builder" not in ws.content):
+				continue
+			source = _shipped_workspace(ws)
+			if source is None:
 				continue
 			try:
 				blocks = json.loads(ws.content)
+				shipped_blocks = json.loads(sanitize_content(source.get("content") or "[]"))
 			except Exception:
 				continue
+			# A shortcut's child row and every content reference are one unit. A
+			# tenant may resize its block or edit its target without changing the
+			# label; changing only the other half would break the rendered link.
+			keys = ("label", "type", "link_to", "url", "doc_view")
+			shipped_shortcuts = {tuple(row.get(k) or "" for k in keys) for row in source.get("shortcuts", [])}
+			shortcuts = frappe.get_all("Workspace Shortcut",
+				filters={"parent": ws.name, "parenttype": "Workspace"}, fields=["*"])
+			renames = {}
+			for row in shortcuts:
+				label = row.label or ""
+				if "Frappe Builder" not in label:
+					continue
+				references = [b for b in blocks if b.get("type") == "shortcut"
+					and (b.get("data") or {}).get("shortcut_name") == label]
+				matching = [r for r in shortcuts if r.label == label]
+				new = label.replace("Frappe Builder", "Builder")
+				if (references and all(b in shipped_blocks for b in references)
+					and all(tuple(r.get(k) or "" for k in keys) in shipped_shortcuts for r in matching)
+					and not any(r.label == new for r in shortcuts)):
+					renames[label] = new
 			out, dirty = [], False
 			for b in blocks:
+				if b not in shipped_blocks:
+					out.append(b)
+					continue
 				data = b.get("data") or {}
-				if _is_frappe_leak_block(data.get("text")):
+				if b.get("type") == "paragraph" and _is_frappe_leak_block(data.get("text")):
 					dirty = True
 					continue
 				sc = data.get("shortcut_name") or ""
-				if "Frappe Builder" in sc:
-					data["shortcut_name"] = sc.replace("Frappe Builder", "Builder")
+				if b.get("type") == "shortcut" and sc in renames:
+					data["shortcut_name"] = renames[sc]
 					dirty = True
 				out.append(b)
 			if dirty:
-				frappe.db.set_value(
-					"Workspace", ws.name, "content", json.dumps(out), update_modified=False
-				)
+				frappe.db.savepoint("workspace_branding_content")
+				try:
+					frappe.db.set_value("Workspace", ws.name, "content", json.dumps(out), update_modified=False)
+					for row in shortcuts:
+						if row.label in renames:
+							frappe.db.set_value("Workspace Shortcut", row.name, "label", renames[row.label], update_modified=False)
+				except Exception:
+					frappe.db.rollback(save_point="workspace_branding_content")
+					raise
 	except Exception:
 		frappe.log_error(
 			title="my_branding reconcile_content_leaks workspaces failed",
-			message=frappe.get_traceback(),
-		)
-
-	try:
-		for name in frappe.get_all(
-			"Workspace Shortcut", filters={"label": ("like", "%Frappe Builder%")}, pluck="name"
-		):
-			old = frappe.db.get_value("Workspace Shortcut", name, "label")
-			frappe.db.set_value(
-				"Workspace Shortcut",
-				name,
-				"label",
-				old.replace("Frappe Builder", "Builder"),
-				update_modified=False,
-			)
-	except Exception:
-		frappe.log_error(
-			title="my_branding reconcile_content_leaks shortcuts failed",
 			message=frappe.get_traceback(),
 		)
 
