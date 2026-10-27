@@ -1,6 +1,7 @@
-# v16-prod-225 candidate
+# v16-prod-225
 
-Not deployed. Prepared from v224 with Frappe 16.53.0, ERPNext 16.52.1,
+Deployed and verified on 28 October 2026 (Pacific/Port_Moresby). Built from v224
+with Frappe 16.53.0, ERPNext 16.52.1,
 HRMS 16.52.0, CRM 1.89.2, Insights 3.15.1, Drive 0.4.3 and the pinned
 Telephony signature fix. Helpdesk 1.31.0 and the other app source pins remain
 unchanged. Bench maintenance tooling advances to 5.31.1. The manifest records

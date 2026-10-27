@@ -108,7 +108,7 @@
     }
   },
   "changes_upstream_dependencies": true,
-  "status": "candidate-not-deployed",
+  "status": "deployed-verified",
   "retained_upstream": {
     "payments": {
       "repository": "https://github.com/frappe/payments",
@@ -132,5 +132,6 @@
     "payments",
     "gameplan",
     "print_designer"
-  ]
+  ],
+  "deployed_verified_utc": "2026-10-27T19:17:41.452092+00:00"
 }

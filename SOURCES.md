@@ -24,7 +24,7 @@ upstream commit we run, and our modifications.
   **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
   by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
-## Prepared v225 applications, licenses, and pinned commits
+## v225 applications, licenses, and pinned commits
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
@@ -45,14 +45,14 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Prepared release: v16-prod-225
+## Current production release: v16-prod-225
 
-This branch prepares v225; it is not a production deployment or publication receipt.
+Deployed and verified on 28 October 2026 (Pacific/Port_Moresby).
 The [v225 recipe](build/releases/v16-prod-225/README.md) pins the exact upstream
 sources, dependencies and reviewed modifications. Branding is `127f4934b1f4`;
 EAM remains `9de5ada9a7e5`. MCP remains opt-in for both migrations and new sites.
 
-## Current production release: v16-prod-224
+## Previous release: v16-prod-224
 
 The [v224 recipe and immutable manifest](build/releases/v16-prod-224/README.md)
 inherit v223. Branding is pinned to `206eb4b4835d`; private EAM remains
@@ -269,18 +269,16 @@ and the other 2026-08-22 frappe/erpnext security backports.
 
 ## Reproducing the build
 
-The current release's immutable recipe chain is recorded in the public source
-mirror: `build/releases/v16-prod-224/manifest.json` pins the v223 base digest
-and the exact `my_branding` and private `eam` commits. Its `prepare.py` takes
-local checkouts of both canonical repositories and extracts those pinned commits;
-its Dockerfile replaces their complete source trees. A public reader cannot
-rebuild the private EAM layer without repository access. The branding runtime
-and package metadata are published in this mirror. Upstream dependencies and
-third-party patches remain unchanged; follow the inherited manifests (v223, v222, v221,
-v220, v219, v218, v217, v216, then v215 onward) for their source, build instructions
-and frontend provenance.
+The current recipe is `build/releases/v16-prod-225/manifest.json`. It pins the
+v224 base, all eleven upstream applications, the branding runtime commit and
+retained private EAM commit. Follow its `README.md` and `prepare-context.py` for
+verified source extraction, retained security patches, frozen frontend locks and
+the exact Dockerfile. Both Python interpreters use hashed package locks and
+complete installed-file inventories; intermediate layers are not claimed to be
+byte-for-byte reproducible.
 
-`saas/image/Containerfile` and older patchers are historical full-build tooling;
-they do not by themselves reproduce the current service. Before a future
-from-scratch rebuild or dependency upgrade, review their guards against the new
-pinned sources. v224 does not run those historical adapters or update dependencies.
+A public reader cannot rebuild the private EAM layer without repository access.
+The branding runtime and package metadata are published in this mirror. Follow
+the inherited v224 and earlier manifests for the retained base's provenance.
+Historical `build/Containerfile`, `saas/image/Containerfile` and old patchers alone
+do not reproduce v225; its release capsule is the canonical recipe.
