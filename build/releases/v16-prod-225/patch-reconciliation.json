@@ -1,0 +1,128 @@
+[
+  {
+    "file": "frappe/frappe/cache_manager.py",
+    "upstream_sha256": "b1f7515fb4f542aef1d0ec7a450b218517b28bf4f2eca7f6c54dbb2957ee72ac",
+    "candidate_sha256": "f0ebe52fd9f254be00bdfca752c1bcda1806047be0cd43b7bbedf2d79a77d908"
+  },
+  {
+    "file": "frappe/frappe/client.py",
+    "upstream_sha256": "cf459a0e3f117206f803e10234240ae72c5a127a0a6506fafee4e7b12e7d7f74",
+    "candidate_sha256": "4008cb7bce1257908d5f32725600f89c3d2a766f44ee2d11cc1df46c054a0ea3"
+  },
+  {
+    "file": "frappe/frappe/core/doctype/system_settings/system_settings.json",
+    "upstream_sha256": "5ec39725b2dca87c886ae61ff8641fcb34dabdb583baf0b55218dbb6bc0fe39b",
+    "candidate_sha256": "b4fa2d083a66b044d2cd6c191252f5b49a0a992d88d654e6368354b92c39466d"
+  },
+  {
+    "file": "frappe/frappe/desk/doctype/sidebar/sidebar.py",
+    "upstream_sha256": "93a877b124d065d576e544f321d4ba83fd654ed9046daf8f690313f0c908e714",
+    "candidate_sha256": "7872a9e7c3f3824b1e4f5a8ada940219f8c1711aa2a4f303083e113fdceee365"
+  },
+  {
+    "file": "frappe/frappe/public/images/framework.png",
+    "upstream_sha256": "57fd58b5321a41e247952c276e85db999fcb45eb008623dcb1cb3d0b7ea96c6f",
+    "candidate_sha256": "a740342670c715048560e69832041f97c82b2538a1249799278b6add4ce6af75"
+  },
+  {
+    "file": "frappe/frappe/public/js/frappe/widgets/chart_widget.js",
+    "upstream_sha256": "3baed0647cbfeb5041f3164f59265243e66fe0681606be4f72b7aada4cff00b8",
+    "candidate_sha256": "26f07bc52e141a6f832403eb1d43737d820aa983907b85804a8567afe5adcbdf"
+  },
+  {
+    "file": "frappe/frappe/website/doctype/web_form/web_form.py",
+    "upstream_sha256": "90531fb98a0ff35f0270a9d3430d1ce654221fcb04edd9059b863798cd2ef1b2",
+    "candidate_sha256": "75a8d97d570ab73f0178eb982b69adbb43f5441ae2d7d2ef4fd8b9b714509f13"
+  },
+  {
+    "file": "frappe/ui/yarn.lock",
+    "upstream_sha256": "5658e8fa9c33523249ca40357a66859e22db31a891325c99f799f39f00665078",
+    "candidate_sha256": "f03625ed23cc87fbfa215b0fb753b34ac24a4f3a527ddf5607ef468ec9c4155d"
+  },
+  {
+    "file": "erpnext/erpnext/stock/doctype/delivery_trip/delivery_trip.py",
+    "upstream_sha256": "b85ffa5ffa307e7ce36a63845d1a77983897d10c6a938919ea4c1781f5f5862b",
+    "candidate_sha256": "bb8d53d467ad048fee747908f6511c054f3f3de67a44243989561437821b9da1"
+  },
+  {
+    "file": "hrms/roster/src/components/NavBar.vue",
+    "upstream_sha256": "c89240635c0a732704e00ea233f4f4e282600c6f0cedb6c9d38a96e7444b6c1f",
+    "candidate_sha256": "631fa3a016cd360f6b83381751b70b5d22035eb8fee1bf9ca3ce3e2efdb9e5c3"
+  },
+  {
+    "file": "crm/frontend/src/components/Dashboard/DashboardItem.vue",
+    "upstream_sha256": "2364779beaa8f283418deefc1cce7b6539f026d90e19a58bb54276cf73d9d3e8",
+    "candidate_sha256": "cb61ba2728e66f9b0427620fd22e8a469302156ab9d724f9e3581fbb2a34d1cf"
+  },
+  {
+    "file": "crm/frontend/src/components/UserDropdown.vue",
+    "upstream_sha256": "9e217207516b20a08999a6f078c6d773a1ebf0049bf62c5d9bdc818c16869b86",
+    "candidate_sha256": "9571e2c44fe1bdd039efec842fb6051f7ef25589fac0d4a1928b677c313095ec"
+  },
+  {
+    "file": "insights/frontend/src/components/Charts/BaseChart.vue",
+    "upstream_sha256": "3c9f600983ab3132d7dc86f9f8f170d82897bf22ff48b3f162aaf6ff461debd2",
+    "candidate_sha256": "c38d270b474e362bd1e0f206cdd6d5c3b7c91ecde1b19b4e3a661897211c6fe7"
+  },
+  {
+    "file": "insights/frontend/src/components/Charts/ChartTitle.vue",
+    "upstream_sha256": "bb7c7bf522ee32745d5a0708841173450d246f9856adda6d6755615d37958c9c",
+    "candidate_sha256": "3aa8700deea4e4669313a2ed399fdfed53aa7e68cad6937c60a6a0e8490029fd"
+  },
+  {
+    "file": "insights/frontend/src/components/Sidebar.vue",
+    "upstream_sha256": "ac8f913a23e42bcab0745a92bae928dabb1b240f9f4578aad2ceb32d92ab9b98",
+    "candidate_sha256": "beb483fcc5a1ed29ee4a11c19f708e5cc5f370012a1f429e5953966b843d7165"
+  },
+  {
+    "file": "insights/frontend/src/utils/colors.ts",
+    "upstream_sha256": "cf9790cdeaaf6080b4fbea8398a3d5bf0c5d3b56c443a14d99482cf80a77b7cc",
+    "candidate_sha256": "c1e8b66c7425e962f88f2f99e10b39df58a0afde9c66da311213a74857c2a491"
+  },
+  {
+    "file": "insights/frontend/src2/charts/colors.ts",
+    "upstream_sha256": "663601ec08de189f35b843155211c25b40592b8ede3b8ec72625978e37e6e60d",
+    "candidate_sha256": "96bc8c8893183831372b535ede6ec6434e2fa625b78ec5f5f887c53238d3ef68"
+  },
+  {
+    "file": "insights/frontend/src2/charts/components/BaseChart.vue",
+    "upstream_sha256": "ad3fde3711f4f1a273a25eeb41a490b52bac1c1f656c9197e0c8c82474f698a7",
+    "candidate_sha256": "4cca85f3c5dd8b9afdac491670eac9ba22a94ebe39c902ba698beaee91a5a0a5"
+  },
+  {
+    "file": "insights/frontend/src2/charts/components/ChartTitle.vue",
+    "upstream_sha256": "a20b2a5b91a3ce4d94d81bc9fa72a52b63cd39f0897c5c2f9b9fca088db5695d",
+    "candidate_sha256": "ae6229b6283d185f4a09c47e626bf20be5bc1860d59a010c72a6db5dd53e7006"
+  },
+  {
+    "file": "insights/frontend/src2/components/UserDropdown.vue",
+    "upstream_sha256": "6ea41880781bce93c6326c2cfce2ed06cf86a3f2410d4431ade5fcffd46ad52e",
+    "candidate_sha256": "625cb98c7e27ad8afdef14fc1e906dbd53df67d27ee93498cbf24e7fc441c823"
+  },
+  {
+    "file": "helpdesk/desk/src/components/BarChartCard.vue",
+    "upstream_sha256": "0f7bb0e3957f5d262b26756ab92174b767f43647da5949dc87c1fa056c85d349",
+    "candidate_sha256": "10c26dd1d5720536869b1c2014efdb0b44b9a196bbe05fe6b9fde8623216401d"
+  },
+  {
+    "file": "helpdesk/desk/src/components/ChartCardBase.vue",
+    "upstream_sha256": "06eccc92e7c6df8f21699c92c6421c6b23ad108f4e78b77d022b03f252150ebc",
+    "candidate_sha256": "2d7598a8fd6d9b763f79428d30e732273a90998c57cb448f76264a74dc7a6a4c"
+  },
+  {
+    "file": "helpdesk/desk/src/composables/useApps.ts",
+    "upstream_sha256": "82c773bebc664a118c7253c8239a363eb68a4ae8cc189828f5da1ea2afe72f43",
+    "candidate_sha256": "b253afd1ea163865809fe888df5a77eb85612d55a70092ba5b489b61729a9897"
+  },
+  {
+    "file": "helpdesk/desk/yarn.lock",
+    "upstream_sha256": "bc338999ca9fa8e772873296b0bc00d1fb6c242c39b1c82651ffb8854815db2f",
+    "candidate_sha256": "84229582faf92a785b1f7590917e0a83fabb003fb5b2f247c16af799678764e7"
+  },
+  {
+    "file": "drive/package.json",
+    "upstream_sha256": "88b678294690255a8f77d3c505b7cafc158b7aff8c11bd0dffce06342828e114",
+    "candidate_sha256": "79659dffe18ec997b305aee9031806b100d014298e710ea0bbeca843f9665718",
+    "reason": "Pin pnpm and prevent build from resolving dependencies a second time."
+  }
+]

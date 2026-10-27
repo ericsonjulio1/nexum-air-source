@@ -1,0 +1,136 @@
+--- a/apps/frappe/frappe/utils/print_format.py
++++ b/apps/frappe/frappe/utils/print_format.py
+@@ -1,5 +1,6 @@
+ import http
+ import json
++import re
+ import os
+ import tempfile
+ import uuid
+@@ -60,6 +61,41 @@
+ 	if isinstance(doctype, dict):
+ 		return sum([len(doctype[dt]) for dt in doctype])
+ 	return len(frappe.parse_json(name))
++
++
++def _validated_bulk_pdf_options(options) -> dict:
++	"""Accept page settings, never arbitrary renderer process arguments."""
++	if isinstance(options, str):
++		try:
++			options = json.loads(options)
++		except (ValueError, TypeError):
++			frappe.throw(_("Invalid PDF options"))
++	if options is None:
++		return {}
++	allowed = {"page-size", "page-height", "page-width", "orientation", "password"}
++	if not isinstance(options, dict) or set(options) - allowed:
++		frappe.throw(_("Unsupported PDF options"))
++	paper_sizes = {f"{series}{number}" for series in ("A", "B") for number in range(11)}
++	paper_sizes.update({"C5E", "Comm10E", "DLE", "Executive", "Folio", "Ledger", "Legal", "Letter", "Tabloid", "Custom"})
++	if "page-size" in options and (not isinstance(options["page-size"], str) or options["page-size"] not in paper_sizes):
++		frappe.throw(_("Invalid PDF page size"))
++	if "orientation" in options and options["orientation"] not in ("Portrait", "Landscape"):
++		frappe.throw(_("Invalid PDF orientation"))
++	for key in ("page-height", "page-width"):
++		if key not in options:
++			continue
++		value = options[key]
++		if type(value) in (int, float):
++			millimetres = value
++		elif isinstance(value, str) and (match := re.fullmatch(r"(\d+(?:\.\d+)?|\.\d+)(mm|cm|in|pt|px)?", value)):
++			millimetres = float(match[1]) * {None: 1, "mm": 1, "cm": 10, "in": 25.4, "pt": 25.4 / 72, "px": 25.4 / 96}[match[2]]
++		else:
++			frappe.throw(_("Invalid PDF page dimensions"))
++		if not 0 < millimetres <= 2000:
++			frappe.throw(_("PDF page dimensions must be between 0 and 2000 mm"))
++	if "password" in options and (not isinstance(options["password"], str) or len(options["password"]) > 256):
++		frappe.throw(_("Invalid PDF password"))
++	return dict(options)
+ 
+ 
+ @frappe.whitelist()
+@@ -74,6 +110,7 @@
+ 	"""
+ 	Calls _download_multi_pdf with the given parameters and returns the response
+ 	"""
++	options = _validated_bulk_pdf_options(options)
+ 	max_docs = get_max_bulk_print_docs()
+ 	if _get_multi_pdf_doc_count(doctype, name) > max_docs:
+ 		frappe.throw(_("Cannot generate PDF for more than {0} documents at a time").format(max_docs))
+@@ -93,6 +130,7 @@
+ 	"""
+ 	Calls _download_multi_pdf with the given parameters in a background job, returns task ID
+ 	"""
++	options = _validated_bulk_pdf_options(options)
+ 	_enforce_multi_pdf_async_rate_limit()
+ 
+ 	doc_count = _get_multi_pdf_doc_count(doctype, name)
+@@ -150,6 +188,8 @@
+ 
+ def classic_page_options(pdf_options) -> dict:
+ 	pdf_options = dict(pdf_options or {})
++	# Encryption is applied once to the merged PDF, not passed to wkhtmltopdf.
++	pdf_options.pop("password", None)
+ 	for option in ("page-height", "page-width"):
+ 		if isinstance(pdf_options.get(option), int | float):
+ 			pdf_options[option] = f"{pdf_options[option]}mm"
+@@ -209,14 +249,12 @@
+ 	Returns:
+ 	Publishes a link to the PDF to the given task ID
+ 	"""
++	options = _validated_bulk_pdf_options(options)
+ 	filename = ""
+ 
+ 	from pypdf import PdfWriter
+ 
+ 	pdf_writer = PdfWriter()
+-
+-	if isinstance(options, str):
+-		options = json.loads(options)
+ 
+ 	if (options or {}).get("password") and format:
+ 		if frappe.db.get_value("Print Format", format, "pdf_generator") == "Typst":
+--- a/apps/frappe/pyproject.toml
++++ b/apps/frappe/pyproject.toml
+@@ -13,16 +13,16 @@
+     "Click~=8.4.1",
+     "filelock~=3.20.1",
+     "filetype~=1.2.0",
+-    "GitPython~=3.1.45",
++    "GitPython==3.2.1",
+     "Jinja2~=3.1.6",
+-    "Pillow~=12.3.0",
++    "Pillow==13.0.0",
+     "PyJWT~=2.15.0",
+     "duckdb~=1.4.3",
+     "pyarrow~=25.0.0",
+     # We depend on internal attributes,
+     # do NOT add loose requirements on PyMySQL versions.
+     "PyMySQL==1.1.2",
+-    "pypdf==6.19.0",
++    "pypdf==6.21.3",
+     "PyPika @ git+https://github.com/frappe/pypika@7ef6e40215d46cd531e8c4e58650b84c11abbd04",
+     "mysqlclient==2.2.7",
+     "PyQRCode~=1.2.1",
+--- a/apps/telephony/pyproject.toml
++++ b/apps/telephony/pyproject.toml
+@@ -10,7 +10,7 @@
+ dependencies = [
+     # "frappe~=15.0.0" # Installed and managed by bench.
+     "twilio==8.5.0",
+-    "bleach~=6.3.0",
++    "bleach==6.4.0",
+ ]
+ 
+ [build-system]
+--- a/apps/frappe/frappe/tests/test_bulk_pdf_limits.py
++++ b/apps/frappe/frappe/tests/test_bulk_pdf_limits.py
+@@ -106,7 +106,7 @@
+ 		self.assertEqual(classic_page_options({"page-size": "A5"}), {"page-size": "A5"})
+ 		self.assertEqual(
+ 			classic_page_options({"page-height": 100, "page-width": 50.5, "password": "x"}),
+-			{"page-size": "Custom", "page-height": "100mm", "page-width": "50.5mm", "password": "x"},
++			{"page-size": "Custom", "page-height": "100mm", "page-width": "50.5mm"},
+ 		)
+ 		self.assertEqual(
+ 			classic_page_options({"page-height": "100mm", "page-width": "50mm"}),

@@ -24,28 +24,35 @@ upstream commit we run, and our modifications.
   **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
   by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
-## Bundled applications, licenses, and pinned commits
+## Prepared v225 applications, licenses, and pinned commits
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
-| frappe (framework) | MIT | https://github.com/frappe/frappe | `4515014c87ec` |
-| erpnext | GPLv3 | https://github.com/frappe/erpnext | `5af6561f5aa4` |
-| hrms | GPLv3 | https://github.com/frappe/hrms | `2478afc7a8f4` |
+| frappe (framework) | MIT | https://github.com/frappe/frappe | `e8d41dd0061a` |
+| erpnext | GPLv3 | https://github.com/frappe/erpnext | `ade850bbd6a7` |
+| hrms | GPLv3 | https://github.com/frappe/hrms | `5c72c067c0a3` |
 | payments | MIT | https://github.com/frappe/payments | `cca07d9f9392` |
 | **print_designer** | **AGPLv3** | https://github.com/frappe/print_designer | `7beaad298dd6` |
-| **insights** | **AGPLv3** | https://github.com/frappe/insights | `1f08dfadbd27` |
+| **insights** | **AGPLv3** | https://github.com/frappe/insights | `c7dc954d8275` |
 | **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `7d7e394e7571` |
-| **crm** | **AGPLv3** | https://github.com/frappe/crm | `0baa1e8ea462` |
+| **crm** | **AGPLv3** | https://github.com/frappe/crm | `e2d0b47a3ed3` |
 | **gameplan** | **AGPLv3** | https://github.com/frappe/gameplan | `30d4f16f9f2c` |
-| **drive** | **AGPLv3** | https://github.com/frappe/drive | `0bd11d8f4124` |
-| **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `039cf39f245d` |
+| **drive** | **AGPLv3** | https://github.com/frappe/drive | `959172cec552` |
+| **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `9447577500a2` |
 | my_branding | MIT* | https://github.com/ericsonjulio1/nexum-air-source | main |
 
 \* `my_branding` files are MIT-licensed, but because the application links to and
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current release: v16-prod-224
+## Prepared release: v16-prod-225
+
+This branch prepares v225; it is not a production deployment or publication receipt.
+The [v225 recipe](build/releases/v16-prod-225/README.md) pins the exact upstream
+sources, dependencies and reviewed modifications. Branding is `127f4934b1f4`;
+EAM remains `9de5ada9a7e5`. MCP remains opt-in for both migrations and new sites.
+
+## Current production release: v16-prod-224
 
 The [v224 recipe and immutable manifest](build/releases/v16-prod-224/README.md)
 inherit v223. Branding is pinned to `206eb4b4835d`; private EAM remains
@@ -106,8 +113,7 @@ modification are unchanged from v219. EAM is not part of the AGPL Corresponding
 Source offer, and a public reader cannot rebuild its private layer from this
 mirror. Everything outside `apps/eam` is byte-identical to v219 (416,034 entries
 verified). The framework release remains v16-prod-216 (Frappe 16.52.0, ERPNext
-16.51.1, HRMS 16.51.0); upstream dependencies and the pinned commits above are
-unchanged.
+16.51.1, HRMS 16.51.0); upstream dependencies and pins remained at the historical v216 manifest.
 
 ## Previous release: v16-prod-219
 
@@ -116,7 +122,7 @@ inherit the exact v218 runtime and replace only the `my_branding` source tree.
 Chart bars are sized by frappe-charts itself at most 56 px wide from the first
 frame, so few-column charts no longer snap narrower after the entry animation.
 Upstream versions, dependencies, EAM and the compiled standalone apps are v216's;
-the pinned commits above apply.
+the historical v216 manifest supplies its pins.
 
 ## Previous release: v16-prod-218
 
@@ -125,7 +131,7 @@ inherit the exact v217 runtime and replace only the `my_branding` source tree.
 A `/<doctype>/<name>` path whose doctype matches only without regard to letter
 case now receives the 404 page instead of the print view's server error.
 Upstream versions, dependencies, EAM and the compiled standalone apps are v216's;
-the pinned commits above apply.
+the historical v216 manifest supplies its pins.
 
 ## Previous release: v16-prod-217
 
@@ -133,13 +139,13 @@ The [v217 recipe and immutable manifest](build/releases/v16-prod-217/README.md)
 inherit the exact v216 runtime and replace only the `my_branding` source tree.
 The demo site's after-migrate check follows the Frappe 16.50+ navigation model
 instead of rewriting archived sidebar rows. Upstream versions, dependencies, EAM
-and the compiled standalone apps are v216's; the pinned commits above apply.
+and the compiled standalone apps are v216's; the historical v216 manifest supplies its pins.
 
 ## Previous release: v16-prod-216
 
 The [v216 recipe and immutable manifest](build/releases/v16-prod-216/README.md)
 upgrade Frappe to 16.52.0, ERPNext to 16.51.1, HRMS to 16.51.0, CRM to 1.88.0,
-Helpdesk to 1.31.0 and Insights to 3.15.0 (the pinned commits above). The other
+Helpdesk to 1.31.0 and Insights to 3.15.0 (the historical v216 pins). The other
 application runtimes and the v215 Nexum branding are retained.
 
 ## Previous release: v16-prod-215

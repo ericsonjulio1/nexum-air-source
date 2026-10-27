@@ -13,19 +13,19 @@ framework and a number of Frappe / ERPNext applications.
 | Path | Contents |
 |------|----------|
 | `my_branding/` | Our application — branding, naming, role profiles, storage quotas, and the runtime customisations layered on top of the apps below. This is the work that links to and modifies the AGPL apps. |
-| `build/Containerfile` | The image recipe: which apps are installed, and the build-time modifications (including the one app patch). |
-| `build/build.sh` | The build script. |
-| `build/apps.json`, `build/apps.pinned.json` | The app manifest and the **exact upstream commit** each bundled app is pinned to. |
+| `build/releases/` | Release-specific image recipes, exact source manifests, frontend locks and retained patches. |
+| `build/Containerfile`, `build/build.sh` | Historical build tooling; use the relevant release capsule for current images. |
+| `build/apps.json`, `build/apps.pinned.json` | Historical manifests; current source identities are in `SOURCES.md` and the release capsule. |
 | `patches/` | Human-readable description of our modifications to bundled apps. |
 | `SOURCES.md` | The full manifest: every bundled app, its license, and its pinned commit. |
 
 ## Bundled applications
 
 The bundled Frappe / ERPNext apps are **not** copied here — their source is their
-public upstream repository at the commit pinned in `build/apps.pinned.json`. See
-`SOURCES.md` for the complete list with licenses. Ten of them are AGPLv3
-(builder, crm, drive, gameplan, helpdesk, insights, lms, print_designer, slides,
-telephony); the rest are GPLv3 or MIT.
+public upstream repository at the commit pinned in the release manifest. See
+`SOURCES.md` for the complete list of eleven upstream apps and licenses. Seven
+are AGPLv3 (crm, drive, gameplan, helpdesk, insights, print_designer, telephony);
+the rest are GPLv3 or MIT. Historical manifests also include apps no longer installed.
 
 ## Reproducing the running image
 
@@ -34,6 +34,10 @@ manifest. It pins the v223 base and exact custom application commits; follow its
 inherited manifests for upstream source and retained patches. Historical
 `build/Containerfile` tooling alone does not reproduce the current service.
 Private EAM repository access is required to rebuild its layer.
+
+The [v225 candidate recipe](build/releases/v16-prod-225/README.md) is prepared
+for the next framework upgrade; its publication alone does not mean production
+has switched versions.
 
 ## License
 

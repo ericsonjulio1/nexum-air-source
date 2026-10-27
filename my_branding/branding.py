@@ -665,7 +665,8 @@ def _shipped_workspace(ws):
 		return None
 	try:
 		source = json.loads(Path(frappe.get_module_path(ws.module, "workspace", name, name + ".json")).read_text())
-	except (OSError, ValueError, ImportError):
+	except Exception:
+		# Orphaned Module Def records also raise framework ValidationError.
 		return None
 	if (source.get("name") != ws.name or source.get("module") != ws.module
 		or not source.get("public") or not source.get("standard") or source.get("for_user")):
@@ -696,60 +697,70 @@ def reconcile_content_leaks():
 		return
 	try:
 		for ws in frappe.get_all("Workspace", fields=["name", "content", "public", "standard", "for_user", "module"]):
-			if not ws.content or ("frappe.io" not in ws.content and "Frappe Builder" not in ws.content):
-				continue
-			source = _shipped_workspace(ws)
-			if source is None:
-				continue
 			try:
-				blocks = json.loads(ws.content)
-				shipped_blocks = json.loads(sanitize_content(source.get("content") or "[]"))
-			except Exception:
-				continue
-			# A shortcut's child row and every content reference are one unit. A
-			# tenant may resize its block or edit its target without changing the
-			# label; changing only the other half would break the rendered link.
-			keys = ("label", "type", "link_to", "url", "doc_view")
-			shipped_shortcuts = {tuple(row.get(k) or "" for k in keys) for row in source.get("shortcuts", [])}
-			shortcuts = frappe.get_all("Workspace Shortcut",
-				filters={"parent": ws.name, "parenttype": "Workspace"}, fields=["*"])
-			renames = {}
-			for row in shortcuts:
-				label = row.label or ""
-				if "Frappe Builder" not in label:
+				if not ws.content or ("frappe.io" not in ws.content and "Frappe Builder" not in ws.content):
 					continue
-				references = [b for b in blocks if b.get("type") == "shortcut"
-					and (b.get("data") or {}).get("shortcut_name") == label]
-				matching = [r for r in shortcuts if r.label == label]
-				new = label.replace("Frappe Builder", "Builder")
-				if (references and all(b in shipped_blocks for b in references)
-					and all(tuple(r.get(k) or "" for k in keys) in shipped_shortcuts for r in matching)
-					and not any(r.label == new for r in shortcuts)):
-					renames[label] = new
-			out, dirty = [], False
-			for b in blocks:
-				if b not in shipped_blocks:
-					out.append(b)
+				source = _shipped_workspace(ws)
+				if source is None:
 					continue
-				data = b.get("data") or {}
-				if b.get("type") == "paragraph" and _is_frappe_leak_block(data.get("text")):
-					dirty = True
-					continue
-				sc = data.get("shortcut_name") or ""
-				if b.get("type") == "shortcut" and sc in renames:
-					data["shortcut_name"] = renames[sc]
-					dirty = True
-				out.append(b)
-			if dirty:
-				frappe.db.savepoint("workspace_branding_content")
 				try:
-					frappe.db.set_value("Workspace", ws.name, "content", json.dumps(out), update_modified=False)
-					for row in shortcuts:
-						if row.label in renames:
-							frappe.db.set_value("Workspace Shortcut", row.name, "label", renames[row.label], update_modified=False)
+					blocks = json.loads(ws.content)
+					# Accept historical raw blocks and currently sanitized imports.
+					# Only an exact shipped block in either representation is owned
+					# by branding; tenant edits remain untouched.
+					raw_content = source.get("content") or "[]"
+					shipped_blocks = json.loads(raw_content) + json.loads(sanitize_content(raw_content))
 				except Exception:
-					frappe.db.rollback(save_point="workspace_branding_content")
-					raise
+					continue
+				# A shortcut's child row and every content reference are one unit. A
+				# tenant may resize its block or edit its target without changing the
+				# label; changing only the other half would break the rendered link.
+				keys = ("label", "type", "link_to", "url", "doc_view")
+				shipped_shortcuts = {tuple(row.get(k) or "" for k in keys) for row in source.get("shortcuts", [])}
+				shortcuts = frappe.get_all("Workspace Shortcut",
+					filters={"parent": ws.name, "parenttype": "Workspace"}, fields=["*"])
+				renames = {}
+				for row in shortcuts:
+					label = row.label or ""
+					if "Frappe Builder" not in label:
+						continue
+					references = [b for b in blocks if b.get("type") == "shortcut"
+						and (b.get("data") or {}).get("shortcut_name") == label]
+					matching = [r for r in shortcuts if r.label == label]
+					new = label.replace("Frappe Builder", "Builder")
+					if (references and all(b in shipped_blocks for b in references)
+						and all(tuple(r.get(k) or "" for k in keys) in shipped_shortcuts for r in matching)
+						and not any(r.label == new for r in shortcuts)):
+						renames[label] = new
+				out, dirty = [], False
+				for b in blocks:
+					if b not in shipped_blocks:
+						out.append(b)
+						continue
+					data = b.get("data") or {}
+					if b.get("type") == "paragraph" and _is_frappe_leak_block(data.get("text")):
+						dirty = True
+						continue
+					sc = data.get("shortcut_name") or ""
+					if b.get("type") == "shortcut" and sc in renames:
+						data["shortcut_name"] = renames[sc]
+						dirty = True
+					out.append(b)
+				if dirty:
+					frappe.db.savepoint("workspace_branding_content")
+					try:
+						frappe.db.set_value("Workspace", ws.name, "content", json.dumps(out), update_modified=False)
+						for row in shortcuts:
+							if row.label in renames:
+								frappe.db.set_value("Workspace Shortcut", row.name, "label", renames[row.label], update_modified=False)
+					except Exception:
+						frappe.db.rollback(save_point="workspace_branding_content")
+						raise
+			except Exception:
+				frappe.log_error(
+					title="my_branding reconcile_content_leaks workspace failed",
+					message=f"{ws.name}\n{frappe.get_traceback()}",
+				)
 	except Exception:
 		frappe.log_error(
 			title="my_branding reconcile_content_leaks workspaces failed",

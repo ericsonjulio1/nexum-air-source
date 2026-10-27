@@ -1,0 +1,136 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-225",
+  "candidate_tag": "ericsonjulio/erpnext:v16-prod-225-rc7",
+  "digest": "sha256:aceff94d1931577fb00aede83a6663297bb44cd92959e922b605bdf45388c3e7",
+  "base_image": "ericsonjulio/erpnext@sha256:94ee3b75c13168d36dcdab8cb4fb69db7a80e64c9c40f8764d1f98fca847ea32",
+  "platform": "linux/amd64",
+  "apps": {
+    "frappe": {
+      "repository": "https://github.com/frappe/frappe",
+      "previous_ref": "v16.52.0",
+      "ref": "v16.53.0",
+      "commit": "e8d41dd0061a32ee781caefe5d0b0d2bb7c15362",
+      "url": "https://github.com/frappe/frappe/releases/tag/v16.53.0",
+      "published_at": "2026-10-22T16:59:45Z",
+      "archive_sha256": "a38592f231c369c44bcfe79c19f54c6148612e402bdcbbb18123817ac76a050c",
+      "commits_ahead": 482,
+      "comparison_status": "ahead"
+    },
+    "erpnext": {
+      "repository": "https://github.com/frappe/erpnext",
+      "previous_ref": "v16.51.1",
+      "ref": "v16.52.1",
+      "commit": "ade850bbd6a7412e9994a9637d2c5c713771632a",
+      "url": "https://github.com/frappe/erpnext/releases/tag/v16.52.1",
+      "published_at": "2026-10-22T14:31:59Z",
+      "archive_sha256": "1bd54a71d5e1c6c2cab7beb86109c8788ffe70f2cd449389e1319a029ea493a2",
+      "commits_ahead": 717,
+      "comparison_status": "ahead"
+    },
+    "hrms": {
+      "repository": "https://github.com/frappe/hrms",
+      "previous_ref": "v16.51.0",
+      "ref": "v16.52.0",
+      "commit": "5c72c067c0a3bcc969a49c708b7bec545a046fe9",
+      "url": "https://github.com/frappe/hrms/releases/tag/v16.52.0",
+      "published_at": "2026-10-22T06:48:23Z",
+      "archive_sha256": "dde015087788fee2278c9cf078db8fbfb36bbccf3e118d5227d94126d572a97c",
+      "commits_ahead": 24,
+      "comparison_status": "ahead"
+    },
+    "crm": {
+      "repository": "https://github.com/frappe/crm",
+      "previous_ref": "v1.88.0",
+      "ref": "v1.89.2",
+      "commit": "e2d0b47a3ed3c1f45e4d74b3afeb84bf20afacd9",
+      "url": "https://github.com/frappe/crm/releases/tag/v1.89.2",
+      "published_at": "2026-10-27T08:56:55Z",
+      "archive_sha256": "55b10cf8dd5f43286a4d7f4d762ec9f803cc8a3a626a62f5021ff8d8c1a0a704",
+      "commits_ahead": 294,
+      "comparison_status": "ahead"
+    },
+    "insights": {
+      "repository": "https://github.com/frappe/insights",
+      "previous_ref": "v3.15.0",
+      "ref": "v3.15.1",
+      "commit": "c7dc954d8275756deb5ad24f7c35c3f3c2ca1a6c",
+      "url": "https://github.com/frappe/insights/releases/tag/v3.15.1",
+      "published_at": "2026-10-20T12:08:34Z",
+      "archive_sha256": "3e9ba6b0c0ea1c91cc0f487d4aa9f281cd0d0e0ec3bc89ee91f97309cd502c41",
+      "commits_ahead": 2,
+      "comparison_status": "ahead"
+    },
+    "drive": {
+      "repository": "https://github.com/frappe/drive",
+      "previous_ref": "0bd11d8f4124",
+      "ref": "v0.4.3",
+      "commit": "959172cec552515369868c8d482b53ce3893c9af",
+      "url": "https://github.com/frappe/drive/releases/tag/v0.4.3",
+      "published_at": "2026-10-27T11:22:40Z",
+      "archive_sha256": "f847858a8d5f9a57537c81f0e4d9f0bd5b9cc9766cb85e591f4da475f031b0e2",
+      "commits_ahead": 11,
+      "comparison_status": "ahead"
+    },
+    "telephony": {
+      "repository": "https://github.com/frappe/telephony",
+      "previous_ref": "039cf39f245d",
+      "ref": "develop",
+      "commit": "9447577500a25d242088398157b72c654fa34b20",
+      "url": "https://github.com/frappe/telephony/commit/9447577500a25d242088398157b72c654fa34b20",
+      "published_at": null,
+      "archive_sha256": "6c7d3be7f37a805ccd8cc560f227c952ac02dffd249263f86a6080dad86f1868",
+      "commits_ahead": 6,
+      "comparison_status": "ahead",
+      "pin_exception": "No published releases; handoff explicitly requires the Twilio signature fix on the existing develop lineage."
+    },
+    "helpdesk": {
+      "repository": "https://github.com/frappe/helpdesk",
+      "previous_ref": "v1.31.0",
+      "ref": "v1.31.0",
+      "commit": "7d7e394e7571fbdbdda04a65a279566b0ac9ce7f",
+      "published_at": "2026-10-14T21:08:24Z",
+      "url": "https://github.com/frappe/helpdesk/releases/tag/v1.31.0",
+      "archive_sha256": "8a6f5f261b49850ad4f1b2675e2dd8131b91eecabab57875ac566cd23e03babc",
+      "commits_ahead": 0,
+      "changed_files": 0,
+      "previous_commit": "7d7e394e7571fbdbdda04a65a279566b0ac9ce7f",
+      "comparison_status": "identical",
+      "source_changed": false,
+      "rebuilt_frontend": true
+    }
+  },
+  "custom_apps": {
+    "my_branding": {
+      "commit": "127f4934b1f408678b2ad0ed3c1b08fb0a6b07b8"
+    },
+    "eam": {
+      "commit": "9de5ada9a7e57e5fb3db91f02bb93c7c67a81881"
+    }
+  },
+  "changes_upstream_dependencies": true,
+  "status": "candidate-not-deployed",
+  "retained_upstream": {
+    "payments": {
+      "repository": "https://github.com/frappe/payments",
+      "commit": "cca07d9f9392e2ea0e521c5975151db9e4b6c321",
+      "ref": "cca07d9f9392e2ea0e521c5975151db9e4b6c321"
+    },
+    "print_designer": {
+      "repository": "https://github.com/frappe/print_designer",
+      "commit": "7beaad298dd60467223c9a2b0360dd8c216a2b91",
+      "ref": "7beaad298dd60467223c9a2b0360dd8c216a2b91"
+    },
+    "gameplan": {
+      "repository": "https://github.com/frappe/gameplan",
+      "commit": "30d4f16f9f2c5b18ad684252c61e851228943162",
+      "ref": "30d4f16f9f2c5b18ad684252c61e851228943162"
+    }
+  },
+  "retained_source_apps": [
+    "eam",
+    "helpdesk",
+    "payments",
+    "gameplan",
+    "print_designer"
+  ]
+}

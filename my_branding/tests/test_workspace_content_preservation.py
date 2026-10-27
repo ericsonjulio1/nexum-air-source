@@ -123,6 +123,133 @@ class TestWorkspaceContentPreservation(unittest.TestCase):
 				branding.reconcile_content_leaks()
 				self.assertEqual(frappe.db.get_value("Workspace", doc.name, "content"), after)
 
+	def test_raw_shipped_content_is_reconciled_without_removing_tenant_addition(self):
+		definition = json.loads(
+			Path(frappe.get_module_path("CRM", "workspace", "crm", "crm.json")).read_text()
+		)
+		definition["content"] = json.dumps(
+			[
+				{
+					"id": "raw-banner",
+					"type": "paragraph",
+					"data": {
+						"text": '<a class="legacy" href="https://frappe.io/crm">Deprecated: use Frappe CRM</a>',
+						"col": 12,
+					},
+				}
+			]
+		)
+		with tempfile.TemporaryDirectory() as root:
+			path = Path(root, "crm.json")
+			path.write_text(json.dumps(definition))
+			# Raw content can predate the current importer or arrive via db_set.
+			# The real importer and current shipped definitions are tested below.
+			frappe.db.set_value(
+				"Workspace",
+				"CRM",
+				"content",
+				json.dumps(json.loads(definition["content"]) + [self._paragraph()]),
+			)
+			real_path = frappe.get_module_path
+			with patch.object(
+				frappe,
+				"get_module_path",
+				side_effect=lambda module, *parts: (
+					str(path)
+					if module == "CRM" and parts == ("workspace", "crm", "crm.json")
+					else real_path(module, *parts)
+				),
+			):
+				branding.reconcile_content_leaks()
+			self.assertEqual(
+				json.loads(frappe.db.get_value("Workspace", "CRM", "content")), [self._paragraph()]
+			)
+
+	def test_real_installed_standard_workspaces_keep_content_and_tenant_additions(self):
+		"""Exercise actual shipped JSON through the same native importer as migrate."""
+		from frappe.modules.import_file import import_doc
+
+		for module, name in (("CRM", "crm"), ("Support", "support")):
+			with self.subTest(workspace=module):
+				path = Path(frappe.get_module_path(module, "workspace", name, name + ".json"))
+				definition = json.loads(path.read_text())
+				import_doc(dict(definition))
+				before = json.loads(frappe.db.get_value("Workspace", module, "content"))
+				self.assertEqual(before, json.loads(definition["content"]))
+				frappe.db.set_value("Workspace", module, "content", json.dumps(before + [self._paragraph()]))
+				branding.reconcile_content_leaks()
+				after = json.loads(frappe.db.get_value("Workspace", module, "content"))
+				self.assertIn(self._paragraph(), after)
+				# Current ERPNext ships chart/card blocks here. They must survive.
+				for block in before:
+					if block["type"] != "paragraph":
+						self.assertIn(block, after)
+				for block in after:
+					if block == self._paragraph():
+						continue
+					text = (block.get("data") or {}).get("text", "").lower()
+					self.assertFalse("frappe.io" in text and "deprecated" in text)
+
+	def test_orphaned_workspace_does_not_prevent_later_standard_reconciliation(self):
+		self._assert_workspace_failure_isolated("orphan")
+
+	def test_failed_workspace_write_does_not_prevent_later_standard_reconciliation(self):
+		self._assert_workspace_failure_isolated("write")
+
+	def _assert_workspace_failure_isolated(self, failure):
+		crm = frappe.get_doc("Workspace", "CRM")
+		support = frappe.get_doc("Workspace", "Support")
+		banner = {
+			"id": "banner",
+			"type": "paragraph",
+			"data": {"text": "Deprecated: use Frappe at https://frappe.io/crm", "col": 12},
+		}
+		for doc in (crm, support):
+			frappe.db.set_value("Workspace", doc.name, "content", json.dumps([banner]))
+		with tempfile.TemporaryDirectory() as root:
+			for module in ("CRM", "Support"):
+				definition = {
+					"name": module,
+					"module": module,
+					"public": 1,
+					"standard": 1,
+					"content": json.dumps([banner]),
+					"shortcuts": [],
+				}
+				Path(root, module + ".json").write_text(json.dumps(definition))
+			real_path, real_get, real_write = frappe.get_module_path, frappe.get_all, frappe.db.set_value
+
+			def source_path(module, *parts):
+				if failure == "orphan" and module == "CRM":
+					raise frappe.DoesNotExistError("Synthetic orphaned module")
+				if module in ("CRM", "Support") and parts == (
+					"workspace",
+					module.lower(),
+					module.lower() + ".json",
+				):
+					return str(Path(root, module + ".json"))
+				return real_path(module, *parts)
+
+			def ordered(doctype, *args, **kwargs):
+				rows = real_get(doctype, *args, **kwargs)
+				return sorted(rows, key=lambda row: row.name != "CRM") if doctype == "Workspace" else rows
+
+			def write(doctype, name, *args, **kwargs):
+				if failure == "write" and doctype == "Workspace" and name == "CRM":
+					raise RuntimeError("Synthetic content write failure")
+				return real_write(doctype, name, *args, **kwargs)
+
+			with (
+				patch.object(frappe, "get_module_path", side_effect=source_path),
+				patch.object(frappe, "get_all", side_effect=ordered),
+				patch.object(frappe.db, "set_value", side_effect=write),
+				patch.object(frappe, "log_error") as errors,
+			):
+				branding.reconcile_content_leaks()
+				self.assertEqual(errors.call_count, int(failure == "write"))
+			self.assertEqual(json.loads(frappe.db.get_value("Workspace", "CRM", "content")), [banner])
+			self.assertEqual(json.loads(frappe.db.get_value("Workspace", "Support", "content")), [])
+
 	def test_shortcut_label_and_content_reference_share_ownership(self):
 		for width, target, renamed, fail_write in (
 			(4, "shipped", True, False),
