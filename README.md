@@ -29,8 +29,9 @@ the rest are GPLv3 or MIT. Historical manifests also include apps no longer inst
 
 ## Reproducing the running image
 
-Use the [v225 release recipe](build/releases/v16-prod-225/README.md) and its
-immutable manifest. It pins the v224 base, eleven upstream applications, custom
+Use the [v226 release recipe](build/releases/v16-prod-226/README.md), which builds the
+custom applications on the exact v225 image, together with the [v225 release recipe](build/releases/v16-prod-225/README.md)
+and its immutable manifest for that base. The v225 recipe pins the v224 base, eleven upstream applications, custom
 application commits, retained patches and frontend dependency locks. Both the
 application and Bench maintenance Python environments have hashed package locks
 and complete installed-file inventories. Historical `build/Containerfile` tooling alone does not reproduce

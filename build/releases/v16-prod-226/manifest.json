@@ -1,0 +1,28 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-226",
+  "digest": "sha256:ae924799fb695f14ac5a4bfe74eb8844380e6fe4c4400509a43b38ac075d035e",
+  "base_image": "ericsonjulio/erpnext@sha256:aceff94d1931577fb00aede83a6663297bb44cd92959e922b605bdf45388c3e7",
+  "platform": "linux/amd64",
+  "upstream_manifest": "../v16-prod-225/manifest.json",
+  "inherited_release": "../v16-prod-225/manifest.json",
+  "changes_upstream_dependencies": false,
+  "dockerfile_sha256": "d6cc80f7b824e3eebf376a0947c157bb3bc347235ff908a607f294d73054d885",
+  "custom_apps": {
+    "my_branding": {
+      "repository": "https://github.com/ericsonjulio1/Nexum-Air.git",
+      "commit": "d45d82c0cc3092dcaa5ced95b4f7eeae4a470d63",
+      "tree": "723e0eae90d572fb4a40938b80adcb131e8cac55",
+      "source": "published runtime application",
+      "license": "MIT"
+    },
+    "eam": {
+      "repository": "https://github.com/ericsonjulio1/eam.git",
+      "commit": "da5720a43ef8e8d7971ac4ba6e3c417760c345bc",
+      "tree": "a5abb88f4051b6cee9ad003a85cee239ac240a4d",
+      "source": "private repository",
+      "license": "MIT"
+    }
+  },
+  "status": "deployed-verified",
+  "deployed_verified_utc": "2026-11-03T10:31:46Z"
+}

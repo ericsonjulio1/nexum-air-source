@@ -24,7 +24,7 @@ upstream commit we run, and our modifications.
   **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
   by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
-## v225 applications, licenses, and pinned commits
+## v226 applications, licenses, and pinned commits
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
@@ -45,7 +45,15 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current production release: v16-prod-225
+## Current production release: v16-prod-226
+
+Deployed and verified on 3 November 2026 (Pacific/Port_Moresby).
+The [v226 recipe](build/releases/v16-prod-226/README.md) builds on the exact v225 image; every
+bundled upstream application, dependency lock and retained patch in the table above is inherited
+unchanged. Branding is `d45d82c0cc30` (host-operations reliability and Settings workspace
+fixes); private EAM is `da5720a43ef8` (migration isolation, lifecycle, stock and report fixes).
+
+## Previous release: v16-prod-225
 
 Deployed and verified on 28 October 2026 (Pacific/Port_Moresby).
 The [v225 recipe](build/releases/v16-prod-225/README.md) pins the exact upstream
