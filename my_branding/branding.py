@@ -14,7 +14,8 @@ NEW_WORKSPACE = brand_config.SETTINGS_WORKSPACE
 
 # doctype -> fields that should be set to the new label on the surviving doc
 _DERIVED = {
-	"Workspace": ["label", "title"],
+	# Workspace labels/content are reconciled against versioned seeds below,
+	# so a tenant's own title survives too.
 	"Workspace Sidebar": ["label", "title"],
 	"Desktop Icon": ["label", "link_to"],
 }
@@ -234,16 +235,129 @@ def ensure_site_brand_settings():
 		)
 
 
+_SETTINGS_WIDGET_FIELDS = (
+	"content", "charts", "shortcuts", "links", "number_cards", "quick_lists", "custom_blocks", "roles",
+)
+_WORKSPACE_ROW_METADATA = frozenset({
+	"name", "doctype", "parent", "parentfield", "parenttype", "idx", "docstatus",
+	"creation", "modified", "modified_by", "owner",
+})
+
+
+def _settings_workspace_seeds():
+	"""Old definitions are immutable evidence of ownership, not just seed defaults.
+
+	To ship a revision, ADD settings_workspace_v<N>.json and retain the older
+	versions. Never edit an old definition: sites may still store that version.
+	The newest numeric version is used on fresh installs and unchanged upgrades.
+	"""
+	import json
+	from pathlib import Path
+
+	paths = Path(frappe.get_app_path("my_branding", "seed")).glob("settings_workspace_v*.json")
+	paths = sorted(paths, key=lambda p: int(p.stem.rsplit("_v", 1)[1]))
+	return [json.loads(path.read_text())[0] for path in paths]
+
+
+def _workspace_row_value(value):
+	"""Compare row data, ignoring Frappe identities and unset/default empty fields.
+
+	Unknown nonempty fields are significant: a tenant's Custom Field on a child
+	row must prevent replacement even if the shipped label/target still matches.
+	"""
+	if isinstance(value, dict):
+		return {key: _workspace_row_value(item) for key, item in value.items()
+			if key not in _WORKSPACE_ROW_METADATA and not key.startswith("_")
+			and item not in (None, "", 0)}
+	if isinstance(value, list):
+		return [_workspace_row_value(item) for item in value]
+	return value
+
+
+def _settings_widgets(values, content=None):
+	import json
+
+	return {field: json.loads(content if content is not None else values.get(field) or "[]")
+		if field == "content" else _workspace_row_value(values.get(field) or [])
+		for field in _SETTINGS_WIDGET_FIELDS}
+
+
+def _ensure_settings_workspace():
+	"""Seed once; upgrade only an entire unchanged layout/child-row group.
+
+	Blocks reference child rows by label. Treat them as one unit: a resized
+	block, retargeted shortcut, extra link or role must preserve BOTH halves.
+	Appearance/order belong to the tenant and the existing visibility/order
+	hooks, and are never reset from the seed during upgrades.
+	"""
+	from frappe.desk.doctype.workspace.workspace import sanitize_content
+
+	seeds = _settings_workspace_seeds()
+	if not seeds:
+		raise ValueError("Missing Settings workspace seed")
+	latest = seeds[-1]
+	if any(seed.get("name") != NEW_WORKSPACE or seed.get("doctype") != "Workspace" for seed in seeds):
+		raise ValueError("Invalid Settings workspace seed")
+	if not frappe.db.exists("Workspace", NEW_WORKSPACE):
+		# This is a custom seeded workspace, not an app-path standard document;
+		# marking it standard would let Frappe's orphan reaper delete it.
+		frappe.get_doc(dict(latest, standard=0)).insert(ignore_permissions=True)
+		return
+	doc = frappe.get_doc("Workspace", NEW_WORKSPACE)
+	current = doc.as_dict()
+	try:
+		widgets = _settings_widgets(current)
+		unchanged = any(widgets == candidate for seed in seeds for candidate in (
+			_settings_widgets(seed), _settings_widgets(seed, sanitize_content(seed.get("content") or "[]")),
+		))
+		widgets_changed = unchanged and widgets != _settings_widgets(
+			latest, sanitize_content(latest.get("content") or "[]"))
+	except (ValueError, TypeError):
+		# Unreadable content is not evidence of an unchanged shipped layout.
+		widgets_changed = False
+
+	meta = frappe.get_meta("Workspace")
+	ignored = _WORKSPACE_ROW_METADATA | set(_SETTINGS_WIDGET_FIELDS) | {"is_hidden", "sequence_id", "standard"}
+	updates = {field: value for field, value in latest.items()
+		if field not in ignored and meta.has_field(field) and current.get(field) != value
+		and any((current.get(field) or "") == (seed.get(field) or "") for seed in seeds)}
+	if widgets_changed:
+		for field in _SETTINGS_WIDGET_FIELDS:
+			doc.set(field, latest.get(field) or ("[]" if field == "content" else []))
+		for field, value in updates.items():
+			doc.set(field, value)
+		doc.save(ignore_permissions=True)
+	elif updates:
+		# Do not save a tenant-edited layout merely to update an untouched scalar.
+		frappe.db.set_value("Workspace", NEW_WORKSPACE, updates, update_modified=False)
+
+
 def reconcile_workspaces():
 	"""after_migrate: keep the Settings workspace + derived docs branded Nexum Air.
 
-	This runs during the `bench migrate` that every ERPNext update triggers, so
-	every step is wrapped: a failure here can NEVER abort the update. Worst case
-	the rebrand is skipped and simply retried on the next migrate. Errors are
-	written to the Error Log for diagnosis.
+	Settings document failures roll back locally and are logged before continuing
+	with the derived docs. Database transaction errors propagate so migration can
+	retry, as do failures to roll back or record the error.
 	"""
+	from uuid import uuid4
+
 	if not frappe.db.table_exists("Workspace"):
 		return
+
+	savepoint = f"branding_settings_{uuid4().hex}"
+	frappe.db.savepoint(savepoint)
+	try:
+		_ensure_settings_workspace()
+	except (frappe.QueryDeadlockError, frappe.QueryTimeoutError):
+		# The database may already have rolled back the whole transaction and
+		# invalidated this savepoint. Let the migration caller handle the retry.
+		raise
+	except Exception:
+		frappe.db.rollback(save_point=savepoint)
+		frappe.db.release_savepoint(savepoint)
+		frappe.log_error(title="my_branding Settings workspace seed failed", message=frappe.get_traceback())
+	else:
+		frappe.db.release_savepoint(savepoint)
 
 	# Rename Workspace Sidebar first so Desktop Icon's link_to is updated by the
 	# rename, then the Workspace, then the Desktop Icon.

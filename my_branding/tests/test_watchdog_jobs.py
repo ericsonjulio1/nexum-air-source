@@ -4,11 +4,13 @@ No frappe needed (the watchdog is a host script), so this also runs without a be
     python3 -m unittest my_branding.tests.test_watchdog_jobs     (from the repo root)
     bench --site <site> run-tests --module my_branding.tests.test_watchdog_jobs
 """
+import ast
 import hashlib
 import importlib.util
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import time
 import types
@@ -281,7 +283,8 @@ class TestMainOrchestration(unittest.TestCase):
         p.update(over)
         return p
 
-    def run_main(self, probes=None, reset=lambda n: None, stale=(), deploy=None, state=None, stopped=()):
+    def run_main(self, probes=None, reset=lambda n: None, stale=(), deploy=None, state=None, stopped=(),
+                 command_effect=None, unit_read=None, asset_read=None):
         """Run main(); `reset(n)` answers the n-th demo_reset_in_progress() call (0-based).
         Returns (problems saved in state, heal calls, demo_reset call count, state)."""
         probes = {s: self.probe(s) for s in (self.HQ, self.SBL, self.wd.DEMO_SITE)} | (probes or {})
@@ -289,27 +292,32 @@ class TestMainOrchestration(unittest.TestCase):
             with open(self.state_path, "w") as fh:
                 json.dump(state, fh)
         calls, heals = [], []
+        self.emails, self.logs = [], []
 
-        def fake_reset(*a):
+        def run(args, **kw):
+            result = command_effect(args, **kw) if command_effect else None
+            return result if result is not None else _FakeRun(self.wd, probes, stopped)(args, **kw)
+
+        def fake_reset(*a, **kw):
             calls.append(1)
             return reset(len(calls) - 1)
 
         resp = types.SimpleNamespace(status=200)
         wd = self.wd
         with patch.object(wd, "TSV_PATH", self.tsv), patch.object(wd, "STATE_PATH", self.state_path), \
-                patch.object(wd.subprocess, "run", _FakeRun(wd, probes, stopped)), \
+                patch.object(wd.subprocess, "run", run), \
                 patch.object(wd.urllib.request, "urlopen", lambda *a, **k: resp), \
                 patch.object(wd, "log_fresh", lambda *a: (True, "ok (1h ago)")), \
-                patch.object(wd, "newest_b2_age_h", lambda *a: 1.0), \
-                patch.object(wd, "unit_last_run", lambda *a: ("success", "0")), \
-                patch.object(wd, "asset_fresh", lambda s: s not in stale), \
-                patch.object(wd, "deploy_in_progress", lambda: deploy), \
+                patch.object(wd, "newest_b2_age_h", lambda *a, **kw: 1.0), \
+                patch.object(wd, "unit_last_run", lambda unit, **kw: unit_read(unit) if unit_read else ("success", "0")), \
+                patch.object(wd, "asset_fresh", lambda site, **kw: asset_read(site) if asset_read else site not in stale), \
+                patch.object(wd, "deploy_in_progress", lambda **kw: deploy), \
                 patch.object(wd, "demo_reset_in_progress", fake_reset), \
-                patch.object(wd, "heal_stale_assets", lambda: heals.append(1)), \
-                patch.object(wd, "unhealed", lambda sites: []), \
+                patch.object(wd, "heal_stale_assets", lambda **kw: heals.append(1)), \
+                patch.object(wd, "unhealed", lambda sites, **kw: []), \
                 patch.object(wd, "load_config", lambda: {}), \
-                patch.object(wd, "send_email", lambda *a: None), \
-                patch.object(wd, "log", lambda *a: None), \
+                patch.object(wd, "send_email", lambda *a: self.emails.append(a)), \
+                patch.object(wd, "log", lambda line: self.logs.append(line)), \
                 patch.object(wd.time, "sleep", lambda *a: None):
             wd.main()
         with open(self.state_path) as fh:
@@ -453,6 +461,325 @@ class TestMainOrchestration(unittest.TestCase):
     def test_stopped_worker_container_alerts(self):
         problems, _, _, _ = self.run_main(stopped=("nexum-queue-long-1",))
         self.assertEqual(problems, ["CONTAINER nexum-queue-long-1: not running"])
+
+    def test_unknown_email_count_alerts_with_stable_text_and_no_heartbeat(self):
+        signatures = []
+        for value in ("ERR:connection 1", "ERR:connection 2", None, True, -1):
+            with self.subTest(value=value), patch.object(self.wd, "FORCE_HEARTBEAT", True):
+                problems, _, _, _ = self.run_main(probes={self.HQ: self.probe(self.HQ, stuck=value)}, state={})
+                self.assertTrue(any(p.startswith("EMAIL QUEUE") for p in problems), problems)
+                self.assertFalse(any("all green" in mail[1] for mail in self.emails))
+                signatures.append(problems)
+        self.assertTrue(all(p == signatures[0] for p in signatures))
+
+    def test_unknown_worker_retains_failure_and_alerts_on_second_unknown(self):
+        svc = "nexum-billing-worker.service"
+        read = lambda unit: None if unit == svc else ("success", "0")
+        with patch.object(self.wd, "FORCE_HEARTBEAT", True):
+            first, _, _, saved = self.run_main(unit_read=read, state={"failed_units_seen": [svc]})
+            self.assertEqual(saved["failed_units_seen"], [svc])
+            self.assertEqual(first, [])  # one unreadable worker snapshot is a transient
+            self.assertFalse(self.emails, "An unknown snapshot must suppress the forced heartbeat")
+            second, _, _, saved = self.run_main(unit_read=read)
+            self.assertTrue(any("WORKER CHECK FAILED" in p and svc in p for p in second), second)
+            third, _, _, saved = self.run_main(unit_read=read)
+            self.assertEqual(second, third)
+            self.assertFalse(self.emails, "The same unknown must deduplicate")
+            read_failed = lambda unit: ("exit-code", "1") if unit == svc else ("success", "0")
+            failed, _, _, _ = self.run_main(unit_read=read_failed)
+            self.assertTrue(any(p.startswith("WORKER FAILING " + svc) for p in failed))
+            healthy, _, _, saved = self.run_main()
+            self.assertEqual(healthy, [])
+            self.assertEqual(saved["failed_units_seen"], [])
+
+    def test_failed_or_malformed_crm_read_retains_both_sightings(self):
+        initial = {"provisioning_seen": ["synthetic-provisioning"], "approved_seen": ["synthetic-approved"]}
+        texts = []
+        for code, output in ((1, ""), (1, "[]"), (0, ""), (0, "null"), (0, "{}"),
+                             (0, '[{"name":"x"}]'), (0, 'not json')):
+            with self.subTest(code=code, output=output), patch.object(self.wd, "FORCE_HEARTBEAT", True):
+                def command(args, **kw):
+                    if "execute" in args:
+                        return types.SimpleNamespace(returncode=code, stdout=output, stderr="synthetic failure")
+                problems, _, _, saved = self.run_main(command_effect=command, state=initial)
+                for key in initial:
+                    self.assertEqual(saved[key], initial[key])
+                self.assertTrue(any(p.startswith("provisioning-leads check FAILED") for p in problems))
+                self.assertFalse(any("all green" in mail[1] for mail in self.emails))
+                texts.append(problems)
+        self.assertTrue(all(p == texts[0] for p in texts))
+        _, _, _, saved = self.run_main(state=initial)  # an explicit successful [] is a recovery
+        self.assertEqual((saved["provisioning_seen"], saved["approved_seen"]), ([], []))
+
+    def test_command_timeouts_still_email_preexisting_problems(self):
+        predicates = (
+            lambda args: args[:2] == ["systemctl", "is-active"],
+            lambda args: args[0] == "df",
+            lambda args: args[:2] == ["docker", "ps"],
+            lambda args: "console" in args,
+            lambda args: "execute" in args,
+        )
+        for i, predicate in enumerate(predicates):
+            signatures = []
+            for timeout in (7, 13):
+                with self.subTest(command=i, timeout=timeout):
+                    def command(args, **kw):
+                        if predicate(args):
+                            raise subprocess.TimeoutExpired(args, timeout)
+                    problems, _, _, _ = self.run_main(command_effect=command, state={},
+                                                       probes={self.HQ: self.probe(self.HQ, setup=False)})
+                    self.assertTrue(problems)
+                    self.assertEqual(len(self.emails), 1)
+                    self.assertTrue(any("FAILED" in p or "could not read" in p for p in problems))
+                    if i != 3:
+                        self.assertTrue(any("SETUP INCOMPLETE" in p for p in problems))
+                    signatures.append(problems)
+            self.assertEqual(*signatures, "Timeout detail must not change the alert signature")
+
+    def test_process_and_asset_timeouts_are_reported_without_aborting_mail(self):
+        def timeout(*args):
+            raise subprocess.TimeoutExpired(["synthetic-command"], 30)
+        for kwargs in ({"reset": timeout}, {"asset_read": timeout}):
+            with self.subTest(helper=next(iter(kwargs))):
+                problems, heals, _, _ = self.run_main(**kwargs, state={}, stopped=("nexum-db-1",))
+                self.assertIn("CONTAINER nexum-db-1: not running", problems)
+                self.assertEqual(heals, [])
+                self.assertEqual(len(self.emails), 1)
+
+    def test_deferred_or_unknown_checks_withhold_all_green_heartbeat(self):
+        def busy_map(args, **kw):
+            if args[-1] == "--check":
+                return types.SimpleNamespace(returncode=3, stdout="", stderr="")
+        for options in ({"reset": lambda n: "demo reset running"}, {"command_effect": busy_map},
+                        {"asset_read": lambda site: None}):
+            with self.subTest(check=next(iter(options))), patch.object(self.wd, "FORCE_HEARTBEAT", True):
+                self.run_main(**options, state={})
+                self.assertFalse(any("all green" in mail[1] for mail in self.emails))
+
+    def test_unknown_asset_alerts_only_on_second_run_and_recovers(self):
+        for failure in (None, subprocess.TimeoutExpired(["curl"], 30), RuntimeError("curl exited 28")):
+            with self.subTest(failure=failure), patch.object(self.wd, "FORCE_HEARTBEAT", True):
+                def asset(site):
+                    if site != self.HQ:
+                        return True
+                    if isinstance(failure, Exception):
+                        raise failure
+                    return failure
+                first, heals, _, saved = self.run_main(asset_read=asset, state={})
+                self.assertEqual(first, [])
+                self.assertEqual(self.emails, [], "First unknown must withhold both alert and heartbeat")
+                self.assertEqual(heals, [])
+                self.assertEqual(saved["unknown_assets_seen"], [self.HQ])
+                second, _, _, _ = self.run_main(asset_read=asset)
+                self.assertEqual(second, [f"ASSET CHECK FAILED {self.HQ}: could not read the CSS bundle reference"])
+                self.assertEqual(len(self.emails), 1)
+                third, _, _, _ = self.run_main(asset_read=asset)
+                self.assertEqual(second, third)
+                self.assertEqual(self.emails, [], "Persistent unknowns must deduplicate")
+                healthy, _, _, saved = self.run_main()
+                self.assertEqual(healthy, [])
+                self.assertEqual(saved["unknown_assets_seen"], [])
+                self.assertTrue(any("all green" in mail[1] for mail in self.emails))
+
+    def test_unknown_asset_sightings_are_per_site_and_reset_after_recovery(self):
+        with patch.object(self.wd, "FORCE_HEARTBEAT", True):
+            for site in (self.HQ, self.SBL, self.HQ):
+                problems, _, _, saved = self.run_main(asset_read=lambda candidate: None if candidate == site else True)
+                self.assertEqual(problems, [])
+                self.assertEqual(saved["unknown_assets_seen"], [site])
+                self.assertEqual(self.emails, [])
+
+    def test_worker_command_timeout_keeps_history_until_explicit_success(self):
+        real_unit_read = self.wd.unit_last_run
+        svc = "nexum-billing-worker.service"
+        def command(args, **kw):
+            if args[:2] == ["systemctl", "show"]:
+                if args[2] == svc:
+                    raise subprocess.TimeoutExpired(args, 30)
+                return types.SimpleNamespace(returncode=0, stdout="Result=success\nExecMainStatus=0\n", stderr="")
+        for _ in range(2):
+            _, _, _, saved = self.run_main(unit_read=real_unit_read, command_effect=command,
+                                           state={"failed_units_seen": [svc]} if _ == 0 else None)
+            self.assertEqual(saved["failed_units_seen"], [svc])
+        self.assertTrue(any(p.startswith("WORKER CHECK FAILED " + svc) for p in saved["last_problems"]))
+
+
+class TestRunBudget(unittest.TestCase):
+    """Run real orchestration/helpers with virtual time and fake external I/O."""
+
+    def setUp(self):
+        self.wd = _load_watchdog()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.tsv = os.path.join(self.tmp.name, "tenants.tsv")
+        self.state_path = os.path.join(self.tmp.name, "state.json")
+        self.sites = ["hq.nexumair.com", "sbl.nexumair.com", self.wd.DEMO_SITE,
+                      "budget-test.nexumair.com"]
+        self.wall_start = time.time()
+
+    def run_main(self, slow=lambda args: False, state=None, http_timeout=False, stale=False):
+        wd = self.wd
+        with open(self.tsv, "w") as stream:
+            for site in self.sites[1:]:
+                stream.write(f"t\t{site}\towner@example.com\tbusiness\tactive\n")
+        if state is not None:
+            with open(self.state_path, "w") as stream:
+                json.dump(state, stream)
+        self.elapsed = 0
+        self.commands, self.urls, self.emails, self.saves = [], [], [], []
+        probes = {s: {"sched": True, "setup": True, "stuck": 0, "maint": False,
+                      "jobs": [], "late": {"dormant": False, "jobs": []},
+                      "billing": [], "reconcile": []} for s in self.sites}
+        fake = _FakeRun(wd, probes)
+        real_save = wd._save_state
+
+        def advance(seconds):
+            self.elapsed += seconds
+
+        def command(args, **kwargs):
+            self.commands.append((list(args), kwargs["timeout"], self.elapsed))
+            if slow(args):
+                advance(kwargs["timeout"])
+                raise subprocess.TimeoutExpired(args, kwargs["timeout"])
+            if args[0] == "rclone":
+                output = json.dumps([{"ModTime": wd.datetime.now(wd.timezone.utc).isoformat()}])
+            elif args[:2] == ["systemctl", "show"]:
+                output = "Result=success\nExecMainStatus=0\n"
+            elif args[0] == "curl":
+                output = ('<link href="/assets/frappe.bundle.TEST.css">' if args[-1].endswith("/login")
+                          else "404" if stale else "200")
+            else:
+                return fake(args, **kwargs)
+            return types.SimpleNamespace(returncode=0, stdout=output, stderr="")
+
+        def urlopen(request, **kwargs):
+            self.urls.append((request.full_url, kwargs["timeout"], self.elapsed))
+            if http_timeout:
+                advance(kwargs["timeout"])
+                raise TimeoutError("synthetic HTTP timeout")
+            return types.SimpleNamespace(status=200)
+
+        def email(*args):
+            self.emails.append((self.elapsed, args))
+            advance(90)  # SMTP connect/TLS/auth/send still have time after checks stop
+
+        def save(state):
+            self.saves.append(self.elapsed)
+            real_save(state)
+
+        with patch.object(wd, "TSV_PATH", self.tsv), patch.object(wd, "STATE_PATH", self.state_path), \
+                patch.object(wd.subprocess, "run", command), \
+                patch.object(wd.urllib.request, "urlopen", urlopen), \
+                patch.object(wd, "log_fresh", lambda *a: (True, "ok (1h ago)")), \
+                patch.object(wd, "load_config", lambda: {}), \
+                patch.object(wd, "send_email", email), patch.object(wd, "_save_state", save), \
+                patch.object(wd, "log", lambda *a: None), patch.object(wd, "FORCE_HEARTBEAT", True), \
+                patch.object(wd.time, "monotonic", lambda: 123456.0 + self.elapsed), \
+                patch.object(wd.time, "time", lambda: self.wall_start - self.elapsed), \
+                patch.object(wd.time, "sleep", advance):
+            wd.main()
+        with open(self.state_path) as stream:
+            return json.load(stream)
+
+    def assert_finalized_in_budget(self, saved):
+        self.assertEqual(len(self.emails), 1)
+        self.assertLessEqual(self.emails[0][0], 20 * 60, "Checks spent the alert/state reserve")
+        self.assertLess(self.saves[-1], 25 * 60, "State missed the systemd unit deadline")
+        self.assertTrue(saved["last_alert_sig"])
+        body = self.emails[0][1][2]
+        self.assertIn("WATCHDOG BUDGET EXHAUSTED", body)
+        self.assertIn("unknown", body.lower())
+        self.assertNotIn("all green", self.emails[0][1][1])
+        return body
+
+    def test_sequential_timeouts_reserve_alert_and_state_and_name_skipped_checks(self):
+        initial = {"maint_since": {self.sites[1]: self.wall_start - 3 * 3600},
+                   "late_seen": [self.sites[1]], "billing_backlog_seen": ["event-1"],
+                   "provisioning_seen": ["lead-1"], "approved_seen": ["lead-2"],
+                   "last_problems": [f"EMAIL QUEUE {self.sites[1]}: 1 unsent/error emails older than 1h"]}
+        saved = self.run_main(state=initial, slow=lambda args: args[0] == "rclone"
+                             or args[:2] == ["docker", "ps"] or "console" in args)
+        body = self.assert_finalized_in_budget(saved)
+        self.assertEqual(len([c for c in self.commands if c[0][0] == "rclone"]), 6)
+        probes = [c for c in self.commands if "console" in c[0]]
+        self.assertEqual(len(probes), 1)
+        self.assertEqual(probes[0][1], 90)  # 1080s rclone + 30s docker ps leaves 90s
+        for label in (f"site health {self.sites[1]}", f"HTTP https://{self.sites[1]}",
+                      "fallback map", "provisioning leads", f"assets {self.sites[1]}"):
+            self.assertIn(label, body)
+        for key in initial.keys() - {"last_problems"}:
+            self.assertEqual(saved[key], initial[key], key)
+        self.assertIn(initial["last_problems"][0], saved["last_problems"])
+        self.assertEqual(self.urls, [], "No HTTP request may start after the check deadline")
+
+    def test_budget_skips_keep_worker_and_asset_unknown_sightings_until_recovery(self):
+        self.sites += [f"budget-{i}.nexumair.com" for i in range(3)]
+        svc = "nexum-billing-worker.service"
+        initial = {"failed_units_seen": [svc], "unknown_assets_seen": [self.sites[1]]}
+        slow = lambda args: args[0] == "rclone"
+        first = self.run_main(slow=slow, state=initial)
+        body = self.assert_finalized_in_budget(first)
+        self.assertIn(f"worker {svc}", body)
+        self.assertIn("B2 host-state", body)
+        self.assertEqual(first["failed_units_seen"], [svc])
+        self.assertIn(svc, first["unknown_units_seen"])
+        self.assertEqual(first["unknown_assets_seen"], sorted(self.sites))
+        self.assertFalse(any(p.startswith("WORKER CHECK FAILED") for p in first["last_problems"]))
+        self.assertIn(f"ASSET CHECK FAILED {self.sites[1]}: could not read the CSS bundle reference",
+                      first["last_problems"])
+        second = self.run_main(slow=slow)
+        self.assertTrue(any(p.startswith(f"WORKER CHECK FAILED {svc}") for p in second["last_problems"]))
+        third = self.run_main(slow=slow)
+        self.assertEqual(third["last_problems"], second["last_problems"])
+        self.assertEqual(self.emails, [], "Persistent budget exhaustion must de-duplicate")
+        healthy = self.run_main()
+        self.assertEqual(healthy["last_problems"], [])
+        self.assertEqual(healthy["failed_units_seen"], [])
+        self.assertEqual(healthy["unknown_units_seen"], [])
+        self.assertEqual(healthy["unknown_assets_seen"], [])
+        self.assertIn("all green", self.emails[0][1][1])
+
+    def test_http_checks_share_the_remaining_command_budget(self):
+        saved = self.run_main(http_timeout=True, slow=lambda args: args[0] == "rclone"
+                             or args[:2] == ["docker", "ps"])
+        self.assert_finalized_in_budget(saved)
+        self.assertEqual(self.urls[-1][1], 10)
+        self.assertFalse(any(c[0][0] == "curl" for c in self.commands))
+
+    def test_budget_limits_asset_recovery_and_reserves_frontend_restart(self):
+        saved = self.run_main(stale=True, slow=lambda args: args[:2] == ["docker", "restart"])
+        self.assert_finalized_in_budget(saved)
+        restarts = [c for c in self.commands if c[0][:2] == ["docker", "restart"]]
+        self.assertEqual([c[0][2] for c in restarts], ["nexum-backend-1", "nexum-frontend-1"])
+        self.assertLess(restarts[0][1], 600)
+        self.assertEqual(restarts[1][1], 600)
+
+        # With too little time left to guarantee cleanup, don't begin a heal or
+        # spend its six-hour cooldown. The next run must be able to try again.
+        saved = self.run_main(stale=True, slow=lambda args: args[0] == "rclone", state={"last_heal": 0})
+        self.assert_finalized_in_budget(saved)
+        self.assertFalse(any(c[0][:2] == ["docker", "restart"] for c in self.commands))
+        self.assertEqual(saved["last_heal"], 0)
+
+
+class TestCommandBounds(unittest.TestCase):
+    def test_every_subprocess_has_a_timeout_and_unit_finishes_before_next_tick(self):
+        wd = _load_watchdog()
+        with open(wd.__file__) as stream:
+            tree = ast.parse(stream.read())
+        for call in ast.walk(tree):
+            if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                    and isinstance(call.func.value, ast.Name) and call.func.value.id == "subprocess"
+                    and call.func.attr == "run"):
+                self.assertTrue(any(k.arg == "timeout" for k in call.keywords), f"line {call.lineno}")
+        with open(os.path.join(os.path.dirname(wd.__file__), "nexum-watchdog.service")) as stream:
+            unit = stream.read()
+        import re
+        match = re.search(r"^TimeoutStartSec=(\d+)([sm]?)$", unit, re.MULTILINE)
+        self.assertIsNotNone(match)
+        seconds = int(match[1]) * (60 if match[2] == "m" else 1)
+        self.assertTrue(0 < seconds < 1800)
+        self.assertTrue(0 < wd.CHECK_BUDGET_S <= seconds - 3 * 60)
 
 
 class TestRoster(unittest.TestCase):

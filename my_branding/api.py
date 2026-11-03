@@ -21,6 +21,7 @@ site_config covers them):
   alerts the owner so the lead gets a human follow-up instead of being lost.
 """
 
+import fcntl
 import json
 import os
 import re
@@ -656,23 +657,6 @@ def _spill_overflow(d, email):
 	digest); the beacon is best-effort by nature and the lead was lost either way."""
 	try:
 		path = frappe.get_site_path("private", "capture-overflow.jsonl")
-		if os.path.exists(path) and os.path.getsize(path) > OVERFLOW_MAX_BYTES:
-			# ONE alert per hour (Codex gate round 3): unthrottled, an attacker who
-			# filled the bounded file could then mint unlimited Error Log rows —
-			# trading a disk cap for a database flood. frappe.cache get/set_value
-			# go through make_key, so the latch is site-scoped.
-			try:
-				if not frappe.cache().get_value("nx_overflow_full_alerted"):
-					frappe.cache().set_value("nx_overflow_full_alerted", 1,
-					                         expires_in_sec=3600)
-					frappe.log_error(
-						title="capture overflow file full",
-						message="capture-overflow.jsonl over %d bytes — beacons are "
-						        "being dropped (latest: %s). Archive the file via the "
-						        "funnel digest to resume capture." % (OVERFLOW_MAX_BYTES, email))
-			except Exception:
-				pass  # alerting must never break the uniform guest response
-			return _accepted()
 		entry = {
 			"ts": str(frappe.utils.now_datetime()),
 			"email": email,
@@ -681,13 +665,36 @@ def _spill_overflow(d, email):
 			"subdomain": (d.get("subdomain") or "").strip()[:60],
 			"reason": (d.get("reason") or "unknown").strip()[:60],
 		}
-		with open(path, "a") as fh:
-			fh.write(json.dumps(entry) + "\n")
+		line = (json.dumps(entry) + "\n").encode("utf-8")
+		# Persistent sidecar shared with signup-funnel's rotator. Lock BEFORE
+		# opening the live inode, and close the append handle before unlocking:
+		# a recovery must never unlink a file an appender is still writing to.
+		with open(path + ".lock", "a") as lock:
+			fcntl.flock(lock, fcntl.LOCK_EX)
+			size = os.path.getsize(path) if os.path.exists(path) else 0
+			if size + len(line) > OVERFLOW_MAX_BYTES:
+				# ONE site-scoped alert per hour, including concurrent writers.
+				try:
+					if not frappe.cache().get_value("nx_overflow_full_alerted"):
+						frappe.cache().set_value("nx_overflow_full_alerted", 1, expires_in_sec=3600)
+						frappe.log_error(
+							title="capture overflow file full",
+							message="capture-overflow.jsonl reached its %d byte cap — beacons are "
+							        "being dropped (latest: %s). Archive the file via the "
+							        "funnel digest to resume capture." % (OVERFLOW_MAX_BYTES, email))
+				except Exception:
+					pass  # alerting must never break the uniform guest response
+				return _accepted()
+			with open(path, "ab") as fh:
+				fh.write(line)
 		# uniform guest shape (Codex gate, finding 8): {"ok", "overflow"} vs bare
 		# {"ok"} for known emails was the last remaining enumeration oracle
 		return _accepted()
 	except Exception:
-		frappe.log_error(title="capture overflow spill failed", message=frappe.get_traceback())
+		try:
+			frappe.log_error(title="capture overflow spill failed", message=frappe.get_traceback())
+		except Exception:
+			pass
 		return _accepted()
 
 

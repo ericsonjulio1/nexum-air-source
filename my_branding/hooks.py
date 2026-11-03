@@ -54,10 +54,12 @@ fixtures = [
 	# every migrate, reverting tenant content edits and their default choice.
 	{"dt": "Custom Field", "filters": [["module", "=", "My Branding"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "My Branding"]]},
-	# Rebranded Settings workspace (was "ERPNext Settings", now plain "Settings");
-	# reconcile hook below removes the duplicate the standard ERPNext sync recreates.
-	{"dt": "Workspace", "filters": [["name", "=", "Settings"]]},
+	# Settings lives in seed/settings_workspace_v*.json: reconcile_workspaces
+	# creates it or upgrades an unchanged shipped definition without force-importing
+	# over tenant content/rows. No Workspace JSON may remain under fixtures/.
 ]
+
+after_install = ["my_branding.branding.reconcile_workspaces"]
 
 # Keep the rebranded "Settings" workspace from being duplicated by the standard
 # ERPNext workspace sync on each migrate, and re-assert desk string overrides
