@@ -329,6 +329,27 @@ class TestMainOrchestration(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(heals, [])
 
+    def test_empty_bench_leads_stdout_is_a_healthy_empty_list(self):
+        for stdout in ("", "\n", " \n\t", "[]\n"):
+            with self.subTest(stdout=stdout):
+                def answer(args, **kwargs):
+                    if "execute" in args:
+                        return types.SimpleNamespace(stdout=stdout, stderr="", returncode=0)
+                problems, _, _, saved = self.run_main(command_effect=answer,
+                    state={"provisioning_seen": ["old"], "approved_seen": ["old"]})
+                self.assertFalse(any("provisioning-leads check FAILED" in p for p in problems), problems)
+                self.assertEqual(saved["provisioning_seen"], [])
+                self.assertEqual(saved["approved_seen"], [])
+
+    def test_bad_or_failed_bench_leads_probe_still_alerts(self):
+        for stdout, status in (("", 1), ("not JSON", 0), ("{}", 0), ("null", 0), ("false", 0)):
+            with self.subTest(stdout=stdout, status=status):
+                def answer(args, **kwargs):
+                    if "execute" in args:
+                        return types.SimpleNamespace(stdout=stdout, stderr="synthetic failure", returncode=status)
+                problems, _, _, _ = self.run_main(command_effect=answer)
+                self.assertTrue(any("provisioning-leads check FAILED" in p for p in problems), problems)
+
     def test_pending_billing_event_still_alerts_when_worker_log_is_fresh(self):
         probes = {self.HQ: self.probe(self.HQ, billing=[["synthetic-retried", "recurring.cycle.succeeded"]])}
         with patch.object(self.wd.os.path, "getmtime", return_value=time.time()):
@@ -495,7 +516,8 @@ class TestMainOrchestration(unittest.TestCase):
     def test_failed_or_malformed_crm_read_retains_both_sightings(self):
         initial = {"provisioning_seen": ["synthetic-provisioning"], "approved_seen": ["synthetic-approved"]}
         texts = []
-        for code, output in ((1, ""), (1, "[]"), (0, ""), (0, "null"), (0, "{}"),
+        # Empty stdout with rc=0 is bench's normal serialization of [].
+        for code, output in ((1, ""), (1, "[]"), (0, "null"), (0, "{}"),
                              (0, '[{"name":"x"}]'), (0, 'not json')):
             with self.subTest(code=code, output=output), patch.object(self.wd, "FORCE_HEARTBEAT", True):
                 def command(args, **kw):
