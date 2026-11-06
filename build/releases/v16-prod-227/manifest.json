@@ -1,0 +1,122 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-227",
+  "candidate_tag": "ericsonjulio/erpnext:v16-prod-227-rc8",
+  "digest": "sha256:1c287bb2682e08199cd604462091c72882afc6ebe020b5504e3f0e464919b952",
+  "base_image": "ericsonjulio/erpnext@sha256:ae924799fb695f14ac5a4bfe74eb8844380e6fe4c4400509a43b38ac075d035e",
+  "platform": "linux/amd64",
+  "inherited_release": "../v16-prod-226/manifest.json",
+  "inherited_dependency_locks": "../v16-prod-225/",
+  "changes_upstream_dependencies": false,
+  "dockerfile_sha256": "ed90f286e6dc06037add6a4d399bc311424fbe5fc318b7fbabfbd0076d464fde",
+  "upstream_apps": {
+    "frappe": {
+      "repository": "https://github.com/frappe/frappe",
+      "previous_ref": "v16.53.0",
+      "ref": "v16.54.0",
+      "commit": "2fcb9397a1f1da353b21e53d2f97ec56653acd02",
+      "archive_sha256": "6d5d9af58387f6160c4cb60bd3c22b7ac8965d606be9e9856e1b1f5c79420694",
+      "license": "MIT"
+    },
+    "erpnext": {
+      "repository": "https://github.com/frappe/erpnext",
+      "previous_ref": "v16.52.1",
+      "ref": "v16.53.0",
+      "commit": "9cd11b19575bfc34f092a24f6c8b368c4dd69481",
+      "archive_sha256": "590a27ad102f6d95cb71e6bcfbbcc65193f70dc7e26384ede06aaded5165a655",
+      "license": "GPL-3.0"
+    },
+    "hrms": {
+      "repository": "https://github.com/frappe/hrms",
+      "previous_ref": "v16.52.0",
+      "ref": "v16.53.0",
+      "commit": "b12d935b99c1434618845fdd9f3a3d340b5a3aed",
+      "archive_sha256": "d5f8668aaa2798d3589e7b7ec84857ae40e4725e0522fc51abec2324fde948e5",
+      "license": "GPL-3.0"
+    },
+    "crm": {
+      "repository": "https://github.com/frappe/crm",
+      "previous_ref": "v1.89.2",
+      "ref": "v1.91.1",
+      "commit": "3775e6da20cd7bb33434da050e11448e4ee8fb29",
+      "archive_sha256": "925a7ab411f407e8eda0d37e369efca418562708bfa53a828c91ffd3ee0a692d",
+      "license": "AGPL-3.0"
+    },
+    "helpdesk": {
+      "repository": "https://github.com/frappe/helpdesk",
+      "previous_ref": "v1.31.0",
+      "ref": "v1.31.1",
+      "commit": "99c961681a69be4b33a2f6564e60f49780a2f685",
+      "archive_sha256": "32b03678514b19de0afa4f790132f4254ce227bdb10343af837ea13daa2d646b",
+      "license": "AGPL-3.0"
+    },
+    "drive": {
+      "repository": "https://github.com/frappe/drive",
+      "previous_ref": "v0.4.3",
+      "ref": "v0.4.4",
+      "commit": "7ed084bc6f1a5abb1a99302e1f0def264dead719",
+      "archive_sha256": "bf7ab1b4b811f25da1d1fa8d60e52ac0d76f0b821fed1bbfd05c5fb365bfbea4",
+      "license": "AGPL-3.0"
+    }
+  },
+  "retained_apps": {
+    "insights": {
+      "repository": "https://github.com/frappe/insights",
+      "commit": "c7dc954d8275756deb5ad24f7c35c3f3c2ca1a6c",
+      "license": "AGPL-3.0",
+      "source": "inherited from v16-prod-225; retained overlay files re-verified"
+    },
+    "telephony": {
+      "repository": "https://github.com/frappe/telephony",
+      "commit": "9447577500a25d242088398157b72c654fa34b20",
+      "license": "AGPL-3.0",
+      "source": "inherited from v16-prod-225; retained overlay files re-verified"
+    },
+    "payments": {
+      "repository": "https://github.com/frappe/payments",
+      "commit": "cca07d9f9392e2ea0e521c5975151db9e4b6c321",
+      "license": "MIT",
+      "source": "inherited unchanged from v16-prod-225"
+    },
+    "print_designer": {
+      "repository": "https://github.com/frappe/print_designer",
+      "commit": "7beaad298dd60467223c9a2b0360dd8c216a2b91",
+      "license": "AGPL-3.0",
+      "source": "inherited from v16-prod-225; retained overlay files re-verified"
+    },
+    "gameplan": {
+      "repository": "https://github.com/frappe/gameplan",
+      "commit": "30d4f16f9f2c5b18ad684252c61e851228943162",
+      "license": "AGPL-3.0",
+      "source": "inherited unchanged from v16-prod-225"
+    }
+  },
+  "custom_apps": {
+    "my_branding": {
+      "repository": "https://github.com/ericsonjulio1/Nexum-Air",
+      "commit": "66897f3a946e5a8034720d000313bc874c19291c",
+      "tree": "9476f1c6da0faac1b318a2c6901ad5de417c1736",
+      "source": "published runtime application",
+      "license": "MIT"
+    },
+    "eam": {
+      "repository": "https://github.com/ericsonjulio1/eam",
+      "commit": "c65980f7fbd995759982952e2bf564a20038279a",
+      "tree": "211860f6e0921f6e139b85be3ea68e6f1c769a7e",
+      "source": "private repository",
+      "license": "MIT"
+    }
+  },
+  "source_overlays": {
+    "guarded_files": 49,
+    "components": [
+      "v225 upstream.patch (22 files)",
+      "v225 security manifest (17 entries)",
+      "8fa2f6fb PDF/security + Print Designer routing",
+      "v225 migration cache/MCP/Drive menu",
+      "v225 frappe/ui and Helpdesk frozen locks",
+      "v227 rc8 CRM-only exact Pulse URL import map and inert ES module; owner 2026-11-04"
+    ]
+  },
+  "status": "deployed-verified",
+  "deployed_verified_utc": "2026-11-06T19:30:52Z"
+}

@@ -24,20 +24,20 @@ upstream commit we run, and our modifications.
   **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
   by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
-## v226 applications, licenses, and pinned commits
+## v227 applications, licenses, and pinned commits
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
-| frappe (framework) | MIT | https://github.com/frappe/frappe | `e8d41dd0061a` |
-| erpnext | GPLv3 | https://github.com/frappe/erpnext | `ade850bbd6a7` |
-| hrms | GPLv3 | https://github.com/frappe/hrms | `5c72c067c0a3` |
+| frappe (framework) | MIT | https://github.com/frappe/frappe | `2fcb9397a1f1` |
+| erpnext | GPLv3 | https://github.com/frappe/erpnext | `9cd11b19575b` |
+| hrms | GPLv3 | https://github.com/frappe/hrms | `b12d935b99c1` |
 | payments | MIT | https://github.com/frappe/payments | `cca07d9f9392` |
 | **print_designer** | **AGPLv3** | https://github.com/frappe/print_designer | `7beaad298dd6` |
 | **insights** | **AGPLv3** | https://github.com/frappe/insights | `c7dc954d8275` |
-| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `7d7e394e7571` |
-| **crm** | **AGPLv3** | https://github.com/frappe/crm | `e2d0b47a3ed3` |
+| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `99c961681a69` |
+| **crm** | **AGPLv3** | https://github.com/frappe/crm | `3775e6da20cd` |
 | **gameplan** | **AGPLv3** | https://github.com/frappe/gameplan | `30d4f16f9f2c` |
-| **drive** | **AGPLv3** | https://github.com/frappe/drive | `959172cec552` |
+| **drive** | **AGPLv3** | https://github.com/frappe/drive | `7ed084bc6f1a` |
 | **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `9447577500a2` |
 | my_branding | MIT* | https://github.com/ericsonjulio1/nexum-air-source | main |
 
@@ -45,7 +45,18 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current production release: v16-prod-226
+## Current production release: v16-prod-227
+
+Deployed and verified on 7 November 2026 (Pacific/Port_Moresby).
+The [v227 recipe](build/releases/v16-prod-227/README.md) updates the framework on the exact
+v226 image: Frappe 16.54.0, ERPNext 16.53.0, HRMS 16.53.0, CRM 1.91.1, Helpdesk 1.31.1 and
+Drive 0.4.4 (pinned commits in the table above). Insights, Telephony, Print Designer, Payments
+and Gameplan keep their v225 sources, and the hashed Python dependency locks are unchanged.
+The v225 modifications are carried forward, and CRM's remote Frappe Pulse telemetry client is
+replaced by a local no-op module (modification 8 below). Branding is `66897f3a946e`; private
+EAM is `c65980f7fbd9`.
+
+## Previous release: v16-prod-226
 
 Deployed and verified on 3 November 2026 (Pacific/Port_Moresby).
 The [v226 recipe](build/releases/v16-prod-226/README.md) builds on the exact v225 image; every
@@ -235,8 +246,9 @@ Its private repository is not copied into this public mirror.
 
 ## Modifications we make to bundled apps
 
-The following describes the205 base modifications. The206 recipe above identifies
-retained and superseded patches; both sets of build scripts are included:
+Items 1–7 describe the v205 base modifications; each release recipe above identifies
+the retained and superseded patches. The v227 recipe lists every modified file with
+upstream and patched SHA-256 in `build/releases/v16-prod-227/context/v227-tools/source-overlays.json`.
 
 1. **gameplan** (AGPLv3) — `gameplan/api.py`: guard a `from frappe.config import
    get_modules_from_all_apps_for_user` import that was removed in Frappe v16, so
@@ -270,6 +282,12 @@ retained and superseded patches; both sets of build scripts are included:
    Each patched file is the pinned upstream file plus exactly the upstream security
    hunks. See `patches/security-2026-08-22.md` and `patches/security-2026-08-22/`.
 
+8. **crm** (AGPLv3) — `frontend/index.html`: an import map resolves CRM's remote Frappe
+   Pulse analytics client (`https://pulse.m.frappe.cloud/assets/pulse/js/pulse_client.js`)
+   to `frontend/public/nexum-pulse-client-noop.js`, a local module whose methods do
+   nothing, so the browser makes no telemetry request. Added in v16-prod-227; see
+   `build/releases/v16-prod-227/context/v227-tools/patchers/crm-pulse/verify.py`.
+
 Earlier modifications that are now part of the pinned upstream versions (the patch
 scripts in `patches/` detect this and change nothing): the erpnext Growth-view fix for
 columnar financial reports, the frappe Package Import TarSlip fix (GHSA-58w2-4cjg-hvp6),
@@ -277,16 +295,17 @@ and the other 2026-08-22 frappe/erpnext security backports.
 
 ## Reproducing the build
 
-The current recipe is `build/releases/v16-prod-225/manifest.json`. It pins the
-v224 base, all eleven upstream applications, the branding runtime commit and
-retained private EAM commit. Follow its `README.md` and `prepare-context.py` for
-verified source extraction, retained security patches, frozen frontend locks and
-the exact Dockerfile. Both Python interpreters use hashed package locks and
-complete installed-file inventories; intermediate layers are not claimed to be
-byte-for-byte reproducible.
+The current recipe is `build/releases/v16-prod-227/manifest.json`. It pins the
+v226 base, the six updated upstream applications, the branding runtime commit and
+the private EAM commit. Its `prepare.py` downloads the pinned sources, applies the
+published overlays and verifies every file and permission of the build context
+against `context-files.json`. The base's dependency locks and other applications
+come from the v225 recipe (`build/releases/v16-prod-225/`): both Python
+interpreters use hashed package locks and complete installed-file inventories;
+intermediate layers are not claimed to be byte-for-byte reproducible.
 
 A public reader cannot rebuild the private EAM layer without repository access.
 The branding runtime and package metadata are published in this mirror. Follow
 the inherited v224 and earlier manifests for the retained base's provenance.
 Historical `build/Containerfile`, `saas/image/Containerfile` and old patchers alone
-do not reproduce v225; its release capsule is the canonical recipe.
+do not reproduce v227; its release capsule is the canonical recipe.

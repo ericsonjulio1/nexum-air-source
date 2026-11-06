@@ -1,0 +1,307 @@
+{
+  "component_provenance": [
+    "v225 upstream.patch (22 files)",
+    "v225 security manifest (17 entries)",
+    "8fa2f6fb PDF/security + Print Designer routing",
+    "v225 migration cache/MCP/Drive menu",
+    "v225 frappe/ui and Helpdesk frozen locks",
+    "v227 rc8 CRM-only exact Pulse URL import map and inert ES module; owner 2026-11-04"
+  ],
+  "files": [
+    {
+      "after_sha256": "a8eb2b906903321a648de5d1e023af5726df8fb42ace4f8450ff9f4ee9d73920",
+      "assert_old_gone": true,
+      "before_sha256": "6bb6dd5f737d7070264ed49e0fff78a049cc61c73b0c171d63419e0b866cd190",
+      "path": "apps/crm/frontend/index.html"
+    },
+    {
+      "after_sha256": "ea7fd1f4d72aee3a4d94dc544bebad525723f0a769d9c3369b9c1a919fe5deb3",
+      "assert_old_gone": true,
+      "before_sha256": null,
+      "path": "apps/crm/frontend/public/nexum-pulse-client-noop.js"
+    },
+    {
+      "after_sha256": "cb61ba2728e66f9b0427620fd22e8a469302156ab9d724f9e3581fbb2a34d1cf",
+      "assert_old_gone": true,
+      "before_sha256": "2364779beaa8f283418deefc1cce7b6539f026d90e19a58bb54276cf73d9d3e8",
+      "path": "apps/crm/frontend/src/components/Dashboard/DashboardItem.vue"
+    },
+    {
+      "after_sha256": "66f182144ee4a32f09f3543f50a76f0b2337287bd360d1c488a0a52257206211",
+      "assert_old_gone": true,
+      "before_sha256": "92a538461b981495ea66101c51e6e6551aa22bbcbba67f5d76b31cf44666d01d",
+      "path": "apps/crm/frontend/src/components/UserDropdown.vue"
+    },
+    {
+      "after_sha256": "89b910c12c79395a971a0e1f7775b4ee5b91b9f86b7c59b57d1d3f2be8087cfd",
+      "assert_old_gone": true,
+      "before_sha256": "90211896989946bdd47ef7622caeadfce4cc0b93121b279e425cfac07c383e24",
+      "path": "apps/drive/frontend/src/resources/permissions.js"
+    },
+    {
+      "after_sha256": "79659dffe18ec997b305aee9031806b100d014298e710ea0bbeca843f9665718",
+      "assert_old_gone": true,
+      "before_sha256": "88b678294690255a8f77d3c505b7cafc158b7aff8c11bd0dffce06342828e114",
+      "path": "apps/drive/package.json"
+    },
+    {
+      "after_sha256": "d3d6762f495c5d340ff63bdb7806eb27c084010f7335c8599146d730f187dfb9",
+      "assert_old_gone": false,
+      "before_sha256": "d3d6762f495c5d340ff63bdb7806eb27c084010f7335c8599146d730f187dfb9",
+      "path": "apps/erpnext/erpnext/accounts/custom/address.py"
+    },
+    {
+      "after_sha256": "61b40ea819e550ccb50315a793771e2d04cd4cff278d893cc1816a9771583bea",
+      "assert_old_gone": false,
+      "before_sha256": "61b40ea819e550ccb50315a793771e2d04cd4cff278d893cc1816a9771583bea",
+      "path": "apps/erpnext/erpnext/accounts/doctype/payment_request/payment_request.py"
+    },
+    {
+      "after_sha256": "da57c031563a5613151068af2eaef4e136c859ad183d87a74474e7215e782201",
+      "assert_old_gone": false,
+      "before_sha256": "da57c031563a5613151068af2eaef4e136c859ad183d87a74474e7215e782201",
+      "path": "apps/erpnext/erpnext/accounts/doctype/process_statement_of_accounts/process_statement_of_accounts.py"
+    },
+    {
+      "after_sha256": "cca94cda4be694136745ae8629fc6516f1112be137ad3ea2ccd5940cc3dda3d5",
+      "assert_old_gone": false,
+      "before_sha256": "cca94cda4be694136745ae8629fc6516f1112be137ad3ea2ccd5940cc3dda3d5",
+      "path": "apps/erpnext/erpnext/assets/doctype/asset_capitalization/asset_capitalization.py"
+    },
+    {
+      "after_sha256": "7f9bd7fdcb00eb7b33b71ec858e95fbd7eddfc18b54820b3b005798454fa250f",
+      "assert_old_gone": false,
+      "before_sha256": "7f9bd7fdcb00eb7b33b71ec858e95fbd7eddfc18b54820b3b005798454fa250f",
+      "path": "apps/erpnext/erpnext/buying/doctype/request_for_quotation/request_for_quotation.py"
+    },
+    {
+      "after_sha256": "f72d86bc003feb8249a749f6c170bdc2b1fe6affbecf4f86b87b40c9bdd9f14c",
+      "assert_old_gone": false,
+      "before_sha256": "f72d86bc003feb8249a749f6c170bdc2b1fe6affbecf4f86b87b40c9bdd9f14c",
+      "path": "apps/erpnext/erpnext/controllers/item_variant.py"
+    },
+    {
+      "after_sha256": "83cd5225173c7cdfce16b79931c0633a47272604dbf3ae1820091110dbdc2a3b",
+      "assert_old_gone": false,
+      "before_sha256": "83cd5225173c7cdfce16b79931c0633a47272604dbf3ae1820091110dbdc2a3b",
+      "path": "apps/erpnext/erpnext/crm/doctype/contract_template/contract_template.py"
+    },
+    {
+      "after_sha256": "b0442552792e52bd8c230a8e3c8cebd06e202b31b65ad2a486cbd3dca8bcff1c",
+      "assert_old_gone": false,
+      "before_sha256": "b0442552792e52bd8c230a8e3c8cebd06e202b31b65ad2a486cbd3dca8bcff1c",
+      "path": "apps/erpnext/erpnext/crm/doctype/email_campaign/email_campaign.py"
+    },
+    {
+      "after_sha256": "55f2e8937670674ad1b82d99bdc921609c049aa8a30e1a1f5874f76ef4718350",
+      "assert_old_gone": false,
+      "before_sha256": "55f2e8937670674ad1b82d99bdc921609c049aa8a30e1a1f5874f76ef4718350",
+      "path": "apps/erpnext/erpnext/manufacturing/doctype/plant_floor/plant_floor.py"
+    },
+    {
+      "after_sha256": "4bc576f0a8d044ed03620a680ab6589de20f40b90c09fcbd5c51e29a5955d50a",
+      "assert_old_gone": true,
+      "before_sha256": "06caa0fbc4a6827211ac0a6c19e11f66b8ac8689400094f7394187be85287634",
+      "path": "apps/erpnext/erpnext/stock/doctype/delivery_trip/delivery_trip.py"
+    },
+    {
+      "after_sha256": "abbbd8619b9177862096a3f63407ecf8f1af6dc9ed9a2465d2df56b4ea6a23d3",
+      "assert_old_gone": false,
+      "before_sha256": "abbbd8619b9177862096a3f63407ecf8f1af6dc9ed9a2465d2df56b4ea6a23d3",
+      "path": "apps/erpnext/erpnext/stock/get_item_details.py"
+    },
+    {
+      "after_sha256": "f0ebe52fd9f254be00bdfca752c1bcda1806047be0cd43b7bbedf2d79a77d908",
+      "assert_old_gone": true,
+      "before_sha256": "b1f7515fb4f542aef1d0ec7a450b218517b28bf4f2eca7f6c54dbb2957ee72ac",
+      "path": "apps/frappe/frappe/cache_manager.py"
+    },
+    {
+      "after_sha256": "4008cb7bce1257908d5f32725600f89c3d2a766f44ee2d11cc1df46c054a0ea3",
+      "assert_old_gone": true,
+      "before_sha256": "cf459a0e3f117206f803e10234240ae72c5a127a0a6506fafee4e7b12e7d7f74",
+      "path": "apps/frappe/frappe/client.py"
+    },
+    {
+      "after_sha256": "b4fa2d083a66b044d2cd6c191252f5b49a0a992d88d654e6368354b92c39466d",
+      "assert_old_gone": true,
+      "before_sha256": "5ec39725b2dca87c886ae61ff8641fcb34dabdb583baf0b55218dbb6bc0fe39b",
+      "path": "apps/frappe/frappe/core/doctype/system_settings/system_settings.json"
+    },
+    {
+      "after_sha256": "7872a9e7c3f3824b1e4f5a8ada940219f8c1711aa2a4f303083e113fdceee365",
+      "assert_old_gone": true,
+      "before_sha256": "93a877b124d065d576e544f321d4ba83fd654ed9046daf8f690313f0c908e714",
+      "path": "apps/frappe/frappe/desk/doctype/sidebar/sidebar.py"
+    },
+    {
+      "after_sha256": "5d906a67f563077823d622561441a309453df4df537ea03f61e6200c43ff0133",
+      "assert_old_gone": false,
+      "before_sha256": "5d906a67f563077823d622561441a309453df4df537ea03f61e6200c43ff0133",
+      "path": "apps/frappe/frappe/integrations/oauth2.py"
+    },
+    {
+      "after_sha256": "f59ecf75abd0f0a92b523bb7770861818744bfa9cfbad08dcc81c51fdc40fb8b",
+      "assert_old_gone": true,
+      "before_sha256": "aa10ecc380ee6fd9da06ca89ab8744931f255cefa1db533255bf8b90ad2a8efb",
+      "path": "apps/frappe/frappe/migrate.py"
+    },
+    {
+      "after_sha256": "f618571c45bb6c3f70c6a5e9ef5ab7b7432af103dfe7629773d64de63aad5282",
+      "assert_old_gone": true,
+      "before_sha256": "6862981bee31f5df9b4960015678583ec6f7c99408729ccfa25a2b18b1ed2420",
+      "path": "apps/frappe/frappe/patches.txt"
+    },
+    {
+      "after_sha256": "26f07bc52e141a6f832403eb1d43737d820aa983907b85804a8567afe5adcbdf",
+      "assert_old_gone": true,
+      "before_sha256": "3baed0647cbfeb5041f3164f59265243e66fe0681606be4f72b7aada4cff00b8",
+      "path": "apps/frappe/frappe/public/js/frappe/widgets/chart_widget.js"
+    },
+    {
+      "after_sha256": "f59250b40212e35d28ffbf2c1599c67c342beff19868058f6a6f786f92e8e2af",
+      "assert_old_gone": false,
+      "before_sha256": "f59250b40212e35d28ffbf2c1599c67c342beff19868058f6a6f786f92e8e2af",
+      "path": "apps/frappe/frappe/templates/includes/oauth_confirmation.html"
+    },
+    {
+      "after_sha256": "9a5656a8c91914c585f352fe5fdb69383f75a1fe9716f8f6e2ac3e010e40adf0",
+      "assert_old_gone": true,
+      "before_sha256": "cc72a38f83ae6e9d571bb1d9eee06834e34ad6cf6f9d0e9510e573aa6b33d660",
+      "path": "apps/frappe/frappe/tests/test_bulk_pdf_limits.py"
+    },
+    {
+      "after_sha256": "c345556b3059b80ffc1093a334bfa0365764514c4fcb320942deb4891f26f81d",
+      "assert_old_gone": true,
+      "before_sha256": "153e28fa86f97161c5718fb0fc2750f9e69b96287ecca9ebf072809b87f8b9d8",
+      "path": "apps/frappe/frappe/utils/print_format.py"
+    },
+    {
+      "after_sha256": "75a8d97d570ab73f0178eb982b69adbb43f5441ae2d7d2ef4fd8b9b714509f13",
+      "assert_old_gone": true,
+      "before_sha256": "90531fb98a0ff35f0270a9d3430d1ce654221fcb04edd9059b863798cd2ef1b2",
+      "path": "apps/frappe/frappe/website/doctype/web_form/web_form.py"
+    },
+    {
+      "after_sha256": "276ac8f68512c92c521e34efe2a4928c20330fb0c8085af0ca1bc64e3141183c",
+      "assert_old_gone": false,
+      "before_sha256": "276ac8f68512c92c521e34efe2a4928c20330fb0c8085af0ca1bc64e3141183c",
+      "path": "apps/frappe/frappe/workflow/doctype/workflow_action/workflow_action.py"
+    },
+    {
+      "after_sha256": "b64ccfc723cd105fd13d486f154a340322c86f7a9318a2c42e53320931149463",
+      "assert_old_gone": false,
+      "before_sha256": "b64ccfc723cd105fd13d486f154a340322c86f7a9318a2c42e53320931149463",
+      "path": "apps/frappe/frappe/www/confirm_workflow_action.html"
+    },
+    {
+      "after_sha256": "3236efc5cd5c79907fc1743207f5cdc39ff9f8a68165092d09781dbd54c0a1f5",
+      "assert_old_gone": true,
+      "before_sha256": "e8e25782d858ed6338b61e0d326340719bb873467808e81c4e250025a3adc3ec",
+      "path": "apps/frappe/pyproject.toml"
+    },
+    {
+      "after_sha256": "f03625ed23cc87fbfa215b0fb753b34ac24a4f3a527ddf5607ef468ec9c4155d",
+      "assert_old_gone": true,
+      "before_sha256": "5658e8fa9c33523249ca40357a66859e22db31a891325c99f799f39f00665078",
+      "path": "apps/frappe/ui/yarn.lock"
+    },
+    {
+      "after_sha256": "10c26dd1d5720536869b1c2014efdb0b44b9a196bbe05fe6b9fde8623216401d",
+      "assert_old_gone": true,
+      "before_sha256": "0f7bb0e3957f5d262b26756ab92174b767f43647da5949dc87c1fa056c85d349",
+      "path": "apps/helpdesk/desk/src/components/BarChartCard.vue"
+    },
+    {
+      "after_sha256": "2d7598a8fd6d9b763f79428d30e732273a90998c57cb448f76264a74dc7a6a4c",
+      "assert_old_gone": true,
+      "before_sha256": "06eccc92e7c6df8f21699c92c6421c6b23ad108f4e78b77d022b03f252150ebc",
+      "path": "apps/helpdesk/desk/src/components/ChartCardBase.vue"
+    },
+    {
+      "after_sha256": "b253afd1ea163865809fe888df5a77eb85612d55a70092ba5b489b61729a9897",
+      "assert_old_gone": true,
+      "before_sha256": "82c773bebc664a118c7253c8239a363eb68a4ae8cc189828f5da1ea2afe72f43",
+      "path": "apps/helpdesk/desk/src/composables/useApps.ts"
+    },
+    {
+      "after_sha256": "84229582faf92a785b1f7590917e0a83fabb003fb5b2f247c16af799678764e7",
+      "assert_old_gone": true,
+      "before_sha256": "bc338999ca9fa8e772873296b0bc00d1fb6c242c39b1c82651ffb8854815db2f",
+      "path": "apps/helpdesk/desk/yarn.lock"
+    },
+    {
+      "after_sha256": "dba3fd4e849e8afe1b39ee8f2ee8cae5593542a60d16a00402ef44523f25f399",
+      "assert_old_gone": false,
+      "before_sha256": "dba3fd4e849e8afe1b39ee8f2ee8cae5593542a60d16a00402ef44523f25f399",
+      "path": "apps/hrms/hrms/payroll/doctype/salary_structure/salary_structure.py"
+    },
+    {
+      "after_sha256": "631fa3a016cd360f6b83381751b70b5d22035eb8fee1bf9ca3ce3e2efdb9e5c3",
+      "assert_old_gone": true,
+      "before_sha256": "c89240635c0a732704e00ea233f4f4e282600c6f0cedb6c9d38a96e7444b6c1f",
+      "path": "apps/hrms/roster/src/components/NavBar.vue"
+    },
+    {
+      "after_sha256": "c38d270b474e362bd1e0f206cdd6d5c3b7c91ecde1b19b4e3a661897211c6fe7",
+      "assert_old_gone": true,
+      "before_sha256": "3c9f600983ab3132d7dc86f9f8f170d82897bf22ff48b3f162aaf6ff461debd2",
+      "path": "apps/insights/frontend/src/components/Charts/BaseChart.vue"
+    },
+    {
+      "after_sha256": "3aa8700deea4e4669313a2ed399fdfed53aa7e68cad6937c60a6a0e8490029fd",
+      "assert_old_gone": true,
+      "before_sha256": "bb7c7bf522ee32745d5a0708841173450d246f9856adda6d6755615d37958c9c",
+      "path": "apps/insights/frontend/src/components/Charts/ChartTitle.vue"
+    },
+    {
+      "after_sha256": "beb483fcc5a1ed29ee4a11c19f708e5cc5f370012a1f429e5953966b843d7165",
+      "assert_old_gone": true,
+      "before_sha256": "ac8f913a23e42bcab0745a92bae928dabb1b240f9f4578aad2ceb32d92ab9b98",
+      "path": "apps/insights/frontend/src/components/Sidebar.vue"
+    },
+    {
+      "after_sha256": "c1e8b66c7425e962f88f2f99e10b39df58a0afde9c66da311213a74857c2a491",
+      "assert_old_gone": true,
+      "before_sha256": "cf9790cdeaaf6080b4fbea8398a3d5bf0c5d3b56c443a14d99482cf80a77b7cc",
+      "path": "apps/insights/frontend/src/utils/colors.ts"
+    },
+    {
+      "after_sha256": "96bc8c8893183831372b535ede6ec6434e2fa625b78ec5f5f887c53238d3ef68",
+      "assert_old_gone": true,
+      "before_sha256": "663601ec08de189f35b843155211c25b40592b8ede3b8ec72625978e37e6e60d",
+      "path": "apps/insights/frontend/src2/charts/colors.ts"
+    },
+    {
+      "after_sha256": "4cca85f3c5dd8b9afdac491670eac9ba22a94ebe39c902ba698beaee91a5a0a5",
+      "assert_old_gone": true,
+      "before_sha256": "ad3fde3711f4f1a273a25eeb41a490b52bac1c1f656c9197e0c8c82474f698a7",
+      "path": "apps/insights/frontend/src2/charts/components/BaseChart.vue"
+    },
+    {
+      "after_sha256": "ae6229b6283d185f4a09c47e626bf20be5bc1860d59a010c72a6db5dd53e7006",
+      "assert_old_gone": true,
+      "before_sha256": "a20b2a5b91a3ce4d94d81bc9fa72a52b63cd39f0897c5c2f9b9fca088db5695d",
+      "path": "apps/insights/frontend/src2/charts/components/ChartTitle.vue"
+    },
+    {
+      "after_sha256": "625cb98c7e27ad8afdef14fc1e906dbd53df67d27ee93498cbf24e7fc441c823",
+      "assert_old_gone": true,
+      "before_sha256": "6ea41880781bce93c6326c2cfce2ed06cf86a3f2410d4431ade5fcffd46ad52e",
+      "path": "apps/insights/frontend/src2/components/UserDropdown.vue"
+    },
+    {
+      "after_sha256": "7dafcd2d5cccf0bd7e397906c9c09ba73d7bfadf601d1972d545afd505f88a5c",
+      "assert_old_gone": true,
+      "before_sha256": "82a0a808408ae4ce69109be621c5190c6a9c7ec094dd4516a533149fe3c7d78c",
+      "path": "apps/print_designer/print_designer/pdf_generator/pdf.py"
+    },
+    {
+      "after_sha256": "89ee1722f964e674eb2d6e56bf1fc813fa146b5e2038edbc8846557cc981f222",
+      "assert_old_gone": true,
+      "before_sha256": "7e029fd76e3aab6f3bac2213c05bd50033bc1d2579ec4c43f54ae60c7335b807",
+      "path": "apps/telephony/pyproject.toml"
+    }
+  ],
+  "schema": 1
+}

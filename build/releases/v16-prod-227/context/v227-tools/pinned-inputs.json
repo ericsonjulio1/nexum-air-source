@@ -1,0 +1,231 @@
+{
+  "release": "v16-prod-227",
+  "platform": "linux/amd64",
+  "base": "ericsonjulio/erpnext@sha256:ae924799fb695f14ac5a4bfe74eb8844380e6fe4c4400509a43b38ac075d035e",
+  "apps": {
+    "frappe": {
+      "url": "https://github.com/frappe/frappe.git",
+      "tag": "v16.54.0",
+      "sha": "2fcb9397a1f1da353b21e53d2f97ec56653acd02",
+      "action": "replace",
+      "reason": "owner frozen stable cohort 2026-11-03"
+    },
+    "erpnext": {
+      "url": "https://github.com/frappe/erpnext.git",
+      "tag": "v16.53.0",
+      "sha": "9cd11b19575bfc34f092a24f6c8b368c4dd69481",
+      "action": "replace",
+      "reason": "owner frozen stable cohort 2026-11-03"
+    },
+    "hrms": {
+      "url": "https://github.com/frappe/hrms.git",
+      "tag": "v16.53.0",
+      "sha": "b12d935b99c1434618845fdd9f3a3d340b5a3aed",
+      "action": "replace",
+      "reason": "owner frozen stable cohort 2026-11-03"
+    },
+    "crm": {
+      "url": "https://github.com/frappe/crm.git",
+      "tag": "v1.91.1",
+      "sha": "3775e6da20cd7bb33434da050e11448e4ee8fb29",
+      "action": "replace",
+      "reason": "owner frozen stable cohort 2026-11-03"
+    },
+    "insights": {
+      "url": "https://github.com/frappe/insights.git",
+      "tag": "v3.15.1",
+      "sha": "c7dc954d8275756deb5ad24f7c35c3f3c2ca1a6c",
+      "action": "retain RC3 source with retained overlays",
+      "reason": "same lineage; exact RC3 SHA retained"
+    },
+    "drive": {
+      "url": "https://github.com/frappe/drive.git",
+      "tag": "v0.4.4",
+      "sha": "7ed084bc6f1a5abb1a99302e1f0def264dead719",
+      "action": "replace",
+      "reason": "owner frozen stable cohort 2026-11-03"
+    },
+    "telephony": {
+      "url": "https://github.com/frappe/telephony.git",
+      "tag": null,
+      "sha": "9447577500a25d242088398157b72c654fa34b20",
+      "action": "retain RC3 source with retained overlays",
+      "reason": "same lineage; exact RC3 SHA retained"
+    },
+    "helpdesk": {
+      "url": "https://github.com/frappe/helpdesk.git",
+      "tag": "v1.31.1",
+      "sha": "99c961681a69be4b33a2f6564e60f49780a2f685",
+      "action": "replace",
+      "reason": "owner frozen stable cohort 2026-11-03"
+    },
+    "payments": {
+      "url": "https://github.com/frappe/payments.git",
+      "tag": null,
+      "sha": "cca07d9f9392e2ea0e521c5975151db9e4b6c321",
+      "action": "retain RC3 source with retained overlays",
+      "reason": "same lineage; exact RC3 SHA retained"
+    },
+    "print_designer": {
+      "url": "https://github.com/frappe/print_designer.git",
+      "tag": null,
+      "sha": "7beaad298dd60467223c9a2b0360dd8c216a2b91",
+      "action": "retain RC3 source with retained overlays",
+      "reason": "same lineage; exact RC3 SHA retained"
+    },
+    "gameplan": {
+      "url": "https://github.com/frappe/gameplan.git",
+      "tag": null,
+      "sha": "30d4f16f9f2c5b18ad684252c61e851228943162",
+      "action": "retain RC3 source with retained overlays",
+      "reason": "same lineage; exact RC3 SHA retained"
+    },
+    "eam": {
+      "url": "https://github.com/ericsonjulio1/eam.git",
+      "tag": null,
+      "sha": "c65980f7fbd995759982952e2bf564a20038279a",
+      "action": "replace",
+      "local_repository": "../worktrees/eam",
+      "reason": "round-1 locking fixes, round-2 Start Work and round-4 isolation database adapter correction (test only)"
+    },
+    "my_branding": {
+      "url": "https://github.com/ericsonjulio1/Nexum-Air.git",
+      "tag": null,
+      "sha": "66897f3a946e5a8034720d000313bc874c19291c",
+      "action": "replace",
+      "local_repository": "../worktrees/my_branding",
+      "reason": "watchdog fix and opt-in HQ Helpdesk migration fixture; ordinary native discovery remains 350"
+    }
+  },
+  "advisory_remediation": "out of scope; retain RC3 runtime locks; separate A8 renewal due 2026-12-01T23:59:59Z",
+  "reviewed_gitlinks": [
+    {
+      "app": "hrms",
+      "path": "frappe-ui",
+      "sha": "863eaae9ada2edb287fc09fb21d05212bb5eebe9",
+      "reason": "Reviewed 2026-11-03 r3b2: frontend and roster production builds use registry frappe-ui 0.1.105; no app-root gitlink dependency in the reviewed package/Vite inputs. Keep the tarball gitlink absent or empty. Claude reports the identical gitlink in deployed v225/v226; v227 image validation remains with Claude.",
+      "reviewed_blobs": [
+        {
+          "path": ".gitmodules",
+          "blob": "aac084b17c380107e642fc6c8da76d93bb0ada8f"
+        },
+        {
+          "path": "package.json",
+          "blob": "6477a5211711c5620029f9e23686d4adb8f730a1"
+        },
+        {
+          "path": "frontend/package.json",
+          "blob": "e0ebd4c31b3b809a1ef4deb3121109e3efee1839"
+        },
+        {
+          "path": "frontend/vite.config.js",
+          "blob": "d3ddda43189a9985d33cbc5c4ac0bd6a6c74f5e1"
+        },
+        {
+          "path": "roster/package.json",
+          "blob": "8b7cbfe3ad8add0e21335cc9100d5632428a9ecd"
+        },
+        {
+          "path": "roster/vite.config.js",
+          "blob": "5f5625373ef826dd6833c6f41d6626faa8e49272"
+        }
+      ]
+    },
+    {
+      "app": "crm",
+      "path": "frappe-ui",
+      "sha": "e0c7d6f3a1d9a115f1f28fca0f128e006af88817",
+      "reason": "Reviewed 2026-11-03 r3b2: production frontend uses registry frappe-ui 1.0.0-rc.2; @framework/ui links to the separate frappe/ui app directory. Keep the app-root gitlink absent or empty. Claude reports the identical gitlink in deployed v225/v226; v227 image validation remains with Claude.",
+      "reviewed_blobs": [
+        {
+          "path": ".gitmodules",
+          "blob": "aac084b17c380107e642fc6c8da76d93bb0ada8f"
+        },
+        {
+          "path": "package.json",
+          "blob": "505957ffb6f859fcb456e948e2e76cce7844a524"
+        },
+        {
+          "path": "frontend/package.json",
+          "blob": "4c7f5b07fdd17e2be3eae4d3f135a246e545dac6"
+        },
+        {
+          "path": "frontend/vite.config.js",
+          "blob": "878e89f5b52bbd53818b1866dcfb20627e9e94c8"
+        }
+      ]
+    },
+    {
+      "app": "drive",
+      "path": "frappe-ui",
+      "sha": "4249f401c420b515ca88f91dbeed738a7b6c4151",
+      "reason": "Reviewed 2026-11-03 r3b2: production installs use frontend/pnpm-lock.yaml with registry frappe-ui 0.1.212. Root workspace links are inactive with pnpm-workspace.yaml absent; manage_workspaces.sh is not invoked by the release build; Vite local imports are development-only. Keep the gitlink absent or empty. Claude reports the identical gitlink and route in deployed v225/v226; v227 image validation remains with Claude.",
+      "reviewed_blobs": [
+        {
+          "path": ".gitmodules",
+          "blob": "aac084b17c380107e642fc6c8da76d93bb0ada8f"
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "blob": "4349d0ffb9953a7d88b847d94b15ec07e9e24681"
+        },
+        {
+          "path": "scripts/manage_workspaces.sh",
+          "blob": "7995d9aade4afed76bcbaa214acb044a930fb6f5"
+        },
+        {
+          "path": "frontend/vite.config.js",
+          "blob": "9eb26801a6b4a305afbb594c5b00b06a2128ef93"
+        },
+        {
+          "path": "package.json",
+          "blob": "866b79b0ed0d1f98c3de9fe5e67418c65ecf227c"
+        },
+        {
+          "path": "frontend/package.json",
+          "blob": "47198763f5d46274091920d17344b078995c90b7"
+        },
+        {
+          "path": "frontend/pnpm-lock.yaml",
+          "blob": "35caf3b58be3f2ff8d73556ef5ae3ee31c47a8d9"
+        },
+        {
+          "path": "frontend/pnpm-workspace.yaml",
+          "blob": "0be1f7053797531ad3ebff67078c73d369eeee9b"
+        },
+        {
+          "path": "pnpm-workspace.yaml.disabled",
+          "blob": "dceb4662cc1da1eff374f1e141e5ee01bc7d6faa"
+        }
+      ]
+    },
+    {
+      "app": "helpdesk",
+      "path": "frappe-ui",
+      "sha": "a3d141c63b098d7dfbeb7a511d98fc988a950048",
+      "reason": "Reviewed 2026-11-03 r3b2: production desk build uses registry frappe-ui 1.0.0-rc.1; local Vite selection requires development mode and gitlink/node_modules. @framework/ui links to the separate frappe/ui app directory. Keep the gitlink absent or empty. Claude reports the identical gitlink in deployed v225/v226; v227 image validation remains with Claude.",
+      "reviewed_blobs": [
+        {
+          "path": ".gitmodules",
+          "blob": "463ca2436f1f4f309286d82635f969a7406b1590"
+        },
+        {
+          "path": "desk/vite-helpers.ts",
+          "blob": "42de2b31281f13b833303494b2ed28c34d704e3e"
+        },
+        {
+          "path": "desk/vite.config.js",
+          "blob": "47c03f1fa64473bebf764a042718f8868d7e3645"
+        },
+        {
+          "path": "package.json",
+          "blob": "b85889e3264cca5cd881315f0ba1eb50746718d0"
+        },
+        {
+          "path": "desk/package.json",
+          "blob": "78849c64f10f8445a17b3c911d44502c67753bf7"
+        }
+      ]
+    }
+  ]
+}
