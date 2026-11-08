@@ -31,6 +31,52 @@ _MARKER = "nexum-spa-brand"
 _DEMO_THEME_RESET = '<script>try{localStorage.setItem("theme","light")}catch(e){}</script>'
 
 
+# Owner rule (2026-11-04): Nexum Air must not load remote telemetry. The frappe-ui
+# telemetry plugin bundled into the SPAs does `await import(<pulse client url>)` on
+# every load, before any enabled check. Remap that remote URL to an inert same-origin
+# module with an import map placed as the FIRST child of <head> (import maps only
+# affect module scripts that run after them). Needs no rebuild of any SPA.
+PULSE_CLIENT_URL = "https://pulse.m.frappe.cloud/assets/pulse/js/pulse_client.js"
+PULSE_NOOP_URL = "/assets/my_branding/js/nexum-pulse-noop.js?v=20261107"
+_HEAD_OPEN_RE = re.compile(r"<head(?=[\s>])[^>]*>", re.I)
+_IMPORTMAP_RE = re.compile(
+	r"(<script\b[^>]*\btype=[\"']?importmap[\"']?[^>]*>)(.*?)(</script>)", re.I | re.S
+)
+
+
+def inject_pulse_guard(html):
+	"""Return `html` with the Pulse client import map guaranteed (idempotent).
+
+	- An existing import map already mapping PULSE_CLIENT_URL is left as is (CRM's
+	  build-time one).
+	- Else an existing parseable import map in <head> gets the entry merged in.
+	- Else a new import map is inserted right after the opening <head> tag.
+	"""
+	head = _HEAD_OPEN_RE.search(html)
+	if not head:
+		return html
+	end = html.find("</head>", head.end())
+	scope = html[head.end(): end if end != -1 else len(html)]
+	for m in _IMPORTMAP_RE.finditer(scope):
+		if PULSE_CLIENT_URL in m.group(2):
+			return html
+	for m in _IMPORTMAP_RE.finditer(scope):
+		try:
+			data = json.loads(m.group(2))
+			if not isinstance(data, dict) or not isinstance(data.get("imports", {}), dict):
+				continue
+		except ValueError:
+			continue
+		data.setdefault("imports", {})[PULSE_CLIENT_URL] = PULSE_NOOP_URL
+		merged = m.group(1) + json.dumps(data, separators=(",", ":")) + m.group(3)
+		a = head.end() + m.start()
+		return html[:a] + merged + html[head.end() + m.end():]
+	tag = '<script type="importmap">%s</script>' % json.dumps(
+		{"imports": {PULSE_CLIENT_URL: PULSE_NOOP_URL}}, separators=(",", ":")
+	)
+	return html[: head.end()] + tag + html[head.end():]
+
+
 def _match(path):
 	for prefix, cfg in SPA_BRAND.items():
 		if path == prefix or path.startswith(prefix + "/"):
@@ -57,6 +103,11 @@ def inject_brand_assets(response, request):
 		html = response.get_data(as_text=True)
 		if not html or _MARKER in html or "</head>" not in html:
 			return
+
+		try:
+			html = inject_pulse_guard(html)
+		except Exception:
+			frappe.log_error(title="my_branding pulse guard failed", message=frappe.get_traceback())
 
 		# tab title + favicon for the initial paint (spa-brand.js keeps the title
 		# branded across client-side route changes)

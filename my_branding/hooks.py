@@ -107,6 +107,8 @@ after_migrate = [
 	# Official PH invoice format: Company fields it reads (the Print Format itself is a
 	# standard doc in my_branding/my_branding/print_format/, synced by migrate).
 	"my_branding.invoice_ph.ensure_company_invoice_fields",
+	# PlutoPrint is not allowed: hide the option, heal stored values (pdf_guard.py).
+	"my_branding.pdf_guard.reconcile_pdf_generators",
 	# Idle screen lock: System Settings fields, deploy-grace seed, enforcement switch.
 	"my_branding.idle_lock.ensure_setup",
 	# Free -> paid: switch back on the Auto Repeats the Free document cap paused (the
@@ -308,6 +310,13 @@ doc_events = {
 	"System Settings": {
 		"validate": "my_branding.idle_lock.validate_system_settings",
 	},
+	# PlutoPrint PDF generator (Frappe 16.55) is not allowed on Nexum Air (see pdf_guard.py).
+	"Print Settings": {
+		"validate": "my_branding.pdf_guard.refuse_plutoprint_save",
+	},
+	"Print Format": {
+		"validate": "my_branding.pdf_guard.refuse_plutoprint_save",
+	},
 }
 
 # Every capped DocType is wired from the same policy as provisioning.
@@ -323,7 +332,7 @@ on_login = "my_branding.lifecycle.wake_scheduler"
 on_session_creation = ["my_branding.idle_lock.on_session_creation"]
 # ...and the server refuses a cookie session with no human activity for longer than
 # idle + 60 s warning + 90 s grace (see idle_lock.enforce).
-before_request = ["my_branding.idle_lock.enforce"]
+before_request = ["my_branding.idle_lock.enforce", "my_branding.pdf_guard.refuse_plutoprint_request"]
 
 # /bin/x, /project/.env: a 404 instead of the print view's 500 for a miscased doctype
 page_renderer = ["my_branding.print_route.MiscasedPrintRoute"]
