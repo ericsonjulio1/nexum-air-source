@@ -1,0 +1,87 @@
+{
+  "platform": "linux x86_64 (glibc<=2.36)",
+  "python": "3.14",
+  "wheels": {
+    "filelock": {
+      "filename": "filelock-4.2.4-py3-none-any.whl",
+      "requires_dist": [],
+      "requires_python": ">=3.11",
+      "sdist_present": true,
+      "sha256": "301241438c57936ef93f4243a94f2559022268bfcf9b375a9a72eb0f8db8358e",
+      "size": 162475,
+      "upload_time_iso_8601": "2026-10-19T01:57:49.419460Z",
+      "url": "https://files.pythonhosted.org/packages/e0/1b/5e74289a1878e666bb4b65fe5805a04cafcac2aa5f519ef1ead67ef91c56/filelock-4.2.4-py3-none-any.whl",
+      "version": "4.2.4"
+    },
+    "fonttools": {
+      "filename": "fonttools-4.68.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "requires_dist": [
+        "lxml>=4.0; extra == \"lxml\"",
+        "brotli>=1.2.1; platform_python_implementation == \"CPython\" and extra == \"woff\"",
+        "brotlicffi>=1.2.1.0; platform_python_implementation != \"CPython\" and extra == \"woff\"",
+        "zopfli>=0.1.4; extra == \"woff\"",
+        "unicodedata2>=18.0.0; python_version <= \"3.15\" and extra == \"unicode\"",
+        "lz4>=1.7.4.2; extra == \"graphite\"",
+        "scipy; platform_python_implementation != \"PyPy\" and extra == \"interpolatable\"",
+        "munkres; platform_python_implementation == \"PyPy\" and extra == \"interpolatable\"",
+        "pycairo; extra == \"interpolatable\"",
+        "matplotlib; extra == \"plot\"",
+        "sympy; extra == \"symfont\"",
+        "xattr; sys_platform == \"darwin\" and extra == \"type1\"",
+        "skia-pathops>=0.5.0; extra == \"pathops\"",
+        "uharfbuzz>=0.45.0; extra == \"repacker\"",
+        "lxml>=4.0; extra == \"all\"",
+        "brotli>=1.2.1; platform_python_implementation == \"CPython\" and extra == \"all\"",
+        "brotlicffi>=1.2.1.0; platform_python_implementation != \"CPython\" and extra == \"all\"",
+        "zopfli>=0.1.4; extra == \"all\"",
+        "unicodedata2>=18.0.0; python_version <= \"3.15\" and extra == \"all\"",
+        "lz4>=1.7.4.2; extra == \"all\"",
+        "scipy; platform_python_implementation != \"PyPy\" and extra == \"all\"",
+        "munkres; platform_python_implementation == \"PyPy\" and extra == \"all\"",
+        "pycairo; extra == \"all\"",
+        "matplotlib; extra == \"all\"",
+        "sympy; extra == \"all\"",
+        "xattr; sys_platform == \"darwin\" and extra == \"all\"",
+        "skia-pathops>=0.5.0; extra == \"all\"",
+        "uharfbuzz>=0.45.0; extra == \"all\""
+      ],
+      "requires_python": ">=3.11",
+      "sdist_present": true,
+      "sha256": "cbb63b26d33acc3eb61f544c22a0cadbe01682fc064b266bb0e33fa66cea853f",
+      "size": 5363969,
+      "upload_time_iso_8601": "2026-10-27T16:29:10.172930Z",
+      "url": "https://files.pythonhosted.org/packages/b7/67/e9f2eb2aed41d4ed251a3c6f66e104685f0a03d8ded7ed87f1f0fc63898c/fonttools-4.68.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "version": "4.68.0"
+    },
+    "oauthlib": {
+      "filename": "oauthlib-4.0.1-py3-none-any.whl",
+      "requires_dist": [
+        "cryptography>=3.0.0; extra == \"rsa\"",
+        "cryptography>=3.0.0; extra == \"signedtoken\"",
+        "pyjwt<3,>=2.0.0; extra == \"signedtoken\"",
+        "blinker>=1.4.0; extra == \"signals\""
+      ],
+      "requires_python": ">=3.9",
+      "sdist_present": true,
+      "sha256": "498a298876e996301950a5b053d12c31628bb7b895db03666430c69ce182eb61",
+      "size": 161934,
+      "upload_time_iso_8601": "2026-10-31T09:52:56.206343Z",
+      "url": "https://files.pythonhosted.org/packages/df/ef/3b8adde1b32a6f540758bff734d3442c621734c83708e5f02b0ba2f43b84/oauthlib-4.0.1-py3-none-any.whl",
+      "version": "4.0.1"
+    },
+    "plutoprint": {
+      "filename": "plutoprint-0.22.0-cp314-cp314-manylinux_2_28_x86_64.whl",
+      "requires_dist": [
+        "pytest; extra == \"test\"",
+        "pytest-cov; extra == \"test\""
+      ],
+      "requires_python": ">=3.10",
+      "sdist_present": true,
+      "sha256": "72985ef1494d6b062be14bec56d78be2d112c7b0925ccf011ab18666548b1ae0",
+      "size": 20267743,
+      "upload_time_iso_8601": "2026-08-04T16:19:04.711677Z",
+      "url": "https://files.pythonhosted.org/packages/d4/cb/857d3a11b6a0ead4351974dd8a5cb7ce2c934eabcba8737d77ac76d7db01/plutoprint-0.22.0-cp314-cp314-manylinux_2_28_x86_64.whl",
+      "version": "0.22.0"
+    }
+  }
+}

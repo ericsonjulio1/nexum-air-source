@@ -1,0 +1,156 @@
+{
+ "image": "ericsonjulio/erpnext:v16-prod-228",
+ "candidate_tag": "ericsonjulio/erpnext:v16-prod-228-rc4",
+ "digest": "sha256:aefceb2e19e8f100f0b1f93a1fe10019b8f3ef09d4b69e7a82dbeb2f92358e5b",
+ "base_image": "ericsonjulio/erpnext@sha256:1c287bb2682e08199cd604462091c72882afc6ebe020b5504e3f0e464919b952",
+ "platform": "linux/amd64",
+ "inherited_release": "../v16-prod-227/manifest.json",
+ "inherited_dependency_locks": "../v16-prod-225/",
+ "changes_upstream_dependencies": true,
+ "dockerfile_sha256": "1732cf1dc772c9a54b777ce8561cd106681618af45d74a5e18b9f9775222d9c9",
+ "upstream_apps": {
+  "frappe": {
+   "repository": "https://github.com/frappe/frappe",
+   "previous_ref": "v16.54.0",
+   "ref": "v16.55.2",
+   "commit": "3d1284c5fdb52207a516a49bbf2fd186cb43b3ab",
+   "archive_sha256": "a4da09b7f1f14360bae757e4b7417b9b9807b0bc27f435d94b97ba9699a54118",
+   "license": "MIT"
+  },
+  "erpnext": {
+   "repository": "https://github.com/frappe/erpnext",
+   "previous_ref": "v16.53.0",
+   "ref": "v16.54.0",
+   "commit": "495380b59c8701629f25089bd3807e6ddf7f26c6",
+   "archive_sha256": "31bd74c77bae50198f0962f943072bbd81f2180487b9a5832e51608e025b47fa",
+   "license": "GPL-3.0"
+  },
+  "hrms": {
+   "repository": "https://github.com/frappe/hrms",
+   "previous_ref": "v16.53.0",
+   "ref": "v16.53.1",
+   "commit": "3b7f8f2854a06fb9eb4d2785e20ddaf8ad750980",
+   "archive_sha256": "c525b5acbd51849b3f5b1fc775443d4224304b6139460332d57a9187a7afa929",
+   "license": "GPL-3.0"
+  },
+  "crm": {
+   "repository": "https://github.com/frappe/crm",
+   "previous_ref": "v1.91.1",
+   "ref": "v16.0.2",
+   "commit": "19786bf033b62c9e686713234ca54d10f612a8af",
+   "archive_sha256": "3ae57c141433e92737a354cf93eed223976b0defde97ff2ee4524c69c45b0cb2",
+   "license": "AGPL-3.0",
+   "note": "v16.0.2 is CRM's version-16 renumbering of the 1.91.x line, not an unrelated major rewrite."
+  },
+  "helpdesk": {
+   "repository": "https://github.com/frappe/helpdesk",
+   "previous_ref": "v1.31.1",
+   "ref": "v16.1.0",
+   "commit": "e326986329341c803dd4bf094322670ad0591ca5",
+   "archive_sha256": "c5f2cdd926a2cf04dbfb14c51fd0720282738cc37a89d191f0048e19da489d0d",
+   "license": "AGPL-3.0"
+  },
+  "drive": {
+   "repository": "https://github.com/frappe/drive",
+   "previous_ref": "v0.4.4",
+   "ref": "v0.4.4",
+   "commit": "7ed084bc6f1a5abb1a99302e1f0def264dead719",
+   "archive_sha256": "34233cd3b1b40bcdd76adbd1f7c0fa14f237aa1c9c3d81176dbd52323b863ed9",
+   "license": "AGPL-3.0",
+   "source": "unchanged from v16-prod-227; re-extracted and re-verified for v228"
+  }
+ },
+ "retained_apps": {
+  "insights": {
+   "repository": "https://github.com/frappe/insights",
+   "commit": "c7dc954d8275756deb5ad24f7c35c3f3c2ca1a6c",
+   "license": "AGPL-3.0",
+   "source": "inherited from v16-prod-225 via v16-prod-227; retained overlay files re-verified"
+  },
+  "telephony": {
+   "repository": "https://github.com/frappe/telephony",
+   "commit": "9447577500a25d242088398157b72c654fa34b20",
+   "license": "AGPL-3.0",
+   "source": "inherited from v16-prod-225 via v16-prod-227; retained overlay files re-verified"
+  },
+  "payments": {
+   "repository": "https://github.com/frappe/payments",
+   "commit": "cca07d9f9392e2ea0e521c5975151db9e4b6c321",
+   "license": "MIT",
+   "source": "inherited unchanged from v16-prod-225"
+  },
+  "print_designer": {
+   "repository": "https://github.com/frappe/print_designer",
+   "commit": "7beaad298dd60467223c9a2b0360dd8c216a2b91",
+   "license": "AGPL-3.0",
+   "source": "inherited from v16-prod-225 via v16-prod-227; retained overlay files re-verified"
+  },
+  "gameplan": {
+   "repository": "https://github.com/frappe/gameplan",
+   "commit": "30d4f16f9f2c5b18ad684252c61e851228943162",
+   "license": "AGPL-3.0",
+   "source": "inherited unchanged from v16-prod-225"
+  }
+ },
+ "custom_apps": {
+  "my_branding": {
+   "repository": "https://github.com/ericsonjulio1/Nexum-Air",
+   "commit": "8cf99edd4da1a666f74de1f1cccedaf9533d2527",
+   "tree": "ee94e61abded50d829176f7f97af0c895f533f79",
+   "source": "published runtime application",
+   "license": "MIT"
+  },
+  "eam": {
+   "repository": "https://github.com/ericsonjulio1/eam",
+   "commit": "3146e4f524df673c49524248e9518f495b2fd31b",
+   "tree": "b8e2fea94cf401eae09bc83008ef82f8e5c56e73",
+   "source": "private repository",
+   "license": "MIT"
+  }
+ },
+ "python_dependencies": {
+  "changed": true,
+  "distribution_count_before": 242,
+  "distribution_count_after": 243,
+  "delta": {
+   "added": [
+    "plutoprint==0.22.0"
+   ],
+   "changed": [
+    "filelock: 3.20.4 -> 4.2.4",
+    "fonttools: 4.63.0 -> 4.68.0",
+    "oauthlib: 4.0.0 -> 4.0.1"
+   ],
+   "removed": []
+  },
+  "advisories_fixed": [
+   "filelock 4.2.4 fixes six filelock advisories",
+   "oauthlib 4.0.1 fixes GHSA-3jp2-3mrg-2vxc"
+  ],
+  "install_method": "offline, hash-verified wheels (uv pip install --require-hashes --no-index --find-links), installed in the same build RUN as the editable apps",
+  "lock_files": {
+   "before": "context/v228-tools/python-security-v227.lock",
+   "after": "context/v228-tools/python-security-v228.lock",
+   "delta": "context/v228-tools/python-delta-wheels.lock"
+  },
+  "wheel_source": "prepare.py downloads the four pinned public wheels from files.pythonhosted.org (URLs and SHA-256 recorded in context/v228-tools/python-delta-wheels.json) and refuses on any hash mismatch; the wheel bytes are not vendored in this repository."
+ },
+ "source_overlays": {
+  "guarded_files": 49,
+  "components": [
+   "v225 upstream.patch (22 files)",
+   "v225 security manifest (17 entries)",
+   "8fa2f6fb PDF/security + Print Designer routing",
+   "v225 migration cache/MCP/Drive menu",
+   "v225 frappe/ui and Helpdesk frozen locks",
+   "v227 rc8 CRM-only exact Pulse URL import map and inert ES module; owner 2026-11-04",
+   "v228 rebase 2026-11-07: 8 verify-only guards re-hashed and 6 entries 3-way merged onto Frappe 16.55.2/Helpdesk 16.1.0; 35 entries unchanged"
+  ]
+ },
+ "branding_modifications": {
+  "telemetry_guard": "my_branding adds a per-app import-map/module-alias guard that resolves Frappe's remote Pulse telemetry client to a local no-op module on every branded SPA (Helpdesk, Insights, CRM, Drive, Gameplan, ...). This is distinct from the v227 CRM-only source overlay in context/v228-tools/source-overlays.json, which may still apply to CRM's own frontend/index.html.",
+  "pdf_guard": "my_branding adds a guard that refuses to let the PlutoPrint PDF generator run, because PlutoPrint vendors its own bundled, older libcurl/openssl; the system/py-weasyprint PDF path remains in use."
+ },
+ "status": "deployed-verified",
+ "deployed_verified_utc": "2026-11-08T21:45:03Z"
+}

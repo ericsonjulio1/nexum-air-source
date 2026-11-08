@@ -24,18 +24,18 @@ upstream commit we run, and our modifications.
   **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
   by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
-## v227 applications, licenses, and pinned commits
+## v228 applications, licenses, and pinned commits
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
-| frappe (framework) | MIT | https://github.com/frappe/frappe | `2fcb9397a1f1` |
-| erpnext | GPLv3 | https://github.com/frappe/erpnext | `9cd11b19575b` |
-| hrms | GPLv3 | https://github.com/frappe/hrms | `b12d935b99c1` |
+| frappe (framework) | MIT | https://github.com/frappe/frappe | `3d1284c5fdb5` |
+| erpnext | GPLv3 | https://github.com/frappe/erpnext | `495380b59c87` |
+| hrms | GPLv3 | https://github.com/frappe/hrms | `3b7f8f2854a0` |
 | payments | MIT | https://github.com/frappe/payments | `cca07d9f9392` |
 | **print_designer** | **AGPLv3** | https://github.com/frappe/print_designer | `7beaad298dd6` |
 | **insights** | **AGPLv3** | https://github.com/frappe/insights | `c7dc954d8275` |
-| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `99c961681a69` |
-| **crm** | **AGPLv3** | https://github.com/frappe/crm | `3775e6da20cd` |
+| **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `e32698632934` |
+| **crm** | **AGPLv3** | https://github.com/frappe/crm | `19786bf033b6` |
 | **gameplan** | **AGPLv3** | https://github.com/frappe/gameplan | `30d4f16f9f2c` |
 | **drive** | **AGPLv3** | https://github.com/frappe/drive | `7ed084bc6f1a` |
 | **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `9447577500a2` |
@@ -45,12 +45,34 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current production release: v16-prod-227
+## Current production release: v16-prod-228
+
+Deployed and verified on 9 November 2026 (Pacific/Port_Moresby).
+The [v228 recipe](build/releases/v16-prod-228/README.md) updates the framework on the exact
+v227 image: Frappe 16.55.2, ERPNext 16.54.0, HRMS 16.53.1, CRM 16.0.2 (the version-16
+renumbering of the 1.91.x line) and Helpdesk 16.1.0. Drive stays at 0.4.4, re-extracted and
+re-verified unchanged (pinned commits in the table above). Insights, Telephony, Print Designer,
+Payments and Gameplan keep their v225 sources.
+
+This is the first release since v225 to change a Python dependency: exactly four of the 242
+pinned PyPI distributions move (filelock 3.20.4 → 4.2.4, fixing six filelock advisories;
+fonttools 4.63.0 → 4.68.0; oauthlib 4.0.0 → 4.0.1, fixing GHSA-3jp2-3mrg-2vxc; plutoprint
+0.22.0, new), installed offline from hash-verified public PyPI wheels. Everything else in the
+dependency set is byte-identical to v225/v226/v227.
+
+The v225/v227 modifications are carried forward (rebased onto the new upstream bytes where
+needed; see the v228 recipe), and two branding-layer guards are added: the Frappe Pulse
+telemetry import-map guard now covers every branded frappe-ui SPA, not just CRM (modification 9
+below), and a guard refuses to let the new PlutoPrint dependency actually render a PDF, because
+it vendors its own bundled, older libcurl/openssl (modification 10 below). Branding is
+`8cf99edd4da1`; private EAM is `3146e4f524df`.
+
+## Previous release: v16-prod-227
 
 Deployed and verified on 7 November 2026 (Pacific/Port_Moresby).
 The [v227 recipe](build/releases/v16-prod-227/README.md) updates the framework on the exact
 v226 image: Frappe 16.54.0, ERPNext 16.53.0, HRMS 16.53.0, CRM 1.91.1, Helpdesk 1.31.1 and
-Drive 0.4.4 (pinned commits in the table above). Insights, Telephony, Print Designer, Payments
+Drive 0.4.4. Insights, Telephony, Print Designer, Payments
 and Gameplan keep their v225 sources, and the hashed Python dependency locks are unchanged.
 The v225 modifications are carried forward, and CRM's remote Frappe Pulse telemetry client is
 replaced by a local no-op module (modification 8 below). Branding is `66897f3a946e`; private
@@ -246,9 +268,9 @@ Its private repository is not copied into this public mirror.
 
 ## Modifications we make to bundled apps
 
-Items 1–7 describe the v205 base modifications; each release recipe above identifies
-the retained and superseded patches. The v227 recipe lists every modified file with
-upstream and patched SHA-256 in `build/releases/v16-prod-227/context/v227-tools/source-overlays.json`.
+Items 1–8 describe modifications already present as of v227; each release recipe above
+identifies the retained and superseded patches. The v228 recipe lists every modified file with
+upstream and patched SHA-256 in `build/releases/v16-prod-228/context/v228-tools/source-overlays.json`.
 
 1. **gameplan** (AGPLv3) — `gameplan/api.py`: guard a `from frappe.config import
    get_modules_from_all_apps_for_user` import that was removed in Frappe v16, so
@@ -288,6 +310,21 @@ upstream and patched SHA-256 in `build/releases/v16-prod-227/context/v227-tools/
    nothing, so the browser makes no telemetry request. Added in v16-prod-227; see
    `build/releases/v16-prod-227/context/v227-tools/patchers/crm-pulse/verify.py`.
 
+9. **Branding / telemetry import-map guard, all SPAs** — `my_branding`'s existing SPA
+   response hook (`spa_brand.inject_brand_assets`) now injects or merges an import map
+   resolving the same remote Frappe Pulse client URL to a local no-op module
+   (`my_branding/public/js/nexum-pulse-noop.js`) on every branded frappe-ui SPA route
+   (Helpdesk, Insights, CRM, Drive, Gameplan, and any other app in
+   `brand_config.spa_brand()`), not only CRM. CRM's own modification 8 import map is
+   recognized as equivalent and left untouched. Added in v16-prod-228.
+10. **Branding / PlutoPrint PDF guard** — v228 adds the `plutoprint` Python dependency
+    (see *Reproducing the build* below), but PlutoPrint vendors its own bundled, older
+    libcurl/openssl. `my_branding` validates Print Settings/Print Format so no document
+    may select PlutoPrint, refuses any render request (including the Print Designer
+    overlay's own resolution path) that would resolve to PlutoPrint, and heals stored
+    PlutoPrint values back to the default on migrate. wkhtmltopdf, Chrome and Typst are
+    unaffected. Added in v16-prod-228.
+
 Earlier modifications that are now part of the pinned upstream versions (the patch
 scripts in `patches/` detect this and change nothing): the erpnext Growth-view fix for
 columnar financial reports, the frappe Package Import TarSlip fix (GHSA-58w2-4cjg-hvp6),
@@ -295,17 +332,18 @@ and the other 2026-08-22 frappe/erpnext security backports.
 
 ## Reproducing the build
 
-The current recipe is `build/releases/v16-prod-227/manifest.json`. It pins the
-v226 base, the six updated upstream applications, the branding runtime commit and
-the private EAM commit. Its `prepare.py` downloads the pinned sources, applies the
-published overlays and verifies every file and permission of the build context
-against `context-files.json`. The base's dependency locks and other applications
-come from the v225 recipe (`build/releases/v16-prod-225/`): both Python
-interpreters use hashed package locks and complete installed-file inventories;
+The current recipe is `build/releases/v16-prod-228/manifest.json`. It pins the
+v227 base, the six pinned upstream archives (five updated, Drive unchanged), the branding runtime commit, the private EAM
+commit, and the four changed Python dependency wheels. Its `prepare.py` downloads the pinned
+upstream sources from GitHub and the four changed wheels from PyPI (by URL and SHA-256; the
+wheel bytes are not vendored in this repository), applies the published overlays and verifies
+every file and permission of the build context against `context-files.json`. The base's other
+dependency locks and applications come from the v225 recipe (`build/releases/v16-prod-225/`):
+both Python interpreters use hashed package locks and complete installed-file inventories;
 intermediate layers are not claimed to be byte-for-byte reproducible.
 
 A public reader cannot rebuild the private EAM layer without repository access.
 The branding runtime and package metadata are published in this mirror. Follow
 the inherited v224 and earlier manifests for the retained base's provenance.
 Historical `build/Containerfile`, `saas/image/Containerfile` and old patchers alone
-do not reproduce v227; its release capsule is the canonical recipe.
+do not reproduce v228; its release capsule is the canonical recipe.
