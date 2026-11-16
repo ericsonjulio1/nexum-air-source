@@ -24,18 +24,18 @@ upstream commit we run, and our modifications.
   **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
   by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
-## v228 applications, licenses, and pinned commits
+## v229 applications, licenses, and pinned commits
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
-| frappe (framework) | MIT | https://github.com/frappe/frappe | `3d1284c5fdb5` |
-| erpnext | GPLv3 | https://github.com/frappe/erpnext | `495380b59c87` |
-| hrms | GPLv3 | https://github.com/frappe/hrms | `3b7f8f2854a0` |
+| frappe (framework) | MIT | https://github.com/frappe/frappe | `49789a1711d4` |
+| erpnext | GPLv3 | https://github.com/frappe/erpnext | `8e10a348daaa` |
+| hrms | GPLv3 | https://github.com/frappe/hrms | `ba5371c5057a` |
 | payments | MIT | https://github.com/frappe/payments | `cca07d9f9392` |
 | **print_designer** | **AGPLv3** | https://github.com/frappe/print_designer | `7beaad298dd6` |
 | **insights** | **AGPLv3** | https://github.com/frappe/insights | `c7dc954d8275` |
 | **helpdesk** | **AGPLv3** | https://github.com/frappe/helpdesk | `e32698632934` |
-| **crm** | **AGPLv3** | https://github.com/frappe/crm | `19786bf033b6` |
+| **crm** | **AGPLv3** | https://github.com/frappe/crm | `e113ab9847de` |
 | **gameplan** | **AGPLv3** | https://github.com/frappe/gameplan | `30d4f16f9f2c` |
 | **drive** | **AGPLv3** | https://github.com/frappe/drive | `7ed084bc6f1a` |
 | **telephony** | **AGPLv3** | https://github.com/frappe/telephony | `9447577500a2` |
@@ -45,7 +45,35 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current production release: v16-prod-228
+## Current production release: v16-prod-229
+
+Deployed and verified on 17 November 2026 (Pacific/Port_Moresby; 16 November 22:28 UTC).
+The [v229 recipe](build/releases/v16-prod-229/README.md) updates the framework on the exact
+v228 image: Frappe 16.56.0, ERPNext 16.55.0, HRMS 16.53.2 and CRM 16.0.3 (CRM's version-16
+line). Helpdesk stays at 16.1.0 and Drive at 0.4.4, both re-extracted and re-verified
+unchanged (pinned commits in the table above). Insights, Telephony, Print Designer, Payments
+and Gameplan keep their v225 sources. The release carries nine new upstream migration
+patches (Frappe 1, ERPNext 7, CRM 1).
+
+Exactly two of the 243 pinned PyPI distributions move: soupsieve 2.9.2 → 4.1.1 (fixing
+GHSA-4j63-6c4x-wfg4, GHSA-6655-6qjp-jx7x, GHSA-7g44-g9rc-x53w and GHSA-mmhr-3c5m-f64f) and
+tornado 6.6 → 6.6.1 (fixing GHSA-5cjw-f85j-cv6r), installed offline from hash-verified
+public PyPI wheels. The v228 changes (filelock 4.2.4, fonttools 4.68.0, oauthlib 4.0.1,
+plutoprint 0.22.0) remain; everything else in the dependency set is byte-identical to v228.
+
+The published image is a single flat layer: the exact stacked build on top of the v228
+runtime, flattened into one layer with its configuration restated and proven to hold the
+same filesystem, plus one added step that removes three dead build caches (see the recipe).
+
+All 49 source overlays are carried forward: 39 are byte-identical to v228, and 10 were
+rebased onto the new upstream bytes (5 Frappe entries three-way merged onto Frappe 16.56.0;
+5 ERPNext verify-only guards re-hashed on ERPNext 16.55.0). No overlay was added or
+removed. Modifications 9 and 10 below continue unchanged. Branding is `8cf99edd4da1`
+(unchanged since v228); private EAM is `97ebff6032d6` (a test-file-only change on top of
+v228's `3146e4f524df`). The build context leaves out `my_branding`'s `docs/` and `ops/`
+directories, which the image never reads.
+
+## Previous release: v16-prod-228
 
 Deployed and verified on 9 November 2026 (Pacific/Port_Moresby).
 The [v228 recipe](build/releases/v16-prod-228/README.md) updates the framework on the exact
@@ -269,8 +297,9 @@ Its private repository is not copied into this public mirror.
 ## Modifications we make to bundled apps
 
 Items 1–8 describe modifications already present as of v227; each release recipe above
-identifies the retained and superseded patches. The v228 recipe lists every modified file with
-upstream and patched SHA-256 in `build/releases/v16-prod-228/context/v228-tools/source-overlays.json`.
+identifies the retained and superseded patches. The v229 recipe lists all 49 modified files with
+upstream and patched SHA-256 in `build/releases/v16-prod-229/context/v229-tools/source-overlays.json`
+(39 unchanged from v228; 10 rebased onto Frappe 16.56.0 and ERPNext 16.55.0; none new).
 
 1. **gameplan** (AGPLv3) — `gameplan/api.py`: guard a `from frappe.config import
    get_modules_from_all_apps_for_user` import that was removed in Frappe v16, so
@@ -332,10 +361,10 @@ and the other 2026-08-22 frappe/erpnext security backports.
 
 ## Reproducing the build
 
-The current recipe is `build/releases/v16-prod-228/manifest.json`. It pins the
-v227 base, the six pinned upstream archives (five updated, Drive unchanged), the branding runtime commit, the private EAM
-commit, and the four changed Python dependency wheels. Its `prepare.py` downloads the pinned
-upstream sources from GitHub and the four changed wheels from PyPI (by URL and SHA-256; the
+The current recipe is `build/releases/v16-prod-229/manifest.json`. It pins the
+v228 base, the six pinned upstream archives (four updated; Helpdesk and Drive unchanged), the branding runtime commit, the private EAM
+commit, and the two changed Python dependency wheels. Its `prepare.py` downloads the pinned
+upstream sources from GitHub and the two changed wheels from PyPI (by URL and SHA-256; the
 wheel bytes are not vendored in this repository), applies the published overlays and verifies
 every file and permission of the build context against `context-files.json`. The base's other
 dependency locks and applications come from the v225 recipe (`build/releases/v16-prod-225/`):
@@ -346,4 +375,4 @@ A public reader cannot rebuild the private EAM layer without repository access.
 The branding runtime and package metadata are published in this mirror. Follow
 the inherited v224 and earlier manifests for the retained base's provenance.
 Historical `build/Containerfile`, `saas/image/Containerfile` and old patchers alone
-do not reproduce v228; its release capsule is the canonical recipe.
+do not reproduce v229; its release capsule is the canonical recipe.

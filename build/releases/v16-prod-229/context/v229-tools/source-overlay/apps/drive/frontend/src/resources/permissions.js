@@ -1,0 +1,115 @@
+import { createResource } from "frappe-ui"
+import { toast } from "@/utils/toasts"
+import store from "@/store"
+
+export const getUsersWithAccess = createResource({
+  url: "drive.api.permissions.get_shared_with_list",
+  makeParams: (params) => params,
+})
+
+export const updateAccess = createResource({
+  url: "drive.api.files.call_controller_method",
+  makeParams: (params) => ({ ...params, method: params.method || "share" }),
+  onError: (error) => toast({ type: "error", title: error.messages[0] }),
+})
+
+export const notifCount = createResource({
+  url: "/api/method/drive.api.notifications.get_unread_count",
+  method: "GET",
+  cache: "notif-count",
+})
+
+export const settings = createResource({
+  url: "/api/method/drive.api.product.get_settings",
+  method: "GET",
+  cache: "settings",
+})
+
+export const setSettings = createResource({
+  url: "/api/method/drive.api.product.set_settings",
+  method: "POST",
+  onSuccess: () => {
+    settings.fetch()
+  },
+})
+
+export const generalAccess = createResource({
+  url: "drive.api.permissions.get_user_access",
+})
+
+export const userList = createResource({
+  url: "drive.api.permissions.get_shared_with_list",
+})
+
+export const allUsers = createResource({
+  url: "drive.api.product.get_all_users",
+  method: "GET",
+  transform: (data) => {
+    data.map((item) => {
+      item.value = item.email
+      item.label = item.full_name.trimEnd()
+    })
+  },
+})
+
+export const getInvites = createResource({
+  url: "drive.api.product.get_invites",
+})
+
+export const acceptInvite = createResource({
+  url: "drive.api.product.accept_invite",
+})
+
+export const rejectInvite = createResource({
+  url: "drive.api.product.reject_invite",
+  onSuccess: () => toast("Removed invite"),
+})
+
+export const isAdmin = createResource({
+  url: "drive.api.product.check_is_admin",
+})
+
+export const apps = createResource({
+  url: "frappe.apps.get_apps",
+  cache: "apps",
+  transform: (data) => {
+    let apps = data.some(app => app.name === "erpnext") ? [] : [
+      {
+        name: "erpnext",
+        logo: "/assets/my_branding/images/icons/erp_app.svg",
+        title: "ERP",
+        route: "/desk",
+      },
+    ]
+    data.map((app) => {
+      if (app.name === "drive") return
+      apps.push({
+        name: app.name,
+        logo: app.logo,
+        title: app.title,
+        route: app.route,
+      })
+    })
+
+    return apps
+  },
+})
+
+export const diskSettings = createResource({
+  url: "drive.api.product.disk_settings",
+  method: "GET",
+  cache: "disk-settings",
+})
+
+export const createTeam = createResource({
+  url: "drive.api.product.create_team",
+  makeParams: (params) => ({
+    ...params,
+    user: store.state.user.id,
+  }),
+})
+
+export const getDiskSettings = createResource({
+  url: "drive.api.product.disk_settings",
+  method: "GET",
+})

@@ -1,0 +1,28 @@
+{
+  "platform": "linux x86_64 (glibc<=2.36)",
+  "python": "3.14",
+  "wheels": {
+    "soupsieve": {
+      "filename": "soupsieve-4.1.1-py3-none-any.whl",
+      "requires_dist": [],
+      "requires_python": ">=3.11.5",
+      "sdist_present": true,
+      "sha256": "8ff3422dab0b720fb667ee79864d80531a0e57994a13eb701697719ffcb751f6",
+      "size": 55089,
+      "upload_time_iso_8601": "2026-11-14T17:23:31.001233Z",
+      "url": "https://files.pythonhosted.org/packages/cd/65/7fae69a095696195334a934eab23aeb12e2715e6c3f08025d2f91942750e/soupsieve-4.1.1-py3-none-any.whl",
+      "version": "4.1.1"
+    },
+    "tornado": {
+      "filename": "tornado-6.6.1-cp311-abi3-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl",
+      "requires_dist": [],
+      "requires_python": ">=3.11",
+      "sdist_present": true,
+      "sha256": "1b6ff57cc69b339f8feb9e7b567b0e0eacb16bfaf234159496623ef7a67ba640",
+      "size": 534470,
+      "upload_time_iso_8601": "2026-11-09T21:08:24.270508Z",
+      "url": "https://files.pythonhosted.org/packages/38/4d/c65ea949a3cdc185f1afac8c337074d4f2d029b48293d2db4d2c3dea4849/tornado-6.6.1-cp311-abi3-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl",
+      "version": "6.6.1"
+    }
+  }
+}
