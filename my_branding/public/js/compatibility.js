@@ -12,10 +12,10 @@
 // which sends a getdoc unless the doc AND its docinfo are already loaded, so every KPI
 // value and the checklist waited a full round trip after the workspace (batch 205 idx
 // 94). Boot carries the docs this user may read (my_branding.home.boot_widget_docs):
-// a widget's FIRST with_doc for each is answered from them. Only a widget's: the
-// widgets call with_doc with no callback, while the form view always passes one, and
-// no docinfo is faked, so a form opened on a card (even as the first page loaded)
-// fetches as usual. A form must never open on an empty docinfo: its timeline,
+// every widget with_doc for each, for this page session, is answered from them (a later
+// Home render needs no getdoc wave). Only a widget's: the widgets call with_doc with no
+// callback, while the form view always passes one, and no docinfo is faked, so a form
+// opened on a card (even as the first page loaded) fetches as usual. A form must never open on an empty docinfo: its timeline,
 // assignments and @mentions need one.
 
 	try {
@@ -31,7 +31,6 @@
 			var key = doctype + "\u0000" + (name || doctype);
 			var route = (frappe.get_route && frappe.get_route()) || [];
 			if (pending[key] && !callback && route[0] !== "Form" && locals[doctype] && locals[doctype][name]) {
-				delete pending[key];
 				return Promise.resolve(frappe.get_doc(doctype, name));
 			}
 			return with_doc.apply(this, arguments);

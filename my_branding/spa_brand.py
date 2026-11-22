@@ -21,9 +21,9 @@ SPA_BRAND = brand_config.spa_brand()
 
 # Bump when editing spa-brand.css / spa-brand.js (the SPA service worker + HTTP
 # layer cache them aggressively).
-_VER = "20261024-maintenance222"  # Refresh cached SPA branding after the maintenance fixes.
+_VER = "20261117-perf"  # Versioned display-size brand assets (Fable F2, F5).
 
-_FAVICON = "/assets/my_branding/images/favicon.png"
+_FAVICON = "/assets/my_branding/images/favicon.png?v=20261117-perf"
 # Swap the href of any <link rel="icon"|"shortcut icon"> to the Nexum Air favicon.
 _FAVICON_RE = re.compile(r'(<link\b[^>]*\brel="(?:shortcut )?icon"[^>]*\bhref=")[^"]*"', re.I)
 _TITLE_RE = re.compile(r"<title>.*?</title>", re.I | re.S)
@@ -112,7 +112,7 @@ def inject_brand_assets(response, request):
 		# tab title + favicon for the initial paint (spa-brand.js keeps the title
 		# branded across client-side route changes)
 		html = _TITLE_RE.sub("<title>%s</title>" % cfg["name"], html, count=1)
-		html = _FAVICON_RE.sub(r"\1%s\"" % _FAVICON, html)
+		html = _FAVICON_RE.sub(lambda m: m.group(1) + _FAVICON + '"', html)
 
 		# Per-app brand config for spa-brand.js (which wordmark to swap, etc.).
 		theme, csrf = "Light", None

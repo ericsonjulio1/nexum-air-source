@@ -7,10 +7,11 @@ app_license = "mit"
 
 # Branding
 # --------
-app_logo_url = "/assets/my_branding/images/nexum-mark.png"
+_ASSET_VER = "20261117-perf"
+app_logo_url = f"/assets/my_branding/images/nexum-mark.png?v={_ASSET_VER}"
 brand_html = '<span style="font-weight:700;color:#fff;letter-spacing:0.3px;">Nexum Air</span>'
 
-_BRAND_CSS_VER = "20261016d"
+_BRAND_CSS_VER = "20261117-perf"
 app_include_css = [
 	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
 	"/assets/my_branding/css/report-theme.css?v=20261016d",
@@ -18,11 +19,11 @@ app_include_css = [
 ]
 app_include_js = [
 	"/assets/my_branding/js/report-theme.js?v=20261016d",
-	"/assets/my_branding/js/compatibility.js?v=20261022-architecture1",
+	"/assets/my_branding/js/compatibility.js?v=20261117-perf",
 	"/assets/my_branding/js/brand.js?v=20261022-architecture1",
 	"/assets/my_branding/js/navigation.js?v=20261016d",
 	# idle screen lock: warning, lock in place, unlock (see idle_lock.py)
-	"/assets/my_branding/js/idle_lock.js?v=20261010a",
+	"/assets/my_branding/js/idle_lock.js?v=20261117-perf",
 ]
 web_include_css = [
 	f"/assets/my_branding/css/brand.css?v={_BRAND_CSS_VER}",
@@ -30,12 +31,12 @@ web_include_css = [
 ]
 # split login page (left industrial animation + right credentials); login.js guards on
 # #page-login so it only acts on /login, never other web pages.
-web_include_js = "/assets/my_branding/js/login.js?v=20261016-spacious2"
+web_include_js = "/assets/my_branding/js/login.js?v=20261117-perf"
 website_theme_scss = "my_branding/public/scss/website"
 
 website_context = {
-	"favicon": "/assets/my_branding/images/favicon.png",
-	"splash_image": "/assets/my_branding/images/nexum-logo-full.png",
+	"favicon": f"/assets/my_branding/images/favicon.png?v={_ASSET_VER}",
+	"splash_image": f"/assets/my_branding/images/nexum-mark.png?v={_ASSET_VER}",
 	"app_name": "Nexum Air",
 }
 

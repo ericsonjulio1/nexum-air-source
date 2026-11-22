@@ -15,6 +15,7 @@
 		form.parentNode.insertBefore(head, form);
 	}
 
+	var version = "?v=20261117-perf";
 	var asset = "/assets/my_branding/video/nexumair-plant-20261016-v7";
 	var art = document.createElement("div");
 	art.className = "nexum-art";
@@ -57,7 +58,7 @@
 	}
 	function update() {
 		if (desktop.matches && !posterLoaded) {
-			poster.src = asset + "-poster.jpg";
+			poster.src = asset + "-poster.jpg" + version;
 			video.poster = poster.src;
 			posterLoaded = true;
 		}
@@ -71,7 +72,7 @@
 		if (!sourcesLoaded) {
 			["webm", "mp4"].forEach(function (format, i, all) {
 				var source = document.createElement("source");
-				source.src = asset + "." + format;
+				source.src = asset + "." + format + version;
 				source.type = "video/" + format;
 				// A failed candidate fires "error" at its <source>, never at the <video>
 				// (HTML media spec, children mode), and the next one is tried; an error on

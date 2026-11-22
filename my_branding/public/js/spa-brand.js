@@ -88,7 +88,8 @@
 	var BRAND = window.__NEXUM_BRAND__ || { name: "Nexum Air", old: null };
 	var NAME = BRAND.name || "Nexum Air";
 	var OLD = BRAND.old || null;
-	var MARK = "/assets/my_branding/images/nexum-mark.png";
+	var VERSION = "?v=20261117-perf";
+	var MARK = "/assets/my_branding/images/nexum-mark.png?v=20261117-perf";
 	// The injected header logo should match the app's own launcher tile (owner
 	// request, v16-prod-133) — one generic N for every SPA read as unbranded.
 	// Keyed by the SPA's first path segment; anything unmapped keeps the N mark.
@@ -115,13 +116,13 @@
 	}
 	var APP_MARK = (function () {
 		try {
-			if (APP_ICONS[SEG]) return "/assets/my_branding/images/icons/" + APP_ICONS[SEG];
+			if (APP_ICONS[SEG]) return "/assets/my_branding/images/icons/" + APP_ICONS[SEG] + VERSION;
 		} catch (e) {
 			/* fall back to the generic mark */
 		}
 		return MARK;
 	})();
-	var FAVICON = "/assets/my_branding/images/favicon.png";
+	var FAVICON = "/assets/my_branding/images/favicon.png?v=20261117-perf";
 	// Two tiers of text swap:
 	//  * SWAPS — the specific "Frappe X" -> "Nexum Air X" wordmark. "Frappe X" is
 	//    distinctive enough to substring-replace anywhere in the DOM safely.

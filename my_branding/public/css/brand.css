@@ -10,7 +10,7 @@
    no external font requests. */
 @font-face {
   font-family: 'NX Plex Mono';
-  src: url('/assets/my_branding/fonts/plex-mono-subset.woff2') format('woff2');
+  src: url('/assets/my_branding/fonts/plex-mono-subset.woff2?v=20261117-perf') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -133,7 +133,7 @@ a:hover {
 /* N logo in the launcher's top gradient bar (replaces the default cube). The
    server-set src is cached client-side, so we swap it via `content`. */
 #brand-logo {
-  content: url("/assets/my_branding/images/nexum-mark-white.png") !important;
+  content: url("/assets/my_branding/images/nexum-mark-white.png?v=20261117-perf") !important;
   width: 28px !important;
   height: auto !important;
 }
@@ -158,7 +158,7 @@ a:hover {
   z-index: 999999 !important;
 }
 .splash img {
-  content: url("/assets/my_branding/images/nexum-mark-white.png") !important;
+  content: url("/assets/my_branding/images/nexum-mark-white.png?v=20261117-perf") !important;
   width: 150px !important;
   max-width: 150px !important;
   height: auto !important;
@@ -194,7 +194,7 @@ a:hover {
   content: "";
   width: 150px;
   height: 165px;
-  background: url("/assets/my_branding/images/nexum-mark-white.png") center / contain no-repeat;
+  background: url("/assets/my_branding/images/nexum-mark-white.png?v=20261117-perf") center / contain no-repeat;
   animation: nexum-splash-pulse 1.5s ease-in-out infinite;
 }
 /* Dark-mode splash: the light teal->cyan gradient reads glaring on the dark

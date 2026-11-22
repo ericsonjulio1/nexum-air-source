@@ -28,7 +28,7 @@
 	// Only events a person makes. No "scroll": pages scroll themselves (list refresh,
 	// timelines), and wheel/touch/keys/mouse already cover every human scroll.
 	var EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "wheel"];
-	var LOGO = "/assets/my_branding/images/nexum-mark-white.png";
+	var LOGO = "/assets/my_branding/images/nexum-mark-white.png?v=20261117-perf";
 
 	var cfg = null;
 	var user = null;

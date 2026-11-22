@@ -1088,7 +1088,7 @@ test("idx 150: other SPAs keep their svg logo swap (CRM's 300x300 mark)", () => 
 	});
 	const img = t.doc.getElementById('crm').querySelector('img[data-nexum-logo-img]');
 	assert.ok(img, 'Nexum Air icon injected');
-	assert.equal(img.getAttribute('src'), '/assets/my_branding/images/icons/crm_app2.svg');
+	assert.equal(img.getAttribute('src'), '/assets/my_branding/images/icons/crm_app2.svg?v=20261117-perf');
 });
 
 test('idx 150: spa-brand.css hides the svg fingerprints everywhere except Builder', () => {
@@ -1112,9 +1112,10 @@ test('idx 150: spa-brand.css hides the svg fingerprints everywhere except Builde
 	assert.equal(svg.matches(scoped), false);
 });
 
-// idx 94 (review of batch 205, finding 3) — brand.js answers each Home widget's FIRST
-// with_doc from boot, and fakes no docinfo: a form opened on the card later must fetch
-// its doc + docinfo (timeline, assignments, @mentions all need one).
+// idx 94 (review of batch 205, finding 3) — brand.js answers a Home widget's with_doc from
+// boot (since F6, for the whole page session: the old code fetched once per page session on
+// the first return to Home, not each time), and fakes no docinfo: a form opened on the card
+// later must fetch its doc + docinfo (timeline, assignments, @mentions all need one).
 function loadWidgetBoot(docs) {
 	const src = compatibility('bootDocuments');
 	const locals = {};
@@ -1140,16 +1141,37 @@ function loadWidgetBoot(docs) {
 	return { frappe, fetched, locals };
 }
 
-test('idx 94: the first with_doc per boot doc is local, later ones fetch, no docinfo is faked', async () => {
+// F6 (2026-11-17): boot docs answer EVERY widget with_doc for the page session, not just the
+// first (the once-only delete sent a getdoc wave each time the user returned to Home). The old
+// assertion that a later no-callback call fetches was changed accordingly.
+test('idx 94: a widget with_doc for a boot doc is answered locally every time, no docinfo is faked', async () => {
 	const t = loadWidgetBoot([{ doctype: 'Number Card', name: 'Receivables', label: 'Receivables' }]);
 	const first = await t.frappe.model.with_doc('Number Card', 'Receivables'); // as the widget calls it
 	assert.equal(first.label, 'Receivables');
 	assert.deepEqual(t.fetched, [], 'the widget render needs no request');
 	assert.equal(t.frappe.model.docinfo['Number Card'], undefined, 'no fake docinfo for a form to trip on');
 	await t.frappe.model.with_doc('Number Card', 'Receivables');
-	assert.deepEqual(t.fetched, ['Number Card/Receivables'], 'a later open (the form) fetches');
+	await t.frappe.model.with_doc('Number Card', 'Receivables');
+	assert.deepEqual(t.fetched, [], 'second and later widget calls are answered from locals without a getdoc');
 	await t.frappe.model.with_doc('Number Card', 'Payables');
-	assert.deepEqual(t.fetched, ['Number Card/Receivables', 'Number Card/Payables'], 'other docs are untouched');
+	assert.deepEqual(t.fetched, ['Number Card/Payables'], 'other docs are untouched');
+});
+
+test('idx 94: a with_doc with a callback, on a Form route, or for an evicted doc falls through to frappe', async () => {
+	const a = loadWidgetBoot([{ doctype: 'Number Card', name: 'Receivables' }]);
+	await a.frappe.model.with_doc('Number Card', 'Receivables');
+	await a.frappe.model.with_doc('Number Card', 'Receivables', () => {});
+	assert.deepEqual(a.fetched, ['Number Card/Receivables'], 'callback after local answers still fetches');
+	const b = loadWidgetBoot([{ doctype: 'Number Card', name: 'Receivables' }]);
+	await b.frappe.model.with_doc('Number Card', 'Receivables');
+	b.frappe.get_route = () => ['Form', 'Number Card', 'Receivables'];
+	await b.frappe.model.with_doc('Number Card', 'Receivables');
+	assert.deepEqual(b.fetched, ['Number Card/Receivables'], 'Form route fetches');
+	const c = loadWidgetBoot([{ doctype: 'Number Card', name: 'Receivables' }]);
+	await c.frappe.model.with_doc('Number Card', 'Receivables');
+	delete c.locals['Number Card']['Receivables'];
+	await c.frappe.model.with_doc('Number Card', 'Receivables');
+	assert.deepEqual(c.fetched, ['Number Card/Receivables'], 'evicted doc fetches');
 });
 
 test('idx 94: a form open is never answered from boot, even as the first call', async () => {
