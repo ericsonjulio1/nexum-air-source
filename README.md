@@ -29,7 +29,9 @@ the rest are GPLv3 or MIT. Historical manifests also include apps no longer inst
 
 ## Reproducing the running image
 
-Use the [v229 release recipe](build/releases/v16-prod-229/README.md), which updates
+Use the [v230 release recipe](build/releases/v16-prod-230/README.md), which replaces
+only the custom applications on the exact v229 image, together with the
+[v229 release recipe](build/releases/v16-prod-229/README.md), which updates
 Frappe, ERPNext, HRMS and CRM and two Python dependencies on the exact v228
 image and verifies the prepared build context file by file. The [v228](build/releases/v16-prod-228/README.md),
 [v227](build/releases/v16-prod-227/README.md), [v226](build/releases/v16-prod-226/README.md) and

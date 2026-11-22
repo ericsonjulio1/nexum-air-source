@@ -24,7 +24,7 @@ upstream commit we run, and our modifications.
   **<https://github.com/ericsonjulio1/nexum-air-source>** (also available at no charge
   by emailing **hello@nexumair.com**; offer page: <https://nexumair.com/source.html>).
 
-## v229 applications, licenses, and pinned commits
+## v230 applications, licenses, and pinned commits
 
 | App | License | Upstream | Pinned commit |
 |-----|---------|----------|---------------|
@@ -45,7 +45,25 @@ upstream commit we run, and our modifications.
 modifies AGPLv3 apps at runtime, the deployed combination is governed by AGPLv3
 and `my_branding`'s source is offered accordingly.
 
-## Current production release: v16-prod-229
+## Current production release: v16-prod-230
+
+Deployed and verified on 22 November 2026 (Pacific/Port_Moresby; 13:30 UTC).
+The [v230 recipe](build/releases/v16-prod-230/README.md) is an app-only release on the exact
+v229 image: only `my_branding` and private EAM change. Every bundled upstream application, all
+49 source overlays, the hashed Python locks and the frontend locks are v229's, unchanged
+(pinned commits in the table above). The build re-ran the v229 recipe on the v229 image,
+re-copying the identical upstream trees and rebuilding their frontend assets, and was then
+flattened into one layer as v229 was. A file-by-file comparison of the two images finds no
+differing source file in any AGPLv3 application, only regenerated build files (listed in the
+recipe), so the AGPL-covered sources and every published modification are v229's.
+
+Branding is `9e8925c6a2ba` (v229's `8cf99edd4da1` plus performance fixes: versioned, smaller
+brand images and splash mark, Home widgets that reuse the page's boot data, and a fixed SPA
+favicon link); private EAM is `339920ce7dd6` (Workbench, work-order and Asset meter
+performance fixes on top of v229's `97ebff6032d6`). As in v229, the build context leaves out
+`my_branding`'s `docs/` and `ops/` directories, which the image never reads.
+
+## Previous release: v16-prod-229
 
 Deployed and verified on 17 November 2026 (Pacific/Port_Moresby; 16 November 22:28 UTC).
 The [v229 recipe](build/releases/v16-prod-229/README.md) updates the framework on the exact
@@ -299,7 +317,8 @@ Its private repository is not copied into this public mirror.
 Items 1–8 describe modifications already present as of v227; each release recipe above
 identifies the retained and superseded patches. The v229 recipe lists all 49 modified files with
 upstream and patched SHA-256 in `build/releases/v16-prod-229/context/v229-tools/source-overlays.json`
-(39 unchanged from v228; 10 rebased onto Frappe 16.56.0 and ERPNext 16.55.0; none new).
+(39 unchanged from v228; 10 rebased onto Frappe 16.56.0 and ERPNext 16.55.0; none new). v230
+applies the same 49 files unchanged.
 
 1. **gameplan** (AGPLv3) — `gameplan/api.py`: guard a `from frappe.config import
    get_modules_from_all_apps_for_user` import that was removed in Frappe v16, so
@@ -361,7 +380,10 @@ and the other 2026-08-22 frappe/erpnext security backports.
 
 ## Reproducing the build
 
-The current recipe is `build/releases/v16-prod-229/manifest.json`. It pins the
+The current release, v16-prod-230, replaces only the custom applications on the exact v229
+image; `build/releases/v16-prod-230/manifest.json` pins that base and both commits and
+records how the deployed image was built. The framework recipe is
+`build/releases/v16-prod-229/manifest.json`. It pins the
 v228 base, the six pinned upstream archives (four updated; Helpdesk and Drive unchanged), the branding runtime commit, the private EAM
 commit, and the two changed Python dependency wheels. Its `prepare.py` downloads the pinned
 upstream sources from GitHub and the two changed wheels from PyPI (by URL and SHA-256; the
@@ -375,4 +397,4 @@ A public reader cannot rebuild the private EAM layer without repository access.
 The branding runtime and package metadata are published in this mirror. Follow
 the inherited v224 and earlier manifests for the retained base's provenance.
 Historical `build/Containerfile`, `saas/image/Containerfile` and old patchers alone
-do not reproduce v229; its release capsule is the canonical recipe.
+do not reproduce v230; the v230 and v229 release capsules are the canonical recipe.

@@ -1,0 +1,84 @@
+{
+  "image": "ericsonjulio/erpnext:v16-prod-230",
+  "candidate_tag": "ericsonjulio/erpnext:v16-prod-230-rc2",
+  "digest": "sha256:73e358c303b228451787785beab5d73b97940e6d936621e2718ba8ee5ee57be8",
+  "base_image": "ericsonjulio/erpnext@sha256:fe553f13107d4209c8c6d157f3fc3a203e7f535eb4a901e6db795bf90e5ecbaa",
+  "platform": "linux/amd64",
+  "upstream_manifest": "../v16-prod-229/manifest.json",
+  "inherited_release": "../v16-prod-229/manifest.json",
+  "changes_upstream_dependencies": false,
+  "dockerfile_sha256": "bf6996a6c7f6ceefb80bc45d86bd6b6e58a589c28a3ecaf44f4cec1cd954fbb0",
+  "dockerfile_role": "app-only reproduction on the exact base image; not the file that built the deployed image (see deployed_build)",
+  "deployed_build": {
+    "recipe": "../v16-prod-229/context/Dockerfile, re-run on base_image",
+    "dockerfile_sha256": "5c3a323d0225b1898683ae6e9744564f075e12e0cd018da58b1d665f67844e5a",
+    "differences_from_v229_recipe": [
+      "FROM base_image (the deployed v229 image)",
+      "tool directory copied to /tmp/upgrade-230 instead of /tmp/upgrade-229",
+      "empty Python dependency delta: the delta-wheel install step is absent",
+      "custom_apps commits and labels below"
+    ],
+    "inputs_identical_to_v229": "upstream archives and the 49 source overlays for frappe, erpnext, hrms, crm, helpdesk and drive; retained insights, print_designer and telephony files; source-overlay and patcher tools; Python security and maintenance locks; dependency bundle",
+    "steps": "re-copied the frappe, erpnext, hrms, crm, helpdesk, drive, eam and my_branding trees; re-verified the 49 overlays; reinstalled those eight editable apps without an index; re-ran the frozen-lockfile frontend installs; re-applied and verified the installed-dependency and security patchers; rebuilt the frontend assets of those eight apps; removed three dead build caches; flattened the stacked image into one layer",
+    "stacked_image_id": "sha256:f71a4eba755e2f6b0b8d9485a25581a87a83e4165b5e8073f97221bb580bed3c",
+    "flat_image_entries": 441533
+  },
+  "agpl_equivalence": {
+    "compared": "deployed v229 and v230 images, read-only: SHA-256, permission and owner of every regular file, symlink targets, directories; only __pycache__ directories excluded",
+    "agpl_apps": [
+      "crm",
+      "drive",
+      "gameplan",
+      "helpdesk",
+      "insights",
+      "print_designer",
+      "telephony"
+    ],
+    "rebuilt_upstream_apps": [
+      "frappe",
+      "erpnext",
+      "hrms",
+      "crm",
+      "helpdesk",
+      "drive"
+    ],
+    "entries_per_image": {
+      "files": 328837,
+      "symlinks": 4000,
+      "directories": 38352
+    },
+    "differing_source_files": 0,
+    "differing_generated_files": 108,
+    "generated_differences": [
+      "frappe 18, erpnext 6 and hrms 2 CSS bundles renamed: CSS identical apart from its sourceMappingURL line; each source map records the temporary build directory, which changes the hashed file name (104 paths: removed and added, CSS and map)",
+      "crm public/frontend/sw.js.map (temporary build directory) and public/frontend/assets/demoData-CFNi97zr.js.map (bundler asset placeholders in a different order); the JavaScript they map is identical",
+      "drive frontend/node_modules/.modules.yaml and .pnpm-workspace-state-v1.json (package-manager timestamps and store path)"
+    ],
+    "outside_application_trees": "assets/assets.json and assets/assets-rtl.json (the renamed bundle names), the editable-install RECORD and uv_cache.json timestamps of the eight reinstalled apps, and the new /tmp/upgrade-230 tool directory; everything else in the image filesystem is identical"
+  },
+  "custom_apps": {
+    "my_branding": {
+      "repository": "https://github.com/ericsonjulio1/Nexum-Air.git",
+      "previous_commit": "8cf99edd4da1a666f74de1f1cccedaf9533d2527",
+      "commit": "9e8925c6a2bac45fc200c06cab0e12ad23b69fb9",
+      "tree": "8be976e6e0330a6e0a8841164026a01d0d9c0d26",
+      "source": "published runtime application",
+      "license": "MIT",
+      "excluded_paths": [
+        "docs/",
+        "ops/"
+      ],
+      "excluded_note": "docs/ and ops/ (design notes; host deploy, backup and firewall scripts) are never read inside the container image and were left out of the build context, as in v16-prod-229; prepare.py archives the commit without them."
+    },
+    "eam": {
+      "repository": "https://github.com/ericsonjulio1/eam.git",
+      "previous_commit": "97ebff6032d6f39500149233771e32377c31df6c",
+      "commit": "339920ce7dd63c774a2ee2eb6d25de137701b6a3",
+      "tree": "ef22e4be10ec5b9dad19ea280a1c3fd14a161b7a",
+      "source": "private repository",
+      "license": "MIT"
+    }
+  },
+  "status": "deployed-verified",
+  "deployed_verified_utc": "2026-11-22T13:30:42Z"
+}
